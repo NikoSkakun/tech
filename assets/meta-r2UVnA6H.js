@@ -1,0 +1,1 @@
+function e(e,t={}){return{title:e.title,subtitle:t.subtitle??e.subtitle,axisLabel:e.axisLabel,steps:e.steps.map(e=>({id:e.id,title:e.title,blurb:t.blurbs?.[e.id]??e.blurb}))}}export{e as t};
