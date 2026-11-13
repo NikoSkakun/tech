@@ -39,7 +39,8 @@ export const plugin: EnginePlugin = {
     const header = createHeader(h);
     h.mount(header, { side: 'top', extra: 8 });
     h.mount(createSystemButtons(h));
-    h.mount(createNavigator(h), { side: 'bottom', extra: 8 });
+    const navigator = createNavigator(h);
+    h.mount(navigator, { side: 'bottom', extra: 8 });
     const column = createStepColumn(h, h.popups, header.node);
     h.mount(column, { side: 'auto', extra: 14 });
     h.mount(column.board, { side: (m) => (m.layout === 'wide' ? 'left' : 'top'), extra: 14 });
@@ -137,6 +138,9 @@ export const plugin: EnginePlugin = {
       if (volume) prepare(volume);
     });
     h.onVolume(activate);
+    // D0 spike (docs/HUD_DOM.md): `?hud=dom` draws header, step panel and navigator as DOM over the canvas
+    if (new URLSearchParams(window.location.search).get('hud') === 'dom')
+      void import('@/hud-dom').then((m) => m.mountDomHud(h, { header: header.node, navigator: navigator.node }));
   },
 };
 

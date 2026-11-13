@@ -276,3 +276,28 @@ If a chapter document contradicts this file, this file wins and the document mus
        orchestrator from D0's proposal; questions of taste go to the user.
     f. **Process (user, same message):** «Пам'ятай про те, що ти - оркестратор, планувальник і аудитор. Для
        кожної задачі запускай субагента на opus-5-5 high effort.»
+    **Design settled (orchestrator, 2026-11-14, from D0-hud-dom's proposal; design `docs/HUD_DOM.md`).**
+    g. **Technique:** `@/hud-dom`, vanilla TypeScript + CSS, no UI framework; one fixed layer `#kd-hud` over the
+       canvas with five sub-layers (world, chrome, popups, modal, tip); plates take pointers, the rest passes to
+       the scene.
+    h. **Units and tokens:** CSS lengths are px-equivalent units × `--u` (= `HudMetrics.pxPerUnit`); colours, type
+       scale, radii and motion are CSS variables generated from `@/style` and `UI`; no hard-coded colours.
+    i. **Fonts and icons:** the same families as WOFF2 subsets served from the app origin (OFL, `THIRD_PARTY.md`);
+       icons from the same definitions as CSS masks.
+    j. **In-scene text:** callouts, hotspot markers and cards, journey-map labels and 3D tooltips become DOM,
+       projected per frame; `Text3D` and world consoles stay WebGL; `hudSurface` is replaced by a DOM `hudLayer`.
+       On phones a world console steps aside when the dock already shows the same value, else it gets an optional
+       declarative spec, else it stays in the scene.
+    k. **Charts:** Canvas2D for marks, DOM for all text; the chart API for chapters is unchanged; the platform
+       ports the six custom chapter widgets and the atom scale ruler.
+    l. **Motion:** choreography on the engine clock (deterministic QA); CSS transitions only for micro-interactions,
+       off under `?freeze` and reduced motion.
+    m. **Migration:** hybrid flag `?hud=dom|gl` (default `gl` until cut-over); work packages D1–D9
+       (`docs/HUD_DOM.md` §16); D1 starts after F5-mobile is in `main`; the WebGL HUD is deleted only after the
+       user has reviewed the before/after sheets.
+    n. **Reading level:** the DOM step panel carries the «Просто / Докладно» switch; copy comes only from L1's
+       selector (`docs/briefs/L-simple-level.md`).
+    o. **Open taste questions for the user** (until answered, today's look is kept): Q2 scan band and animated
+       grain on panels → static faint grain?; Q3 no perspective tilt on panels, only slight sideways parallax?;
+       Q6 behaviour at 200 % browser zoom; Q8 wording when a step has no simple layer; Q9 calmer glow on DOM
+       panels vs pushing it toward the WebGL bloom.
