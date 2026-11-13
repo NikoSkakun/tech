@@ -31,9 +31,10 @@ export interface PartView {
   shown: string;
 }
 
-const BODY_HALF = 0.4; // half length of a body along the part
+const BODY_SCALE = 1.2; // bodies on the board are drawn larger than the tray models: they are the hero
+const BODY_HALF = 0.4 * BODY_SCALE; // half length of a body along the part
 
-function body(kind: PartKind): { group: Group; blade: Object3D | null } {
+export function partBody(kind: PartKind): { group: Group; blade: Object3D | null } {
   const b = new Builder(`part-${kind}`);
   let blade: Object3D | null = null;
   if (kind === 'resistor') {
@@ -87,20 +88,22 @@ export function createPartView(part: Part, pa: Vector3, pb: Vector3): PartView {
       createLead([pa, mid.clone().sub(gap)], { bend: 0, radius: 0.05 }),
       createLead([mid.clone().add(gap), pb], { bend: 0, radius: 0.05 }),
     );
-    const made = body(part.kind);
+    const made = partBody(part.kind);
     blade = made.blade;
     made.group.position.copy(mid).setY(0);
+    made.group.scale.setScalar(BODY_SCALE);
     made.group.rotation.y = Math.atan2(-dir.z, dir.x);
     group.add(made.group);
     if (part.kind === 'lamp') {
       glow = K.glow({ color: 'orange', intensity: 0.2, falloff: 0, whiten: 0.3 });
-      const filament = new Mesh(new SphereGeometry(0.1, 14, 10), glow);
-      filament.position.set(mid.x, 0.5, mid.z);
+      const filament = new Mesh(new SphereGeometry(0.1 * BODY_SCALE, 14, 10), glow);
+      filament.position.set(mid.x, 0.5 * BODY_SCALE, mid.z);
       group.add(filament);
     }
-    label = tag('', 17, 'white', 'mono');
-    // beside a part that runs toward the camera, behind one that runs across — never over its own leads
-    label.position.set(mid.x + Math.abs(dir.z) * 1.0, 0.45, mid.z - Math.abs(dir.x) * 0.55);
+    label = tag('', 19, 'white', 'mono');
+    // two short lines right beside the body: to the right of a part that runs toward the camera, behind one
+    // that runs across — never over its own leads, and narrow enough not to touch a neighbour's reading
+    label.position.set(mid.x + Math.abs(dir.z) * 0.62, 0.6, mid.z - Math.abs(dir.x) * 0.5);
     group.add(label);
   }
   group.add(...halves.map((h) => h.mesh));

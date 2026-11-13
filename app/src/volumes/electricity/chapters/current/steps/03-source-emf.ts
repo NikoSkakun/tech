@@ -17,7 +17,7 @@ import { createBulb } from '../parts/bulb';
 import { anchorIn, createLead, route } from '../parts/leads';
 import { createMeter } from '../parts/meter';
 import { createSupply } from '../parts/supply';
-import { createWaterLoop } from '../parts/water-loop';
+import { MORPH_S, createWaterLoop } from '../parts/water-loop';
 import { group, tag } from '../world';
 
 const ID = 'source-emf';
@@ -31,32 +31,39 @@ function analogyRows(): string[][] {
     .map((pair) => pair.split('↔').map((cell) => cell.trim()));
 }
 
+const SRC_SCALE = 1.25;
+
 export const sourceEmfStep: StepFactory = (bench) => {
   const { ctx, ui, mats } = bench;
   const set = group(`set:${ID}`);
   bench.top.add(set);
-  const SRC = new Vector3(-2.7, 0, 0.45); // centre of the source's terminal pair
+  const SRC = new Vector3(-2.45, 0, 0.45); // centre of the source's terminal pair
+  // the cell is the hero («ескалатор» inside): drawn larger, and the lab supply with it, so the terminals of
+  // both stay 2.24 × SRC_SCALE apart and the same leads fit either
+  const half = 1.12 * SRC_SCALE;
   const cell = createBatteryCutaway(ctx);
-  cell.group.position.set(SRC.x, 0, SRC.z - 1.15);
+  cell.group.scale.setScalar(SRC_SCALE);
+  cell.group.position.set(SRC.x, 0, SRC.z - 1.15 * SRC_SCALE);
   const supply = createSupply();
+  supply.group.scale.setScalar(SRC_SCALE);
   supply.group.position.copy(SRC);
   const bulb = createBulb();
   bulb.group.position.set(2.2, 0, -1.7);
   const a1 = createMeter('A');
-  a1.group.position.set(-0.2, 0, -1.94);
+  a1.group.position.set(0.1, 0, -1.94);
   const a2 = createMeter('A');
   a2.group.position.set(0.9, 0, 1.86);
   set.add(cell.group, supply.group, bulb.group, a1.group, a2.group);
 
   // flow order: «+» → ammeter 1 → lamp → ammeter 2 → «−»
   const routes = [
-    route(anchorIn(set, cell.plus), anchorIn(set, a1.a), [[-1.58, -1.7]]),
+    route(anchorIn(set, cell.plus), anchorIn(set, a1.a), [[SRC.x + half, -1.7]]),
     [anchorIn(set, a1.b), anchorIn(set, bulb.a)],
     route(anchorIn(set, bulb.b), anchorIn(set, a2.b), [
       [3.5, -1.7],
       [3.5, 2.1],
     ]),
-    route(anchorIn(set, a2.a), anchorIn(set, cell.minus), [[-3.82, 2.1]]),
+    route(anchorIn(set, a2.a), anchorIn(set, cell.minus), [[SRC.x - half, 2.1]]),
   ];
   const leads = routes.map((r) => createLead(r, { bend: r.length > 2 ? 0.28 : 0 }));
   const water = createWaterLoop(ctx, mats, routes, SRC, bulb.group.position);
@@ -68,7 +75,10 @@ export const sourceEmfStep: StepFactory = (bench) => {
 
   const electric = [cell.group, bulb.group, ...leads.map((l) => l.mesh)];
   ctx.stage.actor(supply.group);
-  ctx.stage.actor(water.group);
+  // the water loop animates its own morph (pipes fill along the leads, pump and wheel grow in place); the
+  // leads fade instead of popping, so they dissolve inside the pipes rather than shrink toward the origin
+  ctx.stage.actor(water.group, { appear: 'none' });
+  for (const lead of leads) ctx.stage.actor(lead.mesh, { appear: 'fade' });
   /* ------------------------------------------------------------------------------------- state */
   let analogy = false;
   let lab = false;
@@ -80,9 +90,22 @@ export const sourceEmfStep: StepFactory = (bench) => {
   const v = new Vector3();
   /** Battery ↔ supply ↔ water: show exactly what the two switches ask for. */
   const arrange = (): void => {
-    for (const o of electric) ctx.stage.toggle(o, !analogy && (o !== cell.group || !lab));
+    ctx.stage.toggle(cell.group, !analogy && !lab);
+    ctx.stage.toggle(bulb.group, !analogy);
     ctx.stage.toggle(supply.group, !analogy && lab);
-    ctx.stage.toggle(water.group, analogy);
+    water.target = analogy ? 1 : 0;
+    if (analogy) {
+      ctx.stage.toggle(water.group, true);
+      // the pipes grow over the wires first, then the wires go
+      ctx.stage.scope.delay(MORPH_S * 0.8, () => {
+        if (analogy) for (const l of leads) ctx.stage.toggle(l.mesh, false);
+      });
+    } else {
+      for (const l of leads) ctx.stage.toggle(l.mesh, true);
+      ctx.stage.scope.delay(MORPH_S, () => {
+        if (!analogy) ctx.stage.toggle(water.group, false);
+      });
+    }
   };
   ui.onChange('water3', () =>
     ui.patch('emf3', { label: ui.value<boolean>('water3') ? `ℰ — ${DOC.pumpForce}` : OWN.emf }),
@@ -102,8 +125,8 @@ export const sourceEmfStep: StepFactory = (bench) => {
     id: ID,
     shots: {
       [ID]: {
-        position: [0.9, 6.6, 9.6],
-        target: [0.3, 0.7, 0],
+        position: [0.1, 6.2, 9.4],
+        target: [-0.35, 1.05, 0.1],
         fov: 30,
         orbit: { azimuth: 0.8, polar: 0.3 },
         fit: { center: [0.2, 0.9, 0], radius: 4.6 },
@@ -113,6 +136,7 @@ export const sourceEmfStep: StepFactory = (bench) => {
       show: [...electric, a1.group, a2.group],
       enter: () => {
         analogy = lab = false;
+        water.snap(0);
         ui.set('water3', false);
         ui.patch('emf3', { label: OWN.emf });
       },

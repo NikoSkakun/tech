@@ -16,7 +16,7 @@ import { createCord } from '../parts/cord';
 import { anchorIn, createLead } from '../parts/leads';
 import { Sankey } from '../parts/sankey';
 import { createSupply } from '../parts/supply';
-import { group } from '../world';
+import { group, tag } from '../world';
 
 const ID = 'losses';
 
@@ -52,7 +52,11 @@ export const lossesStep: StepFactory = (bench) => {
     intensity: 1.6,
   });
   heat.position.set(0, 0.1, 0.8);
-  set.add(cord.group, drop.mesh, shimmer, heat);
+  // what is left of the voltage where the cord reaches the cottage: next to the source display, the drop
+  // along the line reads without the panel (12,0 V in, 0,7 V out)
+  const arrived = tag('', 24, 'amber', 'mono');
+  arrived.position.set(entry.x - 0.9, 0.45, entry.z + 0.45);
+  set.add(cord.group, drop.mesh, shimmer, heat, arrived);
 
   /* ------------------------------------------------------------------------------------- state */
   const ribbon = new Sankey(LOSSES.ratedW);
@@ -75,7 +79,7 @@ export const lossesStep: StepFactory = (bench) => {
         fit: { center: [0, 0.5, 0], radius: 4.7 },
       },
     },
-    stage: { show: [supply.group, cottage.group, cord.group, drop.mesh, shimmer, heat] },
+    stage: { show: [supply.group, cottage.group, cord.group, drop.mesh, shimmer, heat, arrived] },
     ui: {
       hint: OWN.hintLosses,
       honesty: [{ kind: 'simplified', text: DOC.dcChip }, 'notToScale'],
@@ -149,8 +153,13 @@ export const lossesStep: StepFactory = (bench) => {
       const sent = m.loadW + m.lossW;
       // cord: pulses ∝ power sent, speed ∝ current, colour ∝ loss per metre (≈ 6 W/m glows red)
       const k = on ? Math.min(m.lossPerMetreW / 6, 1) : 0;
-      cord.drive(on ? 0.4 + m.currentA / 8 : 0, on ? 0.3 + 1.9 * (sent / LOSSES.ratedW) : 0, k, t);
-      drop.drive(on ? 0.4 + m.currentA / 8 : 0, on ? 0.2 + 2.0 * (m.loadW / LOSSES.ratedW) : 0);
+      const flow = on ? 0.4 + m.currentA / 8 : 0;
+      const glow = (w: number): number => (on ? 0.55 + 1.2 * (w / LOSSES.ratedW) : 0); // floor: the fade must read even at 12 V
+      // along the cord the pulses dim by the share that survives the trip (η): at 12 V they all but vanish
+      // before the cottage, at 230 V they arrive almost as bright as they left
+      const arrive = glow(sent) * Math.max(m.efficiency, 0.04);
+      cord.drive(flow, glow(sent), arrive, k, t);
+      drop.drive(flow, arrive);
       shimmer.intensity = 1.6 * k;
       heat.rate = on ? Math.min((m.lossW / 500) * 1.0, 1) : 0;
       // the heater's glow fills the cottage windows
@@ -158,6 +167,8 @@ export const lossesStep: StepFactory = (bench) => {
       supply.set(volts(), on ? m.currentA : 0);
       supply.update(t);
       ribbon.set(m.loadW, m.lossW);
+      const text = fmtUnit(on ? m.loadV : 0, 'V', { maxDigits: 1 });
+      if (arrived.text !== text) arrived.text = text;
       bench.live.hum = on ? 0.3 + 0.5 * Math.min(sent / LOSSES.ratedW, 1) : 0;
       void dt;
     },

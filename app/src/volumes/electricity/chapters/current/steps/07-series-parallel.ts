@@ -6,6 +6,7 @@
  */
 import { Vector3 } from 'three';
 import { audio } from '@/audio';
+import type { DragInfo } from '@/engine/api';
 import { fmtNumber, fmtUnit } from '@/content';
 import { house } from '@/kit';
 import {
@@ -23,7 +24,8 @@ import {
 import type { StepFactory } from '../chapter';
 import { DOC } from '../labels';
 import { OWN } from '../labels-own';
-import { createCircuitGrid } from '../parts/circuit-grid';
+import { GRID_PITCH, createCircuitGrid } from '../parts/circuit-grid';
+import { createCircuitTray } from '../parts/circuit-tray';
 import {
   ALL_NODES,
   addPart,
@@ -39,17 +41,23 @@ const PRESETS: readonly BuilderPresetId[] = ['series', 'parallel', 'mixed', 'gar
 const TOOLS = ['hand', 'wire', 'resistor', 'lamp', 'switch', 'ammeter', 'source', 'erase'] as const;
 type Tool = (typeof TOOLS)[number];
 const WALK_SPEED = 2.4; // units/s of the KVL ball
+const SCALE = 1.2;
+const TRAY_Z = 2.85; // set-local centre line of the parts tray, in front of the board's first row
+const UP = new Vector3(0, 1, 0);
 
 export const seriesParallelStep: StepFactory = (bench) => {
   const { ctx, ui, mats } = bench;
-  const set = group(`set:${ID}`, -0.3, 0, 0.1);
+  // the whole constructor is drawn 1.2× so parts, nodes and leads read at 720p; picking works in set-local units
+  const set = group(`set:${ID}`, -0.15, 0, -0.85);
+  set.scale.setScalar(SCALE);
   bench.top.add(set);
   const grid = createCircuitGrid(mats);
+  const tray = createCircuitTray(TRAY_Z);
   const home = house({ width: 7, depth: 6, floors: 1, seed: 4 });
-  home.group.scale.setScalar(0.11);
-  home.group.position.set(3.75, 0, -2.3);
+  home.group.scale.setScalar(0.1);
+  home.group.position.set(2.25, 0, -2.35);
   home.group.rotation.y = -0.5;
-  set.add(grid.group, home.group);
+  set.add(grid.group, tray.group, home.group);
 
   /* ------------------------------------------------------------------------------------- state */
   let parts: Part[] = [];
@@ -108,17 +116,82 @@ export const seriesParallelStep: StepFactory = (bench) => {
       grid.pending = node;
       return;
     }
-    const error = placementError(parts, grid.pending, node);
+    place(tool as PartKind, grid.pending, node);
+    grid.pending = null;
+  };
+  const place = (kind: PartKind, a: string, b: string): void => {
+    const error = placementError(parts, a, b);
     if (!error) {
-      parts = addPart(parts, tool as PartKind, grid.pending, node);
+      parts = addPart(parts, kind, a, b);
       resolve();
     } else if (error !== 'same')
       ui.toast(error === 'diagonal' ? OWN.errDiagonal : OWN.errOccupied, { tone: 'warning' });
-    grid.pending = null;
+  };
+  // the tray: carry a part onto the board (primary), or tap it to make it the active tool
+  for (const item of tray.items) {
+    ctx.input.register(item.hit, {
+      cursor: 'grab',
+      tooltip: OWN.tools[TOOLS.indexOf(item.kind as Tool)],
+      click: () => {
+        audio.play('tick');
+        ui.set('tool7', item.kind);
+        grid.pending = null;
+      },
+      dragStart: () => {
+        audio.play('tick');
+        tray.held = item;
+        tray.invite = false;
+        grid.pending = grid.selected = null;
+      },
+      drag: (e) => {
+        const p = e.planePoint(UP, set.localToWorld(onPlane.set(0, 0, 0)), onPlane);
+        if (p) tray.carry(set.worldToLocal(p), grid.nodePos);
+      },
+      dragEnd: () => {
+        const s = tray.snap;
+        tray.held = null;
+        tray.snap = null;
+        if (s) place(item.kind, s.a, s.b);
+      },
+      enabled: () => bench.isCurrent(ID),
+    });
+    ctx.qa.probe(`tray7:${item.kind}`, () => set.localToWorld(item.home.clone().setY(0.3)));
+  }
+  // a placed part dragged off the board is removed (the script's «drag деталі геть»); dropped on the board
+  // it springs back
+  let lifted: { id: string; at: Vector3 } | null = null;
+  const onPlane = new Vector3();
+  const reach = (p: Vector3): boolean =>
+    Math.abs(p.x) < ((BUILDER.columns - 1) / 2) * GRID_PITCH + 0.45 &&
+    Math.abs(p.z) < ((BUILDER.rows - 1) / 2) * GRID_PITCH + 0.45;
+  const pointer = (e: DragInfo): Vector3 | null => {
+    const p = e.planePoint(UP, set.localToWorld(onPlane.set(0, 0, 0)), onPlane);
+    return p && set.worldToLocal(p);
   };
   ctx.input.register(grid.pick, {
     cursor: 'pointer',
     click: (e) => e.point && tap(set.worldToLocal(e.point.clone())),
+    dragStart: (e) => {
+      const p = e.startPoint && set.worldToLocal(e.startPoint.clone());
+      const id = p && grid.partAt(p);
+      lifted = p && id ? { id, at: p } : null;
+      grid.pending = grid.selected = null;
+    },
+    drag: (e) => {
+      const p = lifted && pointer(e);
+      if (p && lifted) grid.view(lifted.id)?.group.position.set(p.x - lifted.at.x, 0.3, p.z - lifted.at.z);
+    },
+    dragEnd: (e) => {
+      if (!lifted) return;
+      const p = pointer(e);
+      const view = grid.view(lifted.id);
+      if (p && !reach(p)) {
+        audio.play('click');
+        parts = removePart(parts, lifted.id);
+        resolve();
+      } else view?.group.position.set(0, 0, 0);
+      lifted = null;
+    },
     enabled: () => bench.isCurrent(ID),
   });
   ui.onChange('preset7', (id) => load(id as BuilderPresetId));
@@ -181,16 +254,16 @@ export const seriesParallelStep: StepFactory = (bench) => {
     id: ID,
     shots: {
       [ID]: {
-        position: [0.2, 9.4, 7.4],
-        target: [0, 0.2, 0.1],
+        position: [-0.15, 10.9, 5.05],
+        target: [-0.15, 0, -0.2],
         fov: 30,
-        frameAspect: 1.2,
+        frameAspect: 1.25,
         orbit: { azimuth: 0.6, polar: 0.25 },
         fit: { center: [0, 0.4, 0], radius: 4.6 },
       },
     },
     stage: {
-      show: [grid.group, home.group],
+      show: [grid.group, tray.group, home.group],
       // a first visit starts from the series preset; later visits find the table as it was left
       enter: () => {
         if (parts.length === 0) load(ui.value<BuilderPresetId>('preset7'));
@@ -343,6 +416,10 @@ export const seriesParallelStep: StepFactory = (bench) => {
         }
       } else grid.ball = null;
       grid.apply(parts, solution, t);
+      const tool = ui.value<Tool>('tool7');
+      tray.active = tool === 'hand' || tool === 'erase' ? null : tool;
+      if (ctx.reducedMotion) tray.invite = false; // no idle hopping under reduced motion
+      tray.update(dt, t);
       bench.live.buzz = Math.min(sourceAmps() / 6, 1) * 0.6;
     },
   };

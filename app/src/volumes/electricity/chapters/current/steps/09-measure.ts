@@ -4,10 +4,11 @@
  * Every reading comes from the simulated meter (`readMeter`, §9: 10 MΩ voltmeter, 0,5 Ω / 0,4 A-fused mA input,
  * 0,01 Ω 10 A input, ohmmeter only on a dead circuit). The board collects U₀, U and I and works out r.
  */
-import { Vector3 } from 'three';
+import { Group, Mesh, TorusGeometry, Vector3 } from 'three';
 import { audio } from '@/audio';
 import { fmtUnit } from '@/content';
 import { createFlash } from '@/fx';
+import { K } from '@/style';
 import {
   BATTERIES,
   MULTIMETER,
@@ -159,6 +160,18 @@ export const measureStep: StepFactory = (bench) => {
   });
   for (const [name, q] of Object.entries(term))
     ctx.qa.probe(`term9:${name}`, () => set.localToWorld(q.clone()));
+  // where a probe can touch: rings on the terminals — a slow pulse while nothing is connected (an invitation
+  // to drag a probe), the snap targets while one is carried (the nearest one bright)
+  const ringSet = new Group();
+  set.add(ringSet);
+  const ringGeo = new TorusGeometry(0.22, 0.035, 8, 28).rotateX(Math.PI / 2);
+  const rings = (Object.entries(term) as [Terminal, Vector3][]).map(([name, q]) => {
+    const mat = K.glow({ color: 'cyan', intensity: 0, falloff: 0, whiten: 0, keepHue: true });
+    const ring = new Mesh(ringGeo, mat);
+    ring.position.set(q.x, Math.max(q.y, 0.1) + 0.06, q.z);
+    ringSet.add(ring);
+    return { name, ring, mat };
+  });
   ctx.input.register(sw.group, {
     tooltip: DOC.switch,
     cursor: 'pointer',
@@ -212,6 +225,7 @@ export const measureStep: StepFactory = (bench) => {
         link.group,
         meter.group,
         meter.leads,
+        ringSet,
         ...leads.map((l) => l.mesh),
       ],
       enter: () => {
@@ -355,11 +369,21 @@ export const measureStep: StepFactory = (bench) => {
       meter.mode = mode();
       meter.fuseBlown = fuseBlown;
       meter.text = show(reading.display, mode());
+      const carried = meter.red.held ? meter.red : meter.black.held ? meter.black : null;
+      const idle = !carried && !at.red && !at.black;
+      const snap = carried ? nearest(carried.target) : null;
+      for (const r of rings) {
+        r.ring.visible = idle || carried !== null;
+        r.mat.intensity = carried ? (r.name === snap ? 1.8 : 0.55) : 0.35 + 0.25 * Math.sin(t * 3);
+      }
       for (const which of ['red', 'black'] as const) {
         const probe = meter[which];
         if (probe.held) continue;
         const where = at[which];
         probe.target.copy(where ? term[where] : PARK[which]).setY(where ? 0.3 : 0.02);
+        // the parked red probe hops now and then: "pick me up"
+        if (idle && which === 'red' && !ctx.reducedMotion)
+          probe.target.y += 0.3 * Math.max(Math.sin(t * 2.1), 0) ** 12;
       }
       meter.update(dt, t);
       // the link steps aside when the meter takes its place in the loop

@@ -40,6 +40,7 @@ const SEATS: Record<ApplianceId, readonly [number, number]> = {
   microwave: [1.2, 1.55],
 };
 const FULL_SCALE_W = 6000;
+const APPLIANCE_SCALE = 1.22;
 const fmtHours = (h: number): string => {
   const min = Math.round(h * 60);
   return min % 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min / 60} h`;
@@ -60,6 +61,7 @@ export const powerStep: StepFactory = (bench) => {
     const a = createAppliance(id);
     const [x, z] = SEATS[id];
     a.group.position.set(x, 0, z);
+    a.group.scale.setScalar(APPLIANCE_SCALE); // the appliances are the hero: larger than bench scale
     const lead = createLead(
       [new Vector3(x, BUS.y, BUS.z), new Vector3(x, 0.075, BUS.z + 0.45), new Vector3(x, 0.075, z - 0.5)],
       { bend: 0.2, radius: 0.045 },
@@ -117,8 +119,8 @@ export const powerStep: StepFactory = (bench) => {
     id: ID,
     shots: {
       [ID]: {
-        position: [0.5, 8.2, 9.6],
-        target: [0, 0.5, 0.2],
+        position: [0.4, 7.7, 6.9],
+        target: [0, 0.55, -0.15],
         fov: 30,
         frameAspect: 1.05,
         orbit: { azimuth: 0.7, polar: 0.3 },

@@ -82,6 +82,7 @@ export function tag(
     color,
     anchorX: 'center',
     anchorY: 'middle',
+    align: 'center',
     billboard: true,
     screenSpace: true,
     depthTest: false,

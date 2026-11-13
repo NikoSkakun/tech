@@ -5,7 +5,7 @@
  * Oersted's experiment — a wire over a compass; switching 5 A on swings the needle ≈ 79° off north.
  * Models: `sourceVoltage`, `lampFlicker`, `createOerstedCompass` (§10).
  */
-import { Vector3 } from 'three';
+import { MathUtils, Vector3 } from 'three';
 import { audio } from '@/audio';
 import { fmtUnit, linkTarget } from '@/content';
 import { SEMANTIC, col } from '@/style';
@@ -28,6 +28,7 @@ const LIVE = col('teal');
 const IDLE = col('slate');
 /** The scope draws model time slowed so that the 50 Hz sine glides: 1 s on stage = 4 ms of signal. */
 const GLIDE = 0.004;
+const { lerp } = MathUtils;
 
 export const dcAcStep: StepFactory = (bench) => {
   const { ctx, ui, mats } = bench;
@@ -84,33 +85,33 @@ export const dcAcStep: StepFactory = (bench) => {
     }),
   ];
   set.add(...[...dc, ...ac, ...sense].map((l) => l.mesh));
-  const lensDc = createLens(ctx, mats, [0.45, 2.0, 2.4]);
+  const lensDc = createLens(ctx, mats, [0.7, 2.7, 0.9]);
   lensDc.group.scale.setScalar(0.7);
   lensDc.group.position.set(-3.6, 0.075, -1.55);
   lensDc.dir.set(0, 0, 1);
-  const lensAc = createLens(ctx, mats, [-0.45, 2.0, 2.4]);
+  const lensAc = createLens(ctx, mats, [-0.7, 2.7, 0.9]);
   lensAc.group.scale.setScalar(0.7);
   lensAc.group.position.set(3.6, 0.075, -1.55);
   lensAc.dir.set(0, 0, 1);
   // Oersted's experiment in front: 5 A from the laboratory supply, wire along north–south (north = away)
   const rig = createOerstedRig();
-  rig.group.position.set(1.0, 0, 1.75);
+  rig.group.position.set(1.0, 0, 2.05);
   const supply = createSupply();
-  supply.group.position.set(-1.9, 0, 2.5);
+  supply.group.position.set(-1.9, 0, 2.8);
   const oersted = [
     createLead(
       route(anchorIn(set, supply.plus), anchorIn(set, rig.south), [
-        [-0.4, 2.5],
-        [-0.4, 3.35],
-        [1.2, 3.35],
+        [-0.4, 2.8],
+        [-0.4, 3.65],
+        [1.2, 3.65],
       ]),
     ),
     createLead(
       route(anchorIn(set, rig.north), anchorIn(set, supply.minus), [
-        [1.6, 0.45],
-        [1.6, 0.05],
-        [-3.3, 0.05],
-        [-3.3, 2.5],
+        [1.6, 0.75],
+        [1.6, 0.35],
+        [-3.3, 0.35],
+        [-3.3, 2.8],
       ]),
     ),
   ];
@@ -125,8 +126,12 @@ export const dcAcStep: StepFactory = (bench) => {
   const bridge = content.crossReferences
     ?.flatMap((x) => x.targets)
     .find((t) => linkTarget(t)?.chapterId === 'magnetism' && linkTarget(t)?.stepId === 'magnet-field');
-  const toOersted = (): void => void ctx.camera.go(`${ID}:oersted`, { duration: 1.6 });
-  const toBench = (): void => void ctx.camera.go(ID, { duration: 1.6 });
+  // one mise-en-scène at a time (script: «Друга мізансцена — дослід Ерстеда»): callouts and the lens
+  // emphasis follow the camera
+  let view: 'bench' | 'oersted' = 'bench';
+  const toOersted = (): void => ((view = 'oersted'), void ctx.camera.go(`${ID}:oersted`, { duration: 1.6 }));
+  const toBench = (): void => ((view = 'bench'), void ctx.camera.go(ID, { duration: 1.6 }));
+  const onBench = (): boolean => view === 'bench';
   ui.onChange('on10', () => (audio.play('relay'), toOersted()));
   ui.onChange('dir10', toOersted);
   ui.onChange('mode10', toBench);
@@ -139,6 +144,8 @@ export const dcAcStep: StepFactory = (bench) => {
     on: currentOn(),
     direction: direction(),
     trace: [buffer[0], buffer[40], buffer[80]],
+    /** Extremes over the whole screen (phase-independent). */
+    traceSpan: [Math.min(...buffer), Math.max(...buffer)],
     acAmp: lensAc.ac.amplitude,
   }));
   const v = new Vector3();
@@ -147,18 +154,18 @@ export const dcAcStep: StepFactory = (bench) => {
     id: ID,
     shots: {
       [ID]: {
-        position: [0.3, 7.4, 10.2],
-        target: [0, 0.6, 0.2],
+        position: [0.2, 7.4, 6.2],
+        target: [0, 1.1, -1.7],
         fov: 30,
         orbit: { azimuth: 0.7, polar: 0.3 },
-        fit: { center: [0, 0.8, 0], radius: 4.7 },
+        fit: { center: [0, 1.2, -1.6], radius: 3.9 },
       },
       [`${ID}:oersted`]: {
-        position: [2.2, 6.2, 7.4],
-        target: [0.6, 0.3, 1.6],
+        position: [2.2, 6.2, 7.7],
+        target: [0.6, 0.3, 1.9],
         fov: 30,
         orbit: { azimuth: 0.7, polar: 0.3 },
-        fit: { center: [0.4, 0.5, 2], radius: 2.6 },
+        fit: { center: [0.4, 0.5, 2.3], radius: 2.6 },
       },
     },
     stage: {
@@ -174,7 +181,10 @@ export const dcAcStep: StepFactory = (bench) => {
         supply.group,
         ...[...dc, ...ac, ...sense, ...oersted].map((l) => l.mesh),
       ],
-      enter: () => compass.needle.reset(0),
+      enter: () => {
+        compass.needle.reset(0);
+        view = 'bench';
+      },
     },
     ui: {
       reset: true,
@@ -234,25 +244,29 @@ export const dcAcStep: StepFactory = (bench) => {
           text: () => (isAc() ? OWN.scopeAc : OWN.scopeDc),
           color: SEMANTIC.phaseL1,
           side: 'up',
+          visible: onBench,
         },
-        { anchor: socket.top, text: OWN.mains, side: 'up' },
+        { anchor: socket.top, text: OWN.mains, side: 'up', visible: onBench },
         {
           anchor: () => lensDc.head.getWorldPosition(v).setY(v.y + 0.75),
           text: OWN.driftDc,
           color: 'cyan',
           side: 'up',
+          visible: () => onBench() && !isAc(),
         },
         {
           anchor: () => lensAc.head.getWorldPosition(v).setY(v.y + 0.75),
           text: OWN.driftAc,
           color: 'cyan',
           side: 'up',
+          visible: () => onBench() && isAc(),
         },
         {
           anchor: rig.wire,
           text: () => (currentOn() ? `5 A ${direction() > 0 ? '↑' : '↓'}` : OWN.wireOff),
           color: SEMANTIC.current,
           side: 'right',
+          visible: () => !onBench(),
         },
       ],
       hotspots: [
@@ -285,6 +299,10 @@ export const dcAcStep: StepFactory = (bench) => {
       lensDc.drift = -0.22;
       lensAc.ac.amplitude = 0.3;
       lensAc.ac.frequency = 0.6;
+      // the lens of the source on the scope is the hero; the other one steps back
+      const ease = Math.min(dt * 6, 1);
+      lensDc.group.scale.setScalar(lerp(lensDc.group.scale.x, acMode ? 0.5 : 0.78, ease));
+      lensAc.group.scale.setScalar(lerp(lensAc.group.scale.x, acMode ? 0.78 : 0.5, ease));
       lensDc.update(dt, t, ctx.camera.camera);
       lensAc.update(dt, t, ctx.camera.camera);
       // Oersted: second-order needle toward atan(B_wire/B_Earth); rings and pulses follow the current

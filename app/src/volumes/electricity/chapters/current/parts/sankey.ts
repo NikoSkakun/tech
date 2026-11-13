@@ -2,8 +2,12 @@
  * Energy ribbon (Sankey diagram) of step 8 on the HUD board: the ribbon's width is power. The source's output
  * enters on the left; the `orange`/`red` branch that peels off downward is the heat lost in the cord, the
  * `yellow` remainder reaches the cottage. Widths are true to scale against `fullW` (the rated 2 kW).
+ * Each stream carries its number (sent, arrived, heat), so the ribbon reads without the stats below it.
  */
-import { UiNode, lit, rgba, type Painter } from '@/ui3d';
+import { fmtUnit } from '@/content';
+import type { ColorLike } from '@/style';
+import { fontData, layoutText } from '@/text';
+import { UI, UiNode, lit, rgba, type Painter } from '@/ui3d';
 
 export class Sankey extends UiNode {
   private loadW = 0;
@@ -36,7 +40,7 @@ export class Sankey extends UiNode {
     const tLoad = Math.max(this.loadW * scale, 1.5);
     const tLoss = Math.max(this.lossW * scale, this.lossW > 0.5 ? 1.5 : 0);
     const tAll = tLoad + tLoss;
-    const top = this.h / 2 - 14; // upper edge of the ribbon
+    const top = this.h / 2 - 34; // upper edge of the ribbon (the numbers sit above it)
     const yellow = lit(rgba('yellow'), 1.25);
     const loss = lit(rgba('orange'), 1.2);
     const red = lit(rgba('red'), 1.2);
@@ -56,5 +60,18 @@ export class Sankey extends UiNode {
     }
     // the input edge
     p.rect(x0 - 3, top - tAll / 2, 4, tAll + 6, { fill: rgba('white', 0.9), r: 2 });
+    const label = (w: number, x: number, y: number, side: 'left' | 'right', color: ColorLike): void => {
+      const l = layoutText(
+        fmtUnit(w, 'W', { maxDigits: w < 10 ? 1 : 0 }), // as in the stats below
+        { font: 'mono', size: UI.text.body, anchorX: side, anchorY: 'middle' },
+        fontData(),
+      );
+      const c = rgba(color);
+      p.text(l, x, y, 1, { base: c, accent: c, formula: c }, 1, 12);
+    };
+    const yText = this.h / 2 - 14;
+    label(this.loadW + this.lossW, x0 - 3, yText, 'left', 'white');
+    label(this.loadW, x1 - 4, yText, 'right', 'yellow');
+    if (tLoss > 0) label(this.lossW, xs + 70, -this.h / 2 + 22, 'left', 'orange');
   }
 }

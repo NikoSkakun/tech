@@ -20,12 +20,9 @@ export interface Jumper {
 
 const BASE_SPAN = 1.16;
 
-export function createJumper(): Jumper {
-  const g = new Group();
-  g.name = 'jumper';
-  const mat = K.metal({ color: col('orange').lerp(col('amber'), 0.3), specular: 0.9, shininess: 70 });
+function archCurve(): CatmullRomCurve3 {
   const h = BASE_SPAN / 2;
-  const arch = new CatmullRomCurve3(
+  return new CatmullRomCurve3(
     [
       new Vector3(-h, 0.14, 0),
       new Vector3(-h * 0.92, 0.2, 0.42),
@@ -36,7 +33,50 @@ export function createJumper(): Jumper {
     false,
     'centripetal',
   );
-  const bar = new Mesh(new TubeGeometry(arch, 40, 0.065, 12), mat);
+}
+
+export interface JumperGhost {
+  group: Group;
+  /** 0 = hidden … 1 = full glow. */
+  strength: number;
+  span: number;
+  update(t: number): void;
+}
+
+/**
+ * A glowing outline of the jumper where it can be dropped: the idle invitation on the lamp («перетягніть
+ * сюди» without words), and the snap targets while the jumper is carried.
+ */
+export function createJumperGhost(): JumperGhost {
+  const g = new Group();
+  g.name = 'jumper-ghost';
+  const mat = K.glow({ color: 'cyan', intensity: 0, falloff: 0, whiten: 0, keepHue: true });
+  const h = BASE_SPAN / 2;
+  const clip = new SphereGeometry(0.13, 14, 10);
+  const c1 = new Mesh(clip, mat);
+  c1.position.set(-h, 0.16, 0);
+  const c2 = new Mesh(clip, mat);
+  c2.position.set(h, 0.16, 0);
+  g.add(new Mesh(new TubeGeometry(archCurve(), 40, 0.04, 8), mat), c1, c2);
+  const self: JumperGhost = {
+    group: g,
+    strength: 0,
+    span: BASE_SPAN,
+    update(t) {
+      g.visible = self.strength > 0.01;
+      g.scale.x = self.span / BASE_SPAN;
+      mat.intensity = self.strength * (0.55 + 0.35 * Math.sin(t * 3.2));
+    },
+  };
+  return self;
+}
+
+export function createJumper(): Jumper {
+  const g = new Group();
+  g.name = 'jumper';
+  const mat = K.metal({ color: col('orange').lerp(col('amber'), 0.3), specular: 0.9, shininess: 70 });
+  const h = BASE_SPAN / 2;
+  const bar = new Mesh(new TubeGeometry(archCurve(), 40, 0.065, 12), mat);
   bar.castShadow = true;
   const clip = new SphereGeometry(0.12, 16, 12);
   const c1 = new Mesh(clip, mat);

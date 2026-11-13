@@ -62,10 +62,10 @@ export function createCircuitGrid(mats: Mats): CircuitGrid {
     );
   };
   // node buttons (one instanced mesh) and the highlight ring
-  const nodes = new InstancedMesh(new CylinderGeometry(0.13, 0.15, 0.1, 20), mats.chrome, ALL_NODES.length);
+  const nodes = new InstancedMesh(new CylinderGeometry(0.1, 0.12, 0.08, 20), mats.chrome, ALL_NODES.length);
   const m4 = new Matrix4();
   const v = new Vector3();
-  ALL_NODES.forEach((n, k) => nodes.setMatrixAt(k, m4.makeTranslation(pos(n, v).x, 0.05, v.z)));
+  ALL_NODES.forEach((n, k) => nodes.setMatrixAt(k, m4.makeTranslation(pos(n, v).x, 0.04, v.z)));
   nodes.receiveShadow = true;
   const ringMat = K.glow({ color: 'cyan', intensity: 1.5, falloff: 0, whiten: 0, keepHue: true });
   const ring = new Mesh(new TorusGeometry(0.24, 0.03, 8, 32).rotateX(Math.PI / 2), ringMat);
@@ -171,7 +171,7 @@ export function createCircuitGrid(mats: Mats): CircuitGrid {
                   ? ''
                   : r.burnt
                     ? '✗'
-                    : `${fmtUnit(mag, 'A', { maxDigits: 2 })} · ${fmtUnit(Math.abs(r.voltageV), 'V', { maxDigits: 1 })}`;
+                    : `${fmtUnit(mag, 'A', { maxDigits: 2 })}\n${fmtUnit(Math.abs(r.voltageV), 'V', { maxDigits: 1 })}`;
           if (text !== view.shown) view.label.text = view.shown = text;
         }
       }
@@ -192,7 +192,9 @@ export function createCircuitGrid(mats: Mats): CircuitGrid {
         const node = js[k];
         label.visible = node !== undefined;
         if (!node) return;
-        label.position.copy(pos(node, v)).setY(0.12).z += 0.4;
+        // on the side of the node away from the board's middle row, where no branch runs
+        const up = nodeXY(node)[1] < (BUILDER.rows - 1) / 2;
+        label.position.copy(pos(node, v)).setY(0.12).z += up ? -0.42 : 0.42;
         const text = `ΣI: ${nodeBalance(parts, s, node).map(signed).join(' ')} = 0`;
         if (label.text !== text) label.text = text;
       });

@@ -10,7 +10,7 @@ import { col, type ColorLike } from '@/style';
 
 /** Height of a lead's axis above the table. */
 export const LEAD_Y = 0.075;
-const REPEAT = 1.1;
+export const REPEAT = 1.1;
 
 export interface Lead {
   mesh: Wire;
@@ -32,6 +32,8 @@ export interface LeadOptions {
   bend?: number;
   /** Pulses per unit length. Default 1.1. */
   repeat?: number;
+  /** Shift of the pulse train in pulse spacings: a lead that continues another starts at its length × repeat. */
+  phase?: number;
 }
 
 /** World-independent position of an anchor relative to `space` (both must already be in the scene graph). */
@@ -66,6 +68,7 @@ export function createLead(points: readonly Vector3[], o: LeadOptions = {}): Lea
     speed: 0,
     power: 0,
     length: 0.4,
+    phase: o.phase ?? 0,
     radialSegments: 10,
     detail: 7,
   });

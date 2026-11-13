@@ -216,9 +216,15 @@ const steps = {
       near(s.lampCurrentA, 0.288, 0.002) && near(s.lampV, 1.44, 0.01),
       `closed: 0,288 A, 1,44 V on the lamp (got ${s.lampCurrentA})`,
     );
-    await seg('pos5', '2', 80);
+    await drag3d('switch5', 'seat5:2', 80); // pointer: carry the switch to the place after the lamp
     s = await read('circuit');
-    check(s.place === 2 && near(s.lampCurrentA, 0.288, 0.002), 'the switch after the lamp: same current');
+    check(
+      s.place === 2 && near(s.lampCurrentA, 0.288, 0.002), // still closed: a drag is not a tap
+      `dragging the switch after the lamp: same current (got place ${s.place}, ${s.lampCurrentA} A)`,
+    );
+    await seg('pos5', '1', 80); // the dock alternative
+    s = await read('circuit');
+    check(s.place === 1 && near(s.lampCurrentA, 0.288, 0.002), 'the switch before the lamp: same current');
     await drag3d('jumper5', 'drop5:lamp', 50); // pointer: carry the jumper onto the lamp
     s = await read('circuit');
     check(s.jumper === 'lamp', `the jumper snaps onto the lamp (got ${s.jumper})`);
@@ -380,6 +386,45 @@ const steps = {
       'an ammeter can be placed',
     );
     await seg('tool7', 'hand', 10);
+    // primary way (script): carry parts from the tray and drop them between two neighbouring nodes
+    const dropOn = async (kind, a, b) => {
+      const [t, p, q] = await Promise.all([`tray7:${kind}`, `node7:${a}`, `node7:${b}`].map(locate3d));
+      await drag3d(`tray7:${kind}`, [(p.x + q.x) / 2 - t.x, (p.y + q.y) / 2 - t.y]);
+    };
+    await press('clear7');
+    for (const [kind, a, b] of [
+      ['source', '1,1', '1,2'],
+      ['resistor', '1,1', '2,1'],
+      ['wire', '2,1', '2,2'],
+      ['wire', '2,2', '1,2'],
+    ])
+      await dropOn(kind, a, b);
+    s = await read('builder');
+    const res = s.parts.find((p) => p.kind === 'resistor');
+    const src = s.parts.find((p) => p.kind === 'source');
+    check(
+      s.parts.length === 4 && res && src && res.amps > 0 && near(res.amps, src.emfV / res.ohm, 1e-4),
+      `tray drag: source + resistor + 2 wires carry I = ℰ/R (got ${s.parts.map((p) => p.id).join(' ')}, ${res?.amps} A)`,
+    );
+    // drag a placed part off the board: it is removed
+    {
+      const m = await page.evaluate(([x, y, z]) => window.__app.project(x, y + 0.1, z), res.mid);
+      const out = await locate3d('tray7:lamp');
+      await page.mouse.move(m.x, m.y);
+      await frames(2);
+      await page.mouse.down();
+      for (let k = 1; k <= 8; k++) {
+        await page.mouse.move(m.x + ((out.x - m.x) * k) / 8, m.y + ((out.y - m.y) * k) / 8);
+        await frames(2);
+      }
+      await page.mouse.up();
+      await frames(20);
+      s = await read('builder');
+      check(
+        s.parts.length === 3 && !s.parts.some((p) => p.kind === 'resistor'),
+        `dragging the resistor off the board removes it (got ${s.parts.map((p) => p.id).join(' ')})`,
+      );
+    }
     await seg('preset7', 'series');
     await noOffscreen('series-parallel');
   },
@@ -483,10 +528,11 @@ const steps = {
     );
     await seg('mode10', 'ac', 60);
     s = await read('dc-ac');
-    const swing = Math.max(...s.trace) - Math.min(...s.trace);
+    // a 40 ms screen holds two 50 Hz periods: the trace must reach close to ±325 V on the ±350 V scale
+    const swing = s.traceSpan[1] - s.traceSpan[0];
     check(
-      s.mode === 'ac' && swing > 0.4 && s.acAmp > 0,
-      `AC: the trace swings (${s.trace.map((x) => x.toFixed(2))})`,
+      s.mode === 'ac' && swing > 1.7 && s.acAmp > 0,
+      `AC: the trace swings ±325 V (span ${s.traceSpan.map((x) => x.toFixed(2))})`,
     );
     await set('sweep10', 100);
     check((await read('dc-ac')).sweepMs === 100, 'sweep of 100 ms per screen');

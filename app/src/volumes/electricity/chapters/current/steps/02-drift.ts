@@ -27,6 +27,8 @@ function fmtTime(seconds: number): string {
   return `${fmtNumber(p.value, { maxDigits: 1 })} ${plural(p.value, ['доба', 'доби', 'діб'])}`;
 }
 
+const BATTERY_Z = -2.2;
+
 export const driftStep: StepFactory = (bench) => {
   const { ctx, ui } = bench;
   const set = group(`set:${ID}`, 0, 0, -0.6);
@@ -36,7 +38,7 @@ export const driftStep: StepFactory = (bench) => {
   const bulb = createBulb();
   bulb.group.position.set(2.95, 0, 0);
   const battery = createBattery();
-  battery.group.position.set(0, 0, 2.4);
+  battery.group.position.set(0, 0, BATTERY_Z); // behind the wire: the wire is the nearest, largest thing
   const race = createRace(ctx);
   const balls = createBallTube();
   set.add(sw.group, bulb.group, battery.group, race.group, balls.group);
@@ -48,7 +50,7 @@ export const driftStep: StepFactory = (bench) => {
   const leads = [
     createLead(
       route(anchorIn(set, battery.plus), anchorIn(set, bulb.b), [
-        [3.9, 2.4],
+        [3.9, BATTERY_Z],
         [3.9, 0],
       ]),
     ),
@@ -56,8 +58,8 @@ export const driftStep: StepFactory = (bench) => {
     createLead([endL, anchorIn(set, sw.b)], { bend: 0 }),
     createLead(
       route(anchorIn(set, sw.a), anchorIn(set, battery.minus), [
-        [-3.9, 0.6],
-        [-3.9, 2.4],
+        [-3.9, 0],
+        [-3.9, BATTERY_Z],
       ]),
     ),
   ];
@@ -96,11 +98,13 @@ export const driftStep: StepFactory = (bench) => {
     id: ID,
     shots: {
       [ID]: {
-        position: [0.2, 5.0, 9.6],
-        target: [0, 0.8, 0.2],
+        // the wire is the hero: framed from switch to lamp at eye height, the battery loop only peeks in
+        position: [0.1, 3.3, 6.9],
+        target: [0, 1.35, -0.9],
         fov: 30,
+        frameAspect: 1.75,
         orbit: { azimuth: 0.7, polar: 0.3 },
-        fit: { center: [0, 0.9, 0], radius: 4.6 },
+        fit: { center: [0, 1.0, -0.6], radius: 3.6 },
       },
     },
     stage: {

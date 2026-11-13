@@ -20,10 +20,17 @@ export interface WaterLoop {
   flow: number;
   /** Pump pressure difference 0…1 of the gauge scale (∝ ℰ). */
   pressure: number;
+  /** Morph target: 0 = the electric circuit, 1 = the water loop (script: «морфінг 1,6 s»). */
+  target: number;
+  /** Jump to a morph state without animation (step entry). */
+  snap(v: number): void;
   update(dt: number): void;
 }
 
 const PIPE_R = 0.13;
+export const MORPH_S = 1.6;
+/** `back.out` overshoot (STYLE_GUIDE §5) for the parts that grow in. */
+const backOut = (x: number): number => 1 + 2.70158 * (x - 1) ** 3 + 1.70158 * (x - 1) ** 2;
 
 /**
  * `routes`: the lead routes in set space, in flow order (source «+» → … → source «−»); `sourceAt` / `loadAt`:
@@ -39,11 +46,15 @@ export function createWaterLoop(
   const g = new Group();
   g.name = 'water-loop';
   const paths = routes.map((r) => (r.length > 2 ? G.roundPath(r, 0.28, 5) : [...r]));
-  for (const p of paths) {
+  const pipes = paths.map((p) => {
     const pipe = new Mesh(G.tube(p, PIPE_R, { seg: 14, caps: false }), mats.water);
     pipe.renderOrder = 5;
     g.add(pipe);
-  }
+    return pipe;
+  });
+  // the morph fills the pipes in flow order: the index buffer of a tube runs ring by ring along its path
+  const counts = pipes.map((p) => p.geometry.index?.count ?? 0);
+  const total = counts.reduce((a, b) => a + b, 0);
   const water = createFlow(ctx, {
     kind: 'blob',
     color: 'sky',
@@ -134,6 +145,22 @@ export function createWaterLoop(
   const impeller = pump.part('impeller');
   const hand = pump.part('needle');
   const paddles = wheel.part('wheel');
+  let m = 0; // morph progress 0 (wires) … 1 (pipes)
+  const show = (): void => {
+    // pump and wheel grow where the cell and the lamp shrink; the pipes fill along the leads; water last
+    const e = m * m * (3 - 2 * m);
+    let left = Math.round(e * total);
+    pipes.forEach((pipe, k) => {
+      const n = Math.min(counts[k]!, left);
+      left -= n;
+      pipe.geometry.setDrawRange(0, n - (n % 3));
+      pipe.visible = n > 0;
+    });
+    const grow = backOut(Math.min(Math.max((m - 0.1) / 0.55, 0), 1));
+    pump.group.scale.setScalar(Math.max(grow, 1e-3));
+    wheel.group.scale.setScalar(Math.max(grow, 1e-3));
+    water.visible = m > 0.8;
+  };
   const self: WaterLoop = {
     group: g,
     pump: pump.anchor('pump'),
@@ -141,7 +168,16 @@ export function createWaterLoop(
     wheel: wheel.anchor('wheel'),
     flow: 0,
     pressure: 0,
+    target: 0,
+    snap(v) {
+      self.target = m = v;
+      show();
+    },
     update(dt) {
+      if (m !== self.target) {
+        m += Math.sign(self.target - m) * Math.min(dt / MORPH_S, Math.abs(self.target - m));
+        show();
+      }
       water.speed = self.flow;
       impeller.rotation.z -= self.flow * 3.2 * dt;
       // the stream enters the wheel housing from the left, so the paddles turn clockwise as seen by the camera
@@ -149,5 +185,6 @@ export function createWaterLoop(
       hand.rotation.z = 1.9 / 2 - 1.9 * Math.min(Math.max(self.pressure, 0), 1);
     },
   };
+  show();
   return self;
 }
