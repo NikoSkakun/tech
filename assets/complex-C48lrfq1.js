@@ -1,0 +1,1 @@
+var e=(e,t=0)=>({re:e,im:t}),t=(e,t)=>({re:e.re+t.re,im:e.im+t.im}),n=(e,t)=>({re:e.re-t.re,im:e.im-t.im}),r=(e,t)=>({re:e.re*t,im:e.im*t}),i=e=>Math.hypot(e.re,e.im),a=e=>Math.atan2(e.im,e.re),o=(e,t)=>({re:e*Math.cos(t),im:e*Math.sin(t)});export{r as a,o as i,t as n,n as o,a as r,e as s,i as t};

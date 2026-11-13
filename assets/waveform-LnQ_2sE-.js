@@ -1,0 +1,1 @@
+function e(e,t,n,r=0){return e*Math.sin(2*Math.PI*t*n+r)}var t=e=>e*Math.SQRT2;function n(e,n,r,i=1){let a=t(e),o=2*Math.PI*n*r,s=2*Math.PI/3;return[a*Math.sin(o),a*Math.sin(o-i*s),a*Math.sin(o-2*i*s)]}function r(e,t=2,n=.04){return e>0?t/e:n}export{n as i,r as n,e as r,t};
