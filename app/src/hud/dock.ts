@@ -1,6 +1,6 @@
 /**
  * The step column: the step info panel and, under it, the control dock built from the chapter's `stepUi`
- * declaration (plus the optional board, `board.ts`). Wide screens: right column with a slight tilt. Narrow /
+ * declaration (plus the optional board, `board.ts`). Wide screens: right column, flat (DECISIONS §59 p). Narrow /
  * portrait: a bottom sheet where «Опис» and «Керування» share the space through a tab switch (STYLE_GUIDE §6).
  *
  * Height budget (UI_API §3.1): the column never leaves the screen. The dock keeps its buttons in a sticky action
@@ -153,7 +153,6 @@ export function createStepColumn(hud: HudContext, popups: UiNode, header: UiNode
     dock.visible = withDock;
     dock.width = PANEL_WIDTH;
     node.float = { ax: 1, ay: 0, dx: -margin, dy: top };
-    node.rotY = hud.engine.reducedMotion ? 0 : -0.03; // slight tilt toward the scene
     fitColumn(m.height - top - margin, PANEL_WIDTH, true, withDock);
     board.place(m, Math.max(header.by + header.bh + 14, top), 0);
     measure();
@@ -171,7 +170,6 @@ export function createStepColumn(hud: HudContext, popups: UiNode, header: UiNode
     dock.width = width;
     tabs.width = Math.min(width, 360);
     node.float = { ax: 0.5, ay: 1, dy: -bottom };
-    node.rotY = 0;
     // the sheet may take up to 42 % of the height (45 % in portrait), never more than the free area under the header
     const headerBottom = header.by + header.bh + 12;
     const share = m.height * (m.layout === 'portrait' ? 0.45 : 0.42);

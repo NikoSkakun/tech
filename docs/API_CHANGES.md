@@ -334,3 +334,13 @@ All additive; chapters need no change (a chapter shows its simple layer once its
   `test_simple_layer.py`; `export_content.parse_quiz(text, section, marks)`; export keys `steps[].simple`,
   `simpleQuiz`, misconception `scene` (only when present); `terms_check` and `font-coverage` read the simple layer.
 - **Fixture**: `_demo/wave` has a full simple layer, a `bead` hotspot and a `[Сцена: …]` misconception.
+
+## D0b-no-3d-ui — no 3D effects on the 2D interface (2026-11-14; DECISIONS §59 p)
+
+- `@/hud`: `installParallax` (`hud/keys.ts`) is removed — the HUD plane no longer leans toward the pointer.
+- `@/ui3d`: `RevealOptions.tilt` is removed (`reveal()` slides, scales and fades; no swing around the vertical
+  axis). Callers passing `tilt` get a type error — drop the option.
+- HUD layout: the step column (`dock.ts`) and the board (`board.ts`) are flat on wide screens (their static
+  `rotY` of ∓0.03 rad is gone). `__ui.locate` rectangles of HUD nodes no longer change with the pointer.
+- Rule for everyone (STYLE_GUIDE §5): interface elements never follow the pointer and get no perspective, tilt or
+  fake depth; `UiNode.rotX/rotY` remain in the API, but HUD code must not use them for a 3D look.

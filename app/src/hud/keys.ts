@@ -1,6 +1,6 @@
 /**
  * Input plumbing the WebGL UI needs: key capture (a focused control or an open overlay takes keys before the
- * engine's step navigation sees them) and the pointer position for the HUD's subtle parallax.
+ * engine's step navigation sees them). The interface never follows the pointer (DECISIONS §59 p).
  */
 import { uiFocus } from '@/ui3d';
 import type { Hud } from './shell';
@@ -26,30 +26,4 @@ export function installKeys(hud: Hud, overlayKey: KeyHandler): () => void {
     },
     { priority: 100 },
   );
-}
-
-/**
- * Pointer parallax: the whole HUD plane leans a fraction of a degree toward the pointer, so panels at
- * different depths shift against each other (STYLE_GUIDE §6). Off with reduced motion.
- */
-export function installParallax(hud: Hud): void {
-  const target = { x: 0, y: 0 };
-  const canvas = hud.engine.canvas;
-  canvas.addEventListener('pointermove', (e) => {
-    if (e.pointerType === 'touch') return;
-    const r = canvas.getBoundingClientRect();
-    target.x = ((e.clientX - r.left) / Math.max(r.width, 1)) * 2 - 1;
-    target.y = ((e.clientY - r.top) / Math.max(r.height, 1)) * 2 - 1;
-  });
-  canvas.addEventListener('pointerleave', () => {
-    target.x = target.y = 0;
-  });
-  const MAX = 0.012; // radians
-  hud.engine.onUpdate((dt) => {
-    const s = hud.surface;
-    const on = !hud.engine.reducedMotion;
-    const k = 1 - Math.exp(-5 * dt);
-    s.rotation.y += ((on ? target.x * MAX : 0) - s.rotation.y) * k;
-    s.rotation.x += ((on ? target.y * MAX * 0.7 : 0) - s.rotation.x) * k;
-  });
 }

@@ -10,8 +10,6 @@ export interface RevealOptions {
   dx?: number;
   dy?: number;
   scale?: number;
-  /** Start tilt around the vertical axis, radians (panels "swing" open). */
-  tilt?: number;
   delay?: number;
   duration?: number;
   instant?: boolean;
@@ -31,7 +29,7 @@ export function reveal(node: UiNode, opts: RevealOptions = {}): void {
   const wasHidden = !node.visible || node.opacity <= 0.001;
   node.visible = true;
   if (!host || opts.instant) {
-    Object.assign(node, { opacity: 1, x: 0, y: 0, scale: 1, rotY: 0 });
+    Object.assign(node, { opacity: 1, x: 0, y: 0, scale: 1 });
     return;
   }
   const reduced = host.reducedMotion();
@@ -41,12 +39,11 @@ export function reveal(node: UiNode, opts: RevealOptions = {}): void {
       node.x = opts.dx ?? 0;
       node.y = opts.dy ?? -14;
       node.scale = opts.scale ?? 0.96;
-      node.rotY = opts.tilt ?? 0;
     }
   }
   const duration = reduced ? 0.12 : (opts.duration ?? MOTION.panel.duration);
   host.tweens.to(node, { opacity: 1 }, { duration: duration * 0.7, delay: opts.delay, ease: 'power1.out' });
-  host.tweens.to(node, { x: 0, y: 0, scale: 1, rotY: 0 }, { duration, delay: opts.delay, ease: 'back.out' });
+  host.tweens.to(node, { x: 0, y: 0, scale: 1 }, { duration, delay: opts.delay, ease: 'back.out' });
 }
 
 /** Animate a node out, then take it out of the layout (`visible = false`). */

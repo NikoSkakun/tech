@@ -72,7 +72,7 @@ export function createBoard(hud: HudContext): StepBoard {
       title.text = next.title ?? '';
       title.visible = !!next.title;
       content.scrollTo(0, true);
-      reveal(node, { instant, dx: -24, dy: 0, tilt: 0.04 });
+      reveal(node, { instant, dx: -24, dy: 0 });
       hud.relayout();
     },
     place(m, top, bottom) {
@@ -85,12 +85,10 @@ export function createBoard(hud: HudContext): StepBoard {
         const free = m.width - left - (468 + margin * 2) - 24;
         node.width = Math.max(Math.min(want, free), 300);
         node.float = { ax: 0, ay: 0, dx: left, dy: top };
-        node.rotY = hud.engine.reducedMotion ? 0 : 0.03; // mirror of the column's tilt
         content.maxH = Math.max(m.height - top - margin - 96 - chrome(), 120);
       } else {
         node.width = Math.min(m.width - margin * 2, Math.max(want, 560));
         node.float = { ax: 0.5, ay: 0, dy: top };
-        node.rotY = 0;
         content.maxH = Math.max(m.height - top - bottom - 24 - chrome(), 110);
       }
     },

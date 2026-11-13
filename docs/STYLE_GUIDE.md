@@ -137,19 +137,22 @@ transformer, labs) in a clean "studio" void with a soft floor disc and gradient 
   (0.2–0.3 s, `power2.in`). State changes interpolate; numbers count up.
 - Flows (electrons, water, steam, energy pulses) loop seamlessly; speed and density map to real quantities
   where a simulation drives them (more current → faster/denser/brighter).
-- UI: hover = 120 ms lift/glow, press = 80 ms squash, release = spring. Panels open 0.35 s with slight tilt.
-- Respect `reducedMotion` setting (shorter camera moves, no parallax, no shake).
+- UI: hover = 120 ms lift/glow, press = 80 ms squash, release = spring. Panels open 0.35 s with a short slide and fade.
+- **The interface is flat 2D and never follows the pointer** (DECISIONS §59 p): no pointer parallax, no
+  cursor-following micro-movement, no perspective tilt, no fake depth; it moves only when its state changes
+  (reveal, conceal, transitions, hover / press feedback). 3D effects belong to the scenes and the map's world.
+- Respect `reducedMotion` setting (shorter camera moves, no camera drift, no shake).
 
 ## 6. UI — diegetic, in-scene
 
 - **All UI is rendered in WebGL** as part of the 3D world (SDF text + shader panels), in two layers:
   (a) *world-anchored*: labels, callouts with leader lines, hotspots, gauges and control consoles attached
-  to objects; (b) *camera-anchored HUD*: holographic panels floating in front of the camera with slight
-  perspective tilt, depth layering and pointer parallax. HTML is allowed only for the boot loader and for
+  to objects; (b) *camera-anchored HUD*: holographic panels in front of the camera — flat, no
+  tilt, no parallax (DECISIONS §59 p). HTML is allowed only for the boot loader and for
   accessibility/fallback plumbing (invisible live region, native file/fullscreen APIs).
 - Panel look ("hologlass"): rounded rectangle (radius 16–24 px eq.), `bg.deep` at 78–88 % opacity with
   subtle vertical gradient, 1.5 px inner border in the chapter accent at 60 % → fading, soft outer glow,
-  faint animated scan/grain. Depth: title chips and buttons float a few mm above the panel.
+  faint animated scan/grain. Title chips and buttons sit flat on the panel (no fake depth, DECISIONS §59 p).
 - Typography: display = rounded bold geometric with Cyrillic (headings, numbers); body = highly legible
   humanist sans with Cyrillic; mono/math = for formulas and units. Sizes (px-equivalent at 1080p):
   hero 56–72, H1 34–40, H2 24–28, body 18–20, caption 14–15 (never smaller). Line length ≤ 46 characters

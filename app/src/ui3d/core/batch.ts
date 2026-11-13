@@ -9,7 +9,7 @@
  *
  * Transforms and opacity do not live in the vertex buffers: every primitive carries the index of its UI node
  * and the vertex shader fetches the node's matrix from a small float texture (`XformTexture`). Animating a
- * panel (tilt, parallax, pop, fade) therefore only rewrites a few texels, never geometry.
+ * panel (slide, pop, fade) therefore only rewrites a few texels, never geometry.
  */
 import {
   BufferAttribute,

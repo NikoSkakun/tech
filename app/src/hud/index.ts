@@ -11,7 +11,7 @@ import { createLoading, installOnboarding } from './hints';
 import type { HudModule } from './context';
 import { createHome } from './home';
 import { journeyFromManifests, loadJourney, wantsFixture, type Journey } from './journey';
-import { installKeys, installParallax } from './keys';
+import { installKeys } from './keys';
 import { createLibrary } from './library';
 import { JourneyMap } from './map/map';
 import { createGlossary } from './overlays/glossary';
@@ -48,7 +48,6 @@ export const plugin: EnginePlugin = {
     column.onSpec = mountAnnotations(h);
     mountTooltips(h, h.surface.root);
     installKeys(h, (e) => h.overlayKey(e));
-    installParallax(h);
     let journeyMap: JourneyMap | null = null;
     installUiDebug(h, () => journeyMap);
     h.mount(createLoading(h));

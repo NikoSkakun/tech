@@ -101,7 +101,7 @@ export class Backdrop extends Mesh<PlaneGeometry, ShaderMaterial> {
     this.visible = false;
   }
 
-  /** Cover a HUD plane of `width × height` units (slightly oversized against parallax tilt). */
+  /** Cover a HUD plane of `width × height` units (slightly oversized so its edges never show). */
   resize(width: number, height: number): void {
     this.scale.set(width * 1.08, height * 1.08, 1);
     this.position.z = -4; // just behind the UI plane
