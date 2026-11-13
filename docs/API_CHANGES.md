@@ -335,6 +335,61 @@ All additive; chapters need no change (a chapter shows its simple layer once its
   `simpleQuiz`, misconception `scene` (only when present); `terms_check` and `font-coverage` read the simple layer.
 - **Fixture**: `_demo/wave` has a full simple layer, a `bead` hotspot and a `[Сцена: …]` misconception.
 
+## F5 — phones and tablets (2026-11-13, agent F5-mobile; DECISIONS §57)
+
+Full description: `docs/MOBILE.md`; reference: `docs/ENGINE_API.md` §23, `docs/UI_API.md` §15. **Everything is
+additive.** On a desktop (fine primary pointer) nothing changes: layouts, projection, tiers and input are the
+same code paths with the same numbers (before / after pixel comparison in `docs/reports/F5-mobile.md`).
+
+### New
+- **Device model**: `ctx.device` / `engine.device` / `store.get().device` / `__app.device()` —
+  `{ formFactor, orientation, pointer, hover, safeArea, keyboard, pixelBudget, … }`; URL `?ff=`, `?safe=`.
+  `if (ctx.device.formFactor === 'phone') …` is the only sanctioned device check (and rarely needed).
+- **`Shot.fit` is live** on phones / tablets: `wide: { position, target, fit: { center: [0, 1, 0], radius: 6 } }`
+  or `fit: rotorGroup`. Limits: `REFRAME` in `engine/camera/director.ts`. No `fit` → cropped to the central square.
+- **`mobile` quality tier** (`?q=mobile`, automatic on phones / tablets); `QualityProfile.lowDetail`,
+  `.bloomScale`: `if (!ctx.quality.profile.lowDetail) root.add(extraTrees)`.
+- `Settings.frameCap: 'auto' | 30 | 60`; `engine.frameCap`; `stats().frameCap`, `.resolutionScale`.
+- `engine.canFullscreen`.
+- `HudMetrics.formFactor / orientation / pointer / shell / safeArea`; `pxPerUnit ≥ 1` on touch form factors.
+- `CalloutSpec.priority` — a phone shows the 3 most important callouts: `{ anchor, text, priority: 0 }`.
+- Touch input: `HoverEvent.pointerType`, `.longPress`; `InteractionHandlers.dragOwner`;
+  `input.capturePinch(fn)`; a travelled touch is not a tap; fat-finger slop of 22 px around world objects.
+- `@/ui3d`: `UiNode.wantsDrag`, `uiPointer`, `Pager.continuous`, `ScrollView` fling, `Tooltip.showAt(…, 'touch')`,
+  `worldConsoles` (world consoles re-home into the sheet on phones — nothing to do in chapter code).
+- `@/hud`: touch shells (`hud/touch/*`), overlay `'menu'`, `hud.touch` hooks; `window.__ui.sheet()`,
+  `setSheet()`, `smallText()`, `smallTargets(px)`, `controls()`, `sounds()` and new node names.
+- QA: `tools/qa/mobile-check.mjs`, `chapter-check --mobile`, `webkit-smoke.mjs`, `touch.mjs`, `snap.mjs`,
+  `shot.mjs --touch --extra … --q auto`.
+
+### Changed on purpose (all devices)
+- Journey map: the invisible drag catcher now really covers the screen (it covered only the middle quarter:
+  dragging, wheel-zooming or clicking "back to overview" elsewhere did nothing). No visual change.
+- `input.gesture` resolves on touch *release* instead of touch-down (mouse: unchanged) — browsers grant audio
+  activation there.
+- `Slider`: a **touch** sets the value on tap / drag, not on touch-down (mouse: unchanged).
+- `worldConsole()`: the «text … px < 16 px» warning is issued only for a console that is really shown (every
+  ancestor visible). three.js updates hidden subtrees too, so consoles of other steps used to trip it — on
+  phones in `atom`. Growth itself is unchanged.
+- `HoverEvent.tooltip` is filled for touches as before; the HUD shows a touch's tooltip only on long press.
+
+### Chapter builders and refinement agents: what to do
+- Declare `fit` on every shot; order callouts by importance; keep readable content in `stepUi` (`controls`,
+  `board`) or `worldConsole`; honour `lowDetail`; run `chapter-check <chapter> --mobile`.
+- Per-pilot findings (what breaks or reads poorly on a phone, with fixes): `docs/MOBILE.md` §8.
+
+## M5-merge-f5 — F5 merged with L1 / landing fix / D0 (2026-11-14)
+
+No new API. Behaviour where the two sides meet:
+- Both sides named the end-of-chapter quiz button (`step-quiz` in F5, `chapter-quiz` in L1): it is
+  **`chapter-quiz`** everywhere (MOBILE.md and UI_API.md updated).
+- The quiz takes its questions from `quizCopy()` (reading level) also on touch shells, where it opens as the
+  sheet card `quiz-card`; switching the level closes an open quiz on every shell.
+- The map card's `currentStep` is `null` while the landing step is unseen (landing fix) on every shell; F5's
+  `compact` / side-sheet `maxHeight` apply on top.
+- Settings: «Рівень тексту» first, then «Якість графіки» (touch set on phones / tablets) and, on touch only,
+  «Частота кадрів». `__ui.value('reading-level')` and `__ui.smallTargets(minCssPx)` both kept.
+
 ## D0b-no-3d-ui — no 3D effects on the 2D interface (2026-11-14; DECISIONS §59 p)
 
 - `@/hud`: `installParallax` (`hud/keys.ts`) is removed — the HUD plane no longer leans toward the pointer.

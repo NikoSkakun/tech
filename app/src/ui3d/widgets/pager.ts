@@ -21,6 +21,7 @@ export class Pager extends UiNode {
   onEnd: (() => void) | null;
   private pages: UiNode[] = [];
   private current = 0;
+  private flow = false;
   private readonly body: UiNode;
   private readonly bar: UiNode;
   private readonly counter: Label;
@@ -63,6 +64,21 @@ export class Pager extends UiNode {
     this.setPages(props.pages ?? []);
   }
 
+  /**
+   * Continuous mode (F5, phones): every page is shown, one under the other, and the page bar is hidden — on a
+   * phone the text scrolls instead of being paged. Switching back shows the first page again.
+   */
+  get continuous(): boolean {
+    return this.flow;
+  }
+  set continuous(on: boolean) {
+    if (on === this.flow) return;
+    this.flow = on;
+    this.body.dir = on ? 'col' : 'stack';
+    this.body.gap = on ? UI.gap.md : 0;
+    this.setPages(this.pages);
+  }
+
   /** Page currently shown (0-based). */
   get page(): number {
     return this.current;
@@ -83,7 +99,7 @@ export class Pager extends UiNode {
     this.pages = [...pages];
     this.current = Math.min(Math.max(start, 0), Math.max(pages.length - 1, 0));
     this.pages.forEach((p, i) => {
-      p.visible = i === this.current;
+      p.visible = this.flow || i === this.current;
       p.opacity = 1;
       p.x = 0;
       this.body.add(p);
@@ -93,6 +109,7 @@ export class Pager extends UiNode {
 
   /** Show page `index`; past the last page `onEnd` fires instead. */
   go(index: number): void {
+    if (this.flow) return;
     if (index >= this.pages.length) {
       this.onEnd?.();
       return;
@@ -118,7 +135,7 @@ export class Pager extends UiNode {
 
   private sync(): void {
     const n = this.pages.length;
-    this.bar.visible = n > 1;
+    this.bar.visible = n > 1 && !this.flow;
     this.counter.text = `${this.current + 1} / ${n}`;
     this.prev.disabled = this.current === 0;
     this.next.disabled = this.current >= n - 1 && !this.onEnd;

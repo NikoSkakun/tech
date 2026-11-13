@@ -12,6 +12,7 @@ const TIER_NAME: Record<string, string> = {
   medium: 'середня',
   high: 'висока',
   ultra: 'ультра',
+  mobile: 'мобільна',
 };
 
 export function createSettings(hud: Hud): Overlay {
@@ -30,14 +31,25 @@ export function createSettings(hud: Hud): Overlay {
         value: hud.engine.readingLevel(),
         onChange: (id) => hud.engine.setReadingLevel(id as ReadingLevel),
       });
+      // phones and tablets: «Авто» means the mobile tier there, and it can be picked by name; the heaviest
+      // desktop tier is not offered (a desktop sees the five choices it always had)
+      const touch = hud.engine.device.formFactor !== 'desktop';
       const quality = new Tabs({
-        items: [
-          { id: 'auto', label: 'Авто' },
-          { id: 'low', label: 'Низька' },
-          { id: 'medium', label: 'Середня' },
-          { id: 'high', label: 'Висока' },
-          { id: 'ultra', label: 'Ультра' },
-        ],
+        items: touch
+          ? [
+              { id: 'auto', label: 'Авто' },
+              { id: 'mobile', label: 'Мобільна' },
+              { id: 'low', label: 'Низька' },
+              { id: 'medium', label: 'Середня' },
+              { id: 'high', label: 'Висока' },
+            ]
+          : [
+              { id: 'auto', label: 'Авто' },
+              { id: 'low', label: 'Низька' },
+              { id: 'medium', label: 'Середня' },
+              { id: 'high', label: 'Висока' },
+              { id: 'ultra', label: 'Ультра' },
+            ],
         value: s.quality,
         onChange: (id) => hud.engine.setQuality(id as typeof s.quality),
       });
@@ -105,6 +117,16 @@ export function createSettings(hud: Hud): Overlay {
           hud.toast('Прогрес скинуто.', { tone: 'ok', duration: 3 });
         },
       });
+      const frames = new Tabs({
+        items: [
+          { id: 'auto', label: 'Авто' },
+          { id: '60', label: 'Повна' },
+          { id: '30', label: '30 кадрів/с' },
+        ],
+        value: String(s.frameCap),
+        onChange: (id) => store.updateSettings({ frameCap: id === 'auto' ? 'auto' : id === '30' ? 30 : 60 }),
+      });
+      const tierNow = TIER_NAME[store.get().quality] ?? store.get().quality;
       body.add(
         field(
           'Рівень тексту',
@@ -114,8 +136,20 @@ export function createSettings(hud: Hud): Overlay {
         field(
           'Якість графіки',
           quality,
-          `Зараз: ${TIER_NAME[store.get().quality] ?? store.get().quality}. «Авто» обирає рівень за швидкістю відеокарти.`,
+          touch
+            ? `Зараз: ${tierNow}. «Авто» на телефоні й планшеті — мобільний рівень: менше ефектів, довше тримає заряд.`
+            : `Зараз: ${tierNow}. «Авто» обирає рівень за швидкістю відеокарти.`,
         ),
+      );
+      if (touch)
+        body.add(
+          field(
+            'Частота кадрів',
+            frames,
+            '30 кадрів/с — рівніше й прохолодніше на слабших пристроях. «Авто» вмикає це саме, якщо кадри не встигають.',
+          ),
+        );
+      body.add(
         field('Розмір тексту', text),
         field('Анімація', motion, '«Менше руху» скорочує польоти камери й вимикає паралакс.'),
         new Divider(),

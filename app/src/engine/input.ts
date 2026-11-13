@@ -75,6 +75,13 @@ export interface InteractionHandlers {
   wheel?(deltaY: number, e: PointerInfo): boolean | void;
   /** Return false to make the object temporarily non-interactive. */
   enabled?(): boolean;
+  /**
+   * Touch arbitration (F5): asked once when a touch / pen pointer pressed on this object starts to move.
+   * Return another registered object to hand the whole gesture over to it (a scroll view takes a vertical
+   * drag that began on a button or a slider): this object gets `release` without a `click`, the other one
+   * `dragStart` / `drag` / `dragEnd`. Return nothing to keep the default behaviour. Never asked for a mouse.
+   */
+  dragOwner?(e: { dx: number; dy: number; pointerType: string }): Object3D | null | undefined | void;
 }
 
 export interface HoverEvent {
@@ -85,6 +92,10 @@ export interface HoverEvent {
   /** Pointer position in CSS px. */
   x: number;
   y: number;
+  /** `mouse`, `touch` or `pen` (F5). The HUD shows a touch's tooltip only with `longPress`. */
+  pointerType?: string;
+  /** The finger has rested on the object for `LONG_PRESS_MS`: show its tooltip now; the release will not click. */
+  longPress?: boolean;
 }
 
 export type KeyAction = 'next' | 'prev' | 'first' | 'last' | 'map' | 'library' | 'back' | 'fullscreen';
@@ -121,6 +132,12 @@ export interface ScopedInput {
 /** See `ScopedInput.captureKeys`. */
 export type KeyCapture = (e: KeyboardEvent) => boolean;
 
+/**
+ * See `InputSystem.capturePinch` (F5). `scale` > 1: the fingers moved apart since the last event (zoom in);
+ * `dx` / `dy`: movement of the moving finger, CSS px. Return true when the pinch was used.
+ */
+export type PinchCapture = (scale: number, dx: number, dy: number) => boolean;
+
 interface Entry {
   object: Object3D;
   handlers: InteractionHandlers;
@@ -143,6 +160,12 @@ interface ActivePointer {
   startPoint: Vector3 | null;
   dragging: boolean;
   moved: boolean;
+  /** `performance.now()` of the press (long-press detection for touch / pen). */
+  downAt: number;
+  /** A long press showed the tooltip: the release must not click. */
+  longPressed: boolean;
+  /** `dragOwner` has been asked (once per gesture). */
+  arbitrated: boolean;
 }
 
 const KEY_MAP: Record<string, KeyAction> = {
@@ -160,6 +183,15 @@ const KEY_MAP: Record<string, KeyAction> = {
 };
 
 const DRAG_THRESHOLD_PX = 4;
+/** A finger wobbles more than a mouse: a touch becomes a drag only after this many CSS px. */
+const TOUCH_DRAG_THRESHOLD_PX = 9;
+/** Touch / pen: holding still this long on an object with a tooltip shows the tooltip instead of clicking. */
+export const LONG_PRESS_MS = 480;
+/**
+ * Fat-finger picking (touch only): when the exact point hits no interactive world object, rings of this
+ * radius (CSS px) around it are tried — a world handle only a few px wide still has a ≥ 44 px target.
+ */
+const TOUCH_SLOP_RINGS = [10, 22] as const;
 
 function visibleDeep(object: Object3D): boolean {
   for (let o: Object3D | null = object; o; o = o.parent) if (!o.visible) return false;
@@ -194,6 +226,7 @@ export class InputSystem implements ScopedInput {
   private readonly ndc = new Vector2();
   private readonly listeners: (() => void)[] = [];
   private readonly keyCaptures: { fn: KeyCapture; priority: number }[] = [];
+  private readonly pinchCaptures: PinchCapture[] = [];
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -254,6 +287,19 @@ export class InputSystem implements ScopedInput {
     };
   }
 
+  /**
+   * Take two-finger pinches before they zoom the world camera (F5): a full-screen view that has its own zoom
+   * (the journey map) installs a handler while it is open. The newest handler is asked first; the first one
+   * that returns true consumes the pinch. Returns an unsubscribe.
+   */
+  capturePinch(handler: PinchCapture): Unsubscribe {
+    this.pinchCaptures.unshift(handler);
+    return () => {
+      const i = this.pinchCaptures.indexOf(handler);
+      if (i >= 0) this.pinchCaptures.splice(i, 1);
+    };
+  }
+
   /** A scope whose registrations and subscriptions are all removed by `dispose()`. */
   scoped(): ScopedInput & { dispose(): void } {
     const offs = new Set<Unsubscribe>();
@@ -277,7 +323,10 @@ export class InputSystem implements ScopedInput {
 
   /** @internal Once per frame: refresh hover (objects may have moved under a resting pointer). */
   update(): void {
-    if (this.pointers.size > 0) return; // hover is frozen while a pointer is down
+    if (this.pointers.size > 0) {
+      this.checkLongPress();
+      return; // hover is frozen while a pointer is down
+    }
     if (this.lastPointer.type === 'touch' && !this.lastPointer.inside) return;
     if (!this.hoverDirty && this.entries.size === 0) return;
     this.hoverDirty = false;
@@ -308,9 +357,26 @@ export class InputSystem implements ScopedInput {
     return layer === 'hud' ? this.host.hudCamera : (this.host.director()?.camera ?? null);
   }
 
-  private pick(x: number, y: number): Pick | null {
+  /**
+   * Pick at a point (CSS px): HUD first, then the world. `touch`: when nothing is hit exactly, try rings
+   * around the point against the world only (fat-finger slop; the HUD's own targets are ≥ 44 px already).
+   */
+  private pick(x: number, y: number, touch = false): Pick | null {
+    const exact = this.pickAt(x, y, BOTH_LAYERS);
+    if (exact || !touch) return exact;
+    for (const r of TOUCH_SLOP_RINGS) {
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        const hit = this.pickAt(x + Math.cos(a) * r, y + Math.sin(a) * r, WORLD_ONLY);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  }
+
+  private pickAt(x: number, y: number, layers: readonly InputLayer[]): Pick | null {
     const ndc = this.toNdc(x, y);
-    for (const layer of ['hud', 'world'] as const) {
+    for (const layer of layers) {
       const camera = this.cameraFor(layer);
       if (!camera) continue;
       const roots: Object3D[] = [];
@@ -386,13 +452,36 @@ export class InputSystem implements ScopedInput {
     if (previous) previous.handlers.hover?.(false, this.info(previous, x, y, neutral, null));
     if (entry) entry.handlers.hover?.(true, this.info(entry, x, y, neutral, pick?.hit.point ?? null));
     this.updateCursor();
-    const tooltip = entry?.handlers.tooltip;
+    // (a finger has no hover: the HUD shows a touch's tooltip only for the long press — `checkLongPress` — but
+    // the event carries the object's name as it always did)
     this.events.emit('hover', {
       object: entry?.object ?? null,
-      tooltip: tooltip === undefined ? null : typeof tooltip === 'function' ? tooltip() : tooltip,
+      tooltip: tooltipOf(entry),
       layer: entry?.layer ?? null,
       x,
       y,
+      pointerType: this.lastPointer.type,
+    });
+  }
+
+  /** Touch / pen: a finger resting on an object with a tooltip shows it; the release then does not click. */
+  private checkLongPress(): void {
+    if (this.pointers.size !== 1) return;
+    const p = this.pointers.values().next().value as ActivePointer;
+    if (p.type === 'mouse' || p.moved || p.dragging || !p.entry) return;
+    if (performance.now() - p.downAt < LONG_PRESS_MS) return;
+    p.downAt = Infinity; // decide once per press
+    const tooltip = tooltipOf(p.entry);
+    if (tooltip === null) return;
+    p.longPressed = true;
+    this.events.emit('hover', {
+      object: p.entry.object,
+      tooltip,
+      layer: p.entry.layer,
+      x: p.x,
+      y: p.y,
+      pointerType: p.type,
+      longPress: true,
     });
   }
 
@@ -422,11 +511,14 @@ export class InputSystem implements ScopedInput {
   }
 
   private onDown(e: PointerEvent): void {
-    this.noteGesture();
+    // a mouse press is a user activation; for touch / pen the browser grants it on release (audio unlock on
+    // phones must run inside that event), so their gesture is noted in `onUp`
+    const touch = e.pointerType !== 'mouse';
+    if (!touch) this.noteGesture();
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const { x, y } = this.local(e);
     this.lastPointer = { x, y, type: e.pointerType, inside: true };
-    const pick = this.pointers.size === 0 ? this.pick(x, y) : null;
+    const pick = this.pointers.size === 0 ? this.pick(x, y, touch) : null;
     const p: ActivePointer = {
       id: e.pointerId,
       type: e.pointerType,
@@ -438,6 +530,9 @@ export class InputSystem implements ScopedInput {
       startPoint: pick?.hit.point.clone() ?? null,
       dragging: false,
       moved: false,
+      downAt: performance.now(),
+      longPressed: false,
+      arbitrated: false,
     };
     this.pointers.set(e.pointerId, p);
     try {
@@ -467,14 +562,21 @@ export class InputSystem implements ScopedInput {
     p.x = x;
     p.y = y;
     this.lastPointer = { x, y, type: e.pointerType, inside: true };
-    if (!p.moved && Math.hypot(x - p.startX, y - p.startY) > DRAG_THRESHOLD_PX) p.moved = true;
+    const threshold = p.type === 'mouse' ? DRAG_THRESHOLD_PX : TOUCH_DRAG_THRESHOLD_PX;
+    if (!p.moved && Math.hypot(x - p.startX, y - p.startY) > threshold) p.moved = true;
     if (!p.moved) return;
+    if (!p.arbitrated) {
+      p.arbitrated = true;
+      this.arbitrate(p, e);
+    }
     const director = this.host.director();
     if (this.pointers.size >= 2) {
       // two fingers: pinch zooms, the centroid pans the orbit
       const d = this.currentPinchDistance();
-      if (this.pinchDistance > 0 && d > 0) director?.zoomBy(this.pinchDistance / d);
+      const scale = this.pinchDistance > 0 && d > 0 ? d / this.pinchDistance : 1;
       this.pinchDistance = d;
+      if (this.pinchCaptures.some((fn) => fn(scale, dx, dy))) return;
+      if (scale !== 1) director?.zoomBy(1 / scale);
       director?.orbitBy(dx * 0.5, dy * 0.5);
       return;
     }
@@ -493,7 +595,24 @@ export class InputSystem implements ScopedInput {
     }
   }
 
+  /** Touch arbitration: the pressed object may hand the gesture to another one (`dragOwner`). */
+  private arbitrate(p: ActivePointer, e: PointerEvent): void {
+    const entry = p.entry;
+    if (p.type === 'mouse' || !entry?.handlers.dragOwner || this.pointers.size !== 1) return;
+    const owner = entry.handlers.dragOwner({
+      dx: p.x - p.startX,
+      dy: p.y - p.startY,
+      pointerType: p.type,
+    });
+    const next = owner ? this.entries.get(owner) : undefined;
+    if (!next || next === entry) return;
+    entry.handlers.release?.(this.info(entry, p.x, p.y, e, null));
+    p.entry = next;
+    this.setHover(next, null);
+  }
+
   private onUp(e: PointerEvent, cancelled: boolean): void {
+    if (!cancelled) this.noteGesture();
     const p = this.pointers.get(e.pointerId);
     if (!p) return;
     this.pointers.delete(e.pointerId);
@@ -505,9 +624,12 @@ export class InputSystem implements ScopedInput {
     const entry = p.entry;
     if (entry && this.entries.get(entry.object) === entry) {
       if (p.dragging) entry.handlers.dragEnd?.(this.dragInfo(p, entry, e, 0, 0));
-      const pick = cancelled ? null : this.pick(p.x, p.y);
+      const pick = cancelled ? null : this.pick(p.x, p.y, p.type !== 'mouse');
       entry.handlers.release?.(this.info(entry, p.x, p.y, e, pick?.entry === entry ? pick.hit.point : null));
-      if (!cancelled && !p.dragging && pick?.entry === entry) {
+      // a finger that travelled is not a tap (it was looking for something to scroll or orbit); a mouse press
+      // that ends on the same object is a click however it wandered, as it always was
+      const tap = p.type === 'mouse' || !p.moved;
+      if (!cancelled && !p.dragging && !p.longPressed && tap && pick?.entry === entry) {
         entry.handlers.click?.(this.info(entry, p.x, p.y, e, pick.hit.point));
       }
     }
@@ -601,6 +723,14 @@ export class InputSystem implements ScopedInput {
     this.hoverDirty = true;
     this.setHover(null, null);
   }
+}
+
+const BOTH_LAYERS: readonly InputLayer[] = ['hud', 'world'];
+const WORLD_ONLY: readonly InputLayer[] = ['world'];
+
+function tooltipOf(entry: Entry | null): string | null {
+  const tooltip = entry?.handlers.tooltip;
+  return tooltip === undefined ? null : typeof tooltip === 'function' ? tooltip() : tooltip;
 }
 
 function MathClamp(v: number, lo: number, hi: number): number {

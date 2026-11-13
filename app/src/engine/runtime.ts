@@ -186,6 +186,13 @@ export class ChapterRuntime {
       });
     });
     deps.hud.onInsets((insets) => this.active?.director.setInsets(insets));
+    // the device became a phone / tablet or a desktop (emulation, a mouse plugged in): re-framing follows
+    deps.store.subscribe(
+      (s) => s.device.formFactor,
+      (formFactor) => {
+        if (this.active) this.active.director.reframe = formFactor !== 'desktop';
+      },
+    );
   }
 
   on<K extends keyof RuntimeEvents>(type: K, fn: (payload: RuntimeEvents[K]) => void): Unsubscribe {
@@ -538,6 +545,8 @@ export class ChapterRuntime {
     director.setViewport(vp.width, vp.height);
     director.setInsets(this.deps.hud.insetFractions(), true);
     director.reducedMotion = this.deps.reducedMotion();
+    // phones and tablets: re-frame shots for narrow free areas (never on desktops — see `REFRAME`)
+    director.reframe = this.deps.store.get().device.formFactor !== 'desktop';
     const env = new Environment(
       scene,
       { preset: manifest.theme.sky, accent: manifest.theme.accent },
@@ -598,6 +607,9 @@ export class ChapterRuntime {
       random: new Rng(`chapter:${instance.manifest.id}`),
       get viewport() {
         return deps.viewport();
+      },
+      get device() {
+        return deps.store.get().device;
       },
       renderer: deps.renderer,
       get reducedMotion() {

@@ -178,6 +178,12 @@ export interface CalloutSpec {
   occluders?: readonly Object3D[];
   /** Show only while this holds (fades in / out in place — no off-screen anchor tricks). */
   visible?: When;
+  /**
+   * Importance on small screens (F5): phones show only the few most important callouts of a step (see
+   * `docs/MOBILE.md`); lower number = more important. Default: the order of declaration, so list the callouts
+   * that carry the step's point first. Desktops show all of them, as always.
+   */
+  priority?: number;
 }
 
 export interface HotspotSpec {

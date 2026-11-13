@@ -5,6 +5,7 @@
  */
 import type { ColorLike } from '@/style';
 import { UiNode } from '../core/node';
+import { uiPointer } from '../core/surface';
 import { Callout, worldLabelSize } from './callout';
 import { HotspotMarker } from './hotspot';
 
@@ -80,6 +81,9 @@ export class AnnotationLayer extends UiNode {
       const node: HotspotMarker = new HotspotMarker(def.title, () => def.onPick(node));
       return { def, node };
     });
+    // named for QA (`__ui.locate('hotspot-0')`): declaration order
+    this.callouts.forEach((c, i) => (c.node.name = `callout-${i}`));
+    this.hotspots.forEach((h, i) => (h.node.name = `hotspot-${i}`));
     for (const c of this.callouts) this.add(c.node);
     for (const h of this.hotspots) this.add(h.node);
   }
@@ -137,6 +141,17 @@ export class AnnotationLayer extends UiNode {
           by = cy;
           if (fits && free) break;
         }
+      }
+      // touch screens are narrow: a tag that fits on no side is pulled back inside the free area instead of
+      // leaving the screen (desktops keep the first side, as before)
+      if (uiPointer.coarse && best) {
+        const minX = bounds.left + hw + 6;
+        const maxX = bounds.right - hw - 6;
+        bx = minX <= maxX ? Math.min(Math.max(bx, minX), maxX) : (bounds.left + bounds.right) / 2;
+        const minY = bounds.bottom + hh + 6;
+        const maxY = bounds.top - hh - 6;
+        if (minY <= maxY) by = Math.min(Math.max(by, minY), maxY);
+        best = { x0: bx - hw - 6, y0: by - hh - 6, x1: bx + hw + 6, y1: by + hh + 6 };
       }
       if (best && on) taken.push(best);
       node.tx = bx;

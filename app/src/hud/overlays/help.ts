@@ -60,7 +60,41 @@ export function createHelp(hud: Hud): Overlay {
     title: 'Керування',
     icon: 'help',
     width: 1040,
+    fresh: true, // the device may have changed (a tablet got a keyboard, emulation was switched)
     build(body) {
+      const device = hud.engine.device;
+      if (device.pointer === 'coarse') {
+        // touch-first devices: what a finger can do, first and in full; keys only where a keyboard is likely
+        const cols = new UiNode({ dir: 'col', gap: 14, width: 'fill' });
+        cols.add(
+          section('touch', 'Дотик', [
+            [['1 палець'], 'обертати сцену, тягнути об’єкти й повзунки'],
+            [['2 пальці'], 'наблизити чи віддалити (щипок)'],
+            [['дотик'], 'кнопки, гарячі точки, об’єкти з блакитним контуром'],
+            [['утримати'], 'назва об’єкта у підказці'],
+          ]),
+          section('layers', 'Панель кроку', [
+            [['потягнути'], 'вище — читати, нижче — бачити сцену'],
+            [['вкладки'], '«Текст», «Керування», «Графіки» кроку'],
+            [['Далі'], 'наступний крок; стрілка ліворуч — попередній'],
+          ]),
+          section('map', 'Мапа подорожі', [
+            [['тягнути'], 'мандрувати шляхом'],
+            [['щипок'], 'змінити масштаб'],
+            [['дотик'], 'картка розділу з його кроками'],
+          ]),
+        );
+        if (device.formFactor !== 'phone')
+          cols.add(
+            section('keyboard', 'Клавіатура (якщо є)', [
+              [['←', '→'], 'попередній і наступний крок'],
+              [['M'], 'мапа подорожі'],
+              [['Esc'], 'закрити вікно'],
+            ]),
+          );
+        body.add(cols);
+        return;
+      }
       const cols = new UiNode({ dir: 'row', gap: 14, wrap: true, width: 'fill', align: 'start' });
       const wide = hud.metrics.width > 1100;
       const w = wide ? 318 : 'fill';

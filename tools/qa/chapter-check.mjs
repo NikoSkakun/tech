@@ -35,6 +35,8 @@
 //   Fails (exit 1) on any console error or warning, page error, third-party network request, wrong position,
 //   leak, or frame-time budget overrun (use --no-perf-fail to only report perf). Warnings never fail.
 //
+//   Mobile (F5): --mobile [all|pp,pa,pl,tp,tl] runs tools/qa/mobile-check.mjs on the touch profiles afterwards
+//   (phone portrait / small / landscape, tablet portrait / landscape — docs/MOBILE.md §6); its failures fail the run.
 // Options: --size WxH (1920x1080) · --sizes all|WxH,… · --also-size WxH · --q <tier> (high) · --freeze <s> (3)
 //          --out <dir> · --port/--base · --other <chapter> chapter used for the leave/return test
 //          --budget <ms> (8) · --budget-4k <ms> (14) · --fail-4k <ms> (16.6) · --no-perf-fail · --dpr2
@@ -319,4 +321,17 @@ try {
 writeFileSync(`${outDir}/report.json`, JSON.stringify(report, null, 2));
 if (warnings.length) console.log(`${warnings.length} warning(s) (not failures) — see report.json`);
 console.log(failures.length === 0 ? `PASS ${chapterId} — report: ${outDir}/report.json` : `FAILED ${chapterId}: ${failures.length} problem(s) — report: ${outDir}/report.json`);
-process.exit(failures.length === 0 ? 0 : 1);
+// --mobile [profiles]: the touch profiles of tools/qa/mobile-check.mjs (F5, docs/MOBILE.md) after the desktop check
+let mobileFailed = false;
+if (args.mobile) {
+  const tool = fileURLToPath(new URL('./mobile-check.mjs', import.meta.url));
+  const pass = [chapterId, '--profiles', args.mobile === true ? 'all' : String(args.mobile)];
+  for (const key of ['port', 'base', 'out']) if (typeof args[key] === 'string') pass.push(`--${key}`, args[key]);
+  if (typeof args.skip === 'string' && args.skip.split(',').includes('perf')) pass.push('--skip', 'perf');
+  try {
+    execFileSync(process.execPath, [tool, ...pass], { stdio: 'inherit' });
+  } catch {
+    mobileFailed = true;
+  }
+}
+process.exit(failures.length === 0 && !mobileFailed ? 0 : 1);

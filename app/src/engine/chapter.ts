@@ -14,6 +14,7 @@ import type { HudLayer } from './hud';
 import type { ScopedInput } from './input';
 import type { Nav } from './nav';
 import type { Mood, PostOverrides, PostParams } from './pipeline/post-params';
+import type { DeviceState } from './device';
 import type { QualityView } from './quality';
 import type { QaApi } from './qa-probes';
 import type { Rng } from './random';
@@ -200,6 +201,12 @@ export interface ChapterContext {
   /** Seeded random generator (deterministic per chapter). Use instead of `Math.random()`. */
   readonly random: Rng;
   readonly viewport: Viewport;
+  /**
+   * The device model (F5, DECISIONS §57 f): `formFactor` (`desktop` | `tablet` | `phone`), `orientation`,
+   * `pointer` (`fine` | `coarse`), safe area. Live — read it when you need it (it changes on rotation); the only
+   * sanctioned way for a chapter to learn about the device. Most chapters never need it.
+   */
+  readonly device: DeviceState;
   /** For render targets / capability queries. Do not call `render()` or change global state. */
   readonly renderer: WebGLRenderer;
   /** True when the user (or OS) asked for reduced motion. */

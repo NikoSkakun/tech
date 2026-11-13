@@ -64,6 +64,16 @@ class HitProxy extends Object3D {
 
 const _clip = new Vector4();
 
+/**
+ * Pointer facts the HUD sets from the device model (F5): `minHitPx` — the least size of a pointer target in
+ * real CSS px on touch devices (0 = desktops: the kit's 44-unit minimum alone applies); `coarse` — the primary
+ * pointer is a finger (widgets drop hover-only affordances and enlarge handles).
+ */
+export const uiPointer = { minHitPx: 0, coarse: false };
+
+/** Every live surface (HUD and world) — QA measures the on-screen text size of world consoles from it. */
+export const uiSurfaces = new Set<UiSurface>();
+
 /** Free the GPU side of an embedded object (geometries; materials too when the surface dies). */
 function releaseGpu(object: Object3D, materials: boolean): void {
   object.traverse((o) => {
@@ -128,6 +138,7 @@ export class UiSurface extends Group {
     this.baseOrder = opts.renderOrder ?? 1000;
     this.root = new UiNode({ name: 'root', dir: 'stack' });
     this.root.attach(this);
+    uiSurfaces.add(this);
     // tab order = paint order
     this.offFocus = uiFocus.provide(() =>
       this.visible && this.interactive
@@ -253,8 +264,12 @@ export class UiSurface extends Group {
     if (!this.interactive || node.slot < 0 || !node.interactive) return null;
     const hit = this.intersect(node, ray);
     if (!hit) return null;
-    const hw = Math.max(node.bw, node.minHit) / 2;
-    const hh = Math.max(node.bh, node.minHit) / 2;
+    // touch devices: targets that have a minimum at all get at least `uiPointer.minHitPx` real CSS px (HUD)
+    let min = node.minHit;
+    if (min > 0 && uiPointer.minHitPx > 0 && this.host.layer === 'hud')
+      min = Math.max(min, uiPointer.minHitPx / Math.max(this.cssPxPerUnit, 0.01));
+    const hw = Math.max(node.bw, min) / 2;
+    const hh = Math.max(node.bh, min) / 2;
     if (Math.abs(hit.x) > hw || Math.abs(hit.y) > hh) return null;
     const clip = this.clipOf.get(node);
     if (clip) {
@@ -268,9 +283,20 @@ export class UiSurface extends Group {
     return { distance: Math.max(distance, 1e-4), point };
   }
 
+  /** Touch: the pick proxy of the node that takes a finger drag begun on `node` (see `UiNode.wantsDrag`). */
+  private dragOwnerOf(node: UiNode, dx: number, dy: number): Object3D | null {
+    for (let n: UiNode | null = node; n; n = n.parent) {
+      const h = n.handlers;
+      if (!h || !(h.drag || h.dragStart) || !n.interactive) continue;
+      if (n.wantsDrag(dx, dy, n === node)) return this.proxies.get(n)?.proxy ?? null;
+    }
+    return null;
+  }
+
   override dispose(): void {
     if (this.dead) return;
     this.dead = true;
+    uiSurfaces.delete(this);
     this.offFocus();
     uiFocus.release(this.root);
     for (const p of this.proxies.values()) p.off();
@@ -406,6 +432,7 @@ export class UiSurface extends Group {
           wheel: (dy: number, e: PointerInfo) => node.parent?.bubbleWheel(dy, e) ?? false,
           ...handlers,
           enabled: () => node.interactive,
+          dragOwner: (g: { dx: number; dy: number }) => this.dragOwnerOf(node, g.dx, g.dy),
         },
         this.host.layer,
       );

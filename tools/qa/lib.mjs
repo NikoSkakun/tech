@@ -80,6 +80,7 @@ export function ensureParent(file) {
  */
 export function appUrl(base, { route = '', q = 'high', freeze = null, extra = {} } = {}) {
   const params = new URLSearchParams({ debug: '', overlay: '0', noaudio: '', q, ...extra });
+  if (q === 'auto') params.delete('q'); // let the app pick the tier itself (`mobile` on phones / tablets)
   if (freeze !== null && freeze !== undefined) params.set('freeze', String(freeze));
   const hash = route ? `#/${route.replace(/^\/+/, '')}` : '';
   return `${base}?${params.toString().replace(/=(&|$)/g, '$1')}${hash}`;

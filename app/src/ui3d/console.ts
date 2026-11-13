@@ -5,7 +5,7 @@
  * normalised to a 1280×720 window; below `minPx` (16) it grows (up to `maxGrow`, default ×3) and, if that is
  * still not enough, logs one warning — which fails `chapter-check`, so an illegible console cannot ship.
  */
-import { Vector3 } from 'three';
+import { type Object3D, Vector3 } from 'three';
 import type { ChapterContext } from '@/engine/api';
 import type { UiNode } from './core/node';
 import type { UiSurface } from './core/surface';
@@ -41,6 +41,32 @@ export interface WorldConsole {
   readonly grow: number;
 }
 
+/**
+ * A console as the HUD sees it (F5): on phones the sheet takes the panel of every console that is shown in
+ * the world («Графіки» tab) — the console "re-homes" — and gives it back when the device or the step changes.
+ * Chapters do nothing for this; they keep showing / hiding `surface` per step.
+ */
+export interface WorldConsoleEntry {
+  readonly title: string;
+  readonly panel: Panel;
+  readonly surface: UiSurface;
+  /** The panel is in the HUD right now. */
+  readonly rehomed: boolean;
+  /** Hand the panel to a HUD node (re-home) … */
+  moveTo(host: UiNode): void;
+  /** … and put it back on its world surface. */
+  home(): void;
+}
+
+/** Consoles of the chapter on screen (each removes itself when its chapter is disposed). */
+export const worldConsoles = new Set<WorldConsoleEntry>();
+
+/** The object and all its ancestors are visible. */
+function shownInScene(o: Object3D): boolean {
+  for (let p: Object3D | null = o; p; p = p.parent) if (!p.visible) return false;
+  return true;
+}
+
 const _a = new Vector3();
 const _b = new Vector3();
 const _right = new Vector3();
@@ -66,6 +92,35 @@ export function worldConsole(ctx: ChapterContext, opts: WorldConsoleOptions): Wo
   });
   surface.root.add(panel);
   panel.float = { ax: 0.5, ay: 0, dy: 20 };
+  const entry: WorldConsoleEntry = {
+    title: opts.title ?? '',
+    panel,
+    surface,
+    get rehomed() {
+      return panel.parent !== surface.root;
+    },
+    moveTo(host) {
+      if (panel.parent === host) return;
+      panel.float = null;
+      panel.variant = 'plain';
+      panel.pad = 0;
+      panel.width = 'fill';
+      host.add(panel);
+    },
+    home() {
+      if (panel.parent === surface.root) return;
+      panel.variant = 'glass';
+      panel.pad = [18, 22];
+      panel.width = width;
+      panel.float = { ax: 0.5, ay: 0, dy: 20 };
+      surface.root.add(panel);
+    },
+  };
+  worldConsoles.add(entry);
+  ctx.onDispose(() => {
+    worldConsoles.delete(entry);
+    panel.detach();
+  });
   const minPx = opts.minPx ?? 16;
   const maxGrow = opts.maxGrow ?? 3;
   const state = { textPx: Infinity, grow: 1 };
@@ -73,7 +128,7 @@ export function worldConsole(ctx: ChapterContext, opts: WorldConsoleOptions): Wo
   // runs right before the surface is drawn (every rendered frame while it is visible)
   surface.beforeFlush = () => {
     const cam = ctx.camera.camera;
-    if (!surface.parent) return;
+    if (!surface.parent || entry.rehomed) return; // re-homed: nothing of it is drawn in the world
     if (opts.billboard ?? true) {
       surface.getWorldPosition(_a);
       surface.rotation.y = Math.atan2(cam.position.x - _a.x, cam.position.z - _a.z);
@@ -98,7 +153,9 @@ export function worldConsole(ctx: ChapterContext, opts: WorldConsoleOptions): Wo
       state.grow = Math.max((state.grow * (minPx * 1.15)) / state.textPx, 1);
       surface.scale.setScalar(opts.unit * state.grow);
     }
-    if (!warned && state.grow >= maxGrow && state.textPx < minPx * 0.98) {
+    // three.js updates the matrices of hidden subtrees too, so this runs for the consoles of other steps whose
+    // group is hidden: warn only about a console that is really shown (F5 — on phones the hidden ones tripped it)
+    if (!warned && state.grow >= maxGrow && state.textPx < minPx * 0.98 && shownInScene(surface)) {
       warned = true;
       console.warn(
         `worldConsole '${opts.title ?? opts.name ?? ''}': text ${state.textPx.toFixed(1)} px < ${minPx} px at 1280×720 — move the camera closer or raise \`unit\``,

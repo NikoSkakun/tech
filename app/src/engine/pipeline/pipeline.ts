@@ -338,7 +338,24 @@ export class RenderPipeline {
     if (needLive) this.ensureTransitionTargets();
     const worldOut = needLive ? this.rtLive! : this.rtHud;
 
-    if (world) {
+    // `mobile` tier (no AO, no DOF, no MSAA): the world is drawn straight into the HUD buffer — one
+    // full-screen pass and one HDR buffer of bandwidth less per frame. Transitions use the regular path.
+    const direct = this.profile.directWorld && !needLive;
+    if (world && direct) {
+      this.applyRig(world.rig);
+      r.setRenderTarget(this.rtHud);
+      r.setClearColor(VOID, 1);
+      r.clear(true, true, true);
+      r.render(world.scene, world.camera);
+      const cam = world.camera;
+      const autoShadows = r.shadowMap.autoUpdate;
+      r.shadowMap.autoUpdate = false; // the shadow map of this frame is already up to date
+      cam.layers.set(OVERLAY_LAYER);
+      r.clear(false, true, false);
+      r.render(world.scene, cam);
+      cam.layers.set(WORLD_LAYER);
+      r.shadowMap.autoUpdate = autoShadows;
+    } else if (world) {
       this.applyRig(world.rig);
       r.setRenderTarget(this.rtScene);
       r.setClearColor(VOID, 1);
@@ -592,7 +609,8 @@ export class RenderPipeline {
     this.height = h;
     this.rtScene = hdrTarget(w, h, { samples: q.msaa, depth: true, depthTexture: true, stencil: true });
     this.rtPrep = hdrTarget(w, h);
-    this.rtHud = hdrTarget(w, h, { samples: q.hudMsaa, depth: true });
+    // (stencil only where the world itself is drawn into this buffer — the `mobile` tier)
+    this.rtHud = hdrTarget(w, h, { samples: q.hudMsaa, depth: true, stencil: q.directWorld });
     if (q.aoSamples > 0) {
       const aw = Math.max(1, Math.round(w * q.aoScale));
       const ah = Math.max(1, Math.round(h * q.aoScale));
@@ -614,8 +632,9 @@ export class RenderPipeline {
         depthBuffer: false,
       });
     }
-    let bw = Math.max(1, Math.floor(w / 2));
-    let bh = Math.max(1, Math.floor(h / 2));
+    // first bloom level: half resolution on desktop tiers, a quarter on `mobile` (QualityProfile.bloomScale)
+    let bw = Math.max(1, Math.floor(w * q.bloomScale));
+    let bh = Math.max(1, Math.floor(h * q.bloomScale));
     for (let i = 0; i < q.bloomLevels && bw >= 2 && bh >= 2; i++) {
       this.bloomDown.push(hdrTarget(bw, bh));
       this.bloomUp.push(hdrTarget(bw, bh));

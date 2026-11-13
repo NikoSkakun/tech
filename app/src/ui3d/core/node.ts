@@ -324,6 +324,16 @@ export class UiNode {
     return this.surface?.rayToLocal(this, e.ray) ?? null;
   }
 
+  /**
+   * Touch arbitration (F5): does this node take a finger drag that has moved by (`dx`, `dy`) CSS px? `own` —
+   * the press began on this very node (not on a descendant). Asked from the pressed node upward; the first
+   * node with drag handlers that says yes owns the gesture. Default: only its own drags. Containers (scroll
+   * view, bottom sheet) override it to take over drags that started on their content. Never asked for a mouse.
+   */
+  wantsDrag(_dx: number, _dy: number, own: boolean): boolean {
+    return own;
+  }
+
   /** Offer a wheel event to this node and then its ancestors (so a scroll view scrolls under its buttons). */
   bubbleWheel(deltaY: number, e: PointerInfo): boolean {
     if (this.handlers?.wheel?.(deltaY, e)) return true;

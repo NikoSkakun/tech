@@ -10,7 +10,8 @@ Reference implementations that are compiled and run in CI-style checks:
 | Full micro-world chapter (instancing, labels, drag, `content.ts` → HUD step panel) | `app/src/volumes/_dev/chapters/_sandbox-micro/` |
 | Full diorama chapter (async init, env blending, K.energy, point lights) | `app/src/volumes/_dev/chapters/_sandbox-diorama/` |
 
-Contents: 1 mental model · 2 file template · 3 manifest · 4 scene & context · 5 step states (`ctx.stage`) ·
+Contents (§23: phones and tablets — the device model, re-framing, the `mobile` tier, touch input):
+1 mental model · 2 file template · 3 manifest · 4 scene & context · 5 step states (`ctx.stage`) ·
 6 camera · 7 materials & palette · 8 environment · 9 post · 10 text · 11 input · 12 tweens & clock ·
 13 disposal · 14 HUD layer & overlay layer (for `F2`) · 15 plugins, store, nav, events (for `F2`/`F3`) ·
 16 quality & perf budget · 17 debug API & URL flags · 18 QA tools · 19 do / don't.
@@ -151,6 +152,7 @@ interface StepInfo { from: string | null; instant: boolean; direction: 1 | -1 | 
 | `hud: HudLayer` | camera-space UI layer — pass to `@/ui3d` widgets (§14) |
 | `random: Rng` | seeded RNG — use instead of `Math.random()` |
 | `viewport`, `onResize(fn)` | CSS size, aspect, dpr |
+| `device` | the device model (F5, §23): `formFactor`, `orientation`, `pointer`, safe area — live; chapters rarely need it |
 | `renderer` | capabilities / render targets only; never call `render()` |
 | `reducedMotion`, `gesture` | user preference; promise of the first user gesture (audio unlock) |
 | `track(x)`, `onDispose(fn)`, `disposed` | lifetime management (§13) |
@@ -216,8 +218,10 @@ camera.focusOn(object, { padding: 1.4 });   // frame any object from the current
 ```
 
 - `fit` (M3, DECISIONS §57 d): subject bounds that must stay in frame on any aspect ratio — `{ center, radius }`
-  or an object (its bounding box). **A hint only for now** (the director ignores it; F5 will reframe phones /
-  portrait from it) — declare it on every shot: `close: { position, target, fit: { center: [0, 1, 0], radius: 1.4 } }`.
+  or an object (the bounding sphere of its visible meshes). On phones and tablets the director **re-frames from
+  it** (F5, §23): the picture grows until the sphere touches the free area and shrinks if it would not fit; a
+  shot without `fit` is cropped to its central square. Desktops ignore it. Declare it on every shot:
+  `close: { position, target, fit: { center: [0, 1, 0], radius: 1.4 } }`.
 - `Shot`: `position`, `target`, `fov` (vertical FOV of the *safe frame*, default 32°), `frameAspect` (default
   1.5), `focus` (point or object the depth of field tracks; default `target`), `orbit` limits
   (`azimuth` ±0.7 rad, `polar` ±0.35 rad, `zoom` [0.65, 1.5], `enabled`), `drift` (idle motion, default 1),
@@ -523,7 +527,8 @@ shadow map 1024 / 2048 / 2048 / 4096, AO off / 6 / 10 / 16 samples, DOF off / 16
 
 ## 17. Debug / QA API and URL flags
 
-URL flags: `?q=<tier>` · `?debug` (dev volumes and dev chapters + HTML overlay; `&overlay=0` hides the overlay) ·
+URL flags: `?ff=phone|tablet|desktop` and `?safe=top,right,bottom,left` (F5: force the form factor / emulate
+safe-area insets, §23) · `?q=<tier>` (now also `mobile`) · `?debug` (dev volumes and dev chapters + HTML overlay; `&overlay=0` hides the overlay) ·
 `?noaudio` ·
 `?freeze=<seconds>` (deterministic clock: no real-time advance; after every navigation exactly N seconds are
 simulated in 1/60 s steps, then the picture holds; chapter transitions are instant).
@@ -778,3 +783,48 @@ glossary are built per volume from `Journey` (`journey.volume` carries the axis,
 **Starting a volume** (checklist with all steps: `docs/VOLUMES.md` §4): copy `volume.json`, `volume.ts`,
 `chapters.ts` from `volumes/_demo/`, add the alias line to `tsconfig.json`, write the documents under
 `docs/volumes/<id>/`, run `tools/content/regen.sh --volume <id>`.
+
+## 23. Phones and tablets (F5 — additive; desktop behaviour is unchanged)
+
+Read `docs/MOBILE.md` for the whole picture and the rules for chapters; this is what engine code offers.
+
+**Device model** — `engine.device` / `ctx.device` / `store.get().device` / `__app.device()` (`engine/device.ts`):
+`{ formFactor: 'desktop' | 'tablet' | 'phone', orientation, pointer: 'fine' | 'coarse', hover, safeArea,
+keyboard, pixelBudget, width, height, forced }`. A fine primary pointer is always `desktop`; a coarse one is a
+`phone` below 600 CSS px of the viewport's short side, a `tablet` up to 1100. Live (rotation, split screen,
+keyboard). `classifyDevice(probe)` is the pure rule (unit-tested). Subscribe with
+`store.subscribe((s) => s.device, fn)`. Chapters must not sniff the device any other way (DECISIONS §57 f).
+
+**HUD metrics** — `hud.metrics` gained `formFactor`, `orientation`, `pointer`, `shell` (`'desk' | 'sheet' |
+'side'`) and `safeArea` (HUD units; the on-screen keyboard is part of `bottom`). On phones / tablets
+`pxPerUnit ≥ 1` (a unit is at least one CSS px), on desktops the clamp stays 0.7.
+
+**Camera** — `director.reframe` (set by the runtime: true on phones / tablets) magnifies the safe frame when
+the free area is narrower than the frame; limits in `REFRAME` (`camera/director.ts`): with `Shot.fit` up to
+"cover" until the subject sphere touches the free area (pull back to ×0.7 if it does not fit), without `fit` at
+most to the central square (×1.5 for the default frame); eased with λ = 6 s⁻¹. `camera.camera.frameZoom` is the
+factor in effect (1 on desktops). `camera.focusOn()` declares the focused subject as `fit`.
+
+**Quality** — tier `mobile` (`QUALITY_PROFILES.mobile`): `maxDpr` 2, MSAA 0 (+ FXAA), no AO, no DOF /
+tilt-shift, `bloomScale` 0.25 (first bloom level at a quarter of the resolution; 0.5 on the desktop tiers), 3 bloom
+levels, `directWorld` (the world is drawn straight into the HUD buffer, no "prep" pass), shadow map 1024, `particles` 0.5, `lowDetail: true`. `auto` resolves to it on phones / tablets (no benchmark).
+`ctx.quality.profile.lowDetail` is the "drop optional detail" signal for kits and chapters. Render DPR =
+`min(devicePixelRatio, profile.maxDpr, budgetDpr(device, w, h)) × resolutionScale`. `Settings.frameCap`
+(`'auto' | 30 | 60`): `auto` holds 30 fps on the `mobile` tier after ~3 s of long frames at the lowest dynamic
+resolution; `engine.frameCap`, `stats().frameCap`, `stats().resolutionScale`.
+
+**Input** — touch model in `InputSystem`: a touch that travels > 9 CSS px is not a tap; holding 480 ms
+(`LONG_PRESS_MS`) on an object with a tooltip emits `hover` with `longPress: true` and suppresses the click;
+`HoverEvent.pointerType` (the HUD shows a touch's tooltip only for the long press; the event's `tooltip` is filled as before). Fat-finger picking: a touch that hits no
+interactive object exactly tries rings of 10 and 22 px against the world layer. `InteractionHandlers.dragOwner`
+hands a touch gesture to another registered object (the UI kit uses it for scroll / sheet arbitration).
+`input.capturePinch(fn)` takes two-finger pinches before the camera. `input.gesture` resolves on touch
+*release* (user activation), on mouse press as before.
+
+**Engine** — `engine.canFullscreen`; the loop also stops on `pagehide` and resumes on `pageshow`;
+`engine/page.ts` cancels page-level touch defaults (zoom, bounce, focus theft). Nothing uses secure-context
+APIs.
+
+**QA** — `tools/qa/mobile-check.mjs`, `chapter-check --mobile`, `webkit-smoke.mjs`, `shot.mjs --touch --extra
+"ff=phone&safe=…" --q auto`, `snap.mjs` (deterministic per-step PNGs and `--compare` for before / after),
+`touch.mjs` (tap / long press / drag / pinch through the DevTools protocol). See `docs/MOBILE.md` §6.

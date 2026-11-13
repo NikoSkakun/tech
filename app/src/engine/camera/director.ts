@@ -42,9 +42,11 @@ export interface Shot {
   near?: number;
   far?: number;
   /**
-   * Subject bounds of the shot (M3, DECISIONS §57): what must stay in frame when the viewport is narrow / tall
-   * (phones, portrait). A world-space sphere `{ center, radius }` or an object (its bounding box). **Currently a
-   * hint only** — the director ignores it; F5 (mobile) will reframe from it. Declare it on every shot now.
+   * Subject bounds of the shot (M3, DECISIONS §57 d): what must stay in frame when the free viewport area is
+   * narrower than the safe frame (phones, portrait). A world-space sphere `{ center, radius }` or an object (the
+   * bounding sphere of its visible meshes). On phones and tablets the director re-frames from it (F5, see
+   * `REFRAME` below and `docs/MOBILE.md`): the picture grows until this sphere touches the free area — and
+   * shrinks (down to ×0.7) if it would not fit. Desktops ignore it: their framing is the safe frame, as always.
    */
   fit?: ShotFit;
 }
@@ -79,6 +81,22 @@ export interface Insets {
 const DEFAULT_FOV = 32;
 const DEFAULT_FRAME_ASPECT = 1.5;
 
+/**
+ * Re-framing on phones and tablets (F5). When the area the HUD leaves free is narrower than a shot's safe
+ * frame, "contain" makes the subject small (a 1.5 : 1 frame across a 390 px wide phone is 260 px tall). The
+ * director then magnifies the projection (a pure field-of-view change: perspective and parallax stay) by
+ *
+ * - **a shot with `fit`**: up to "cover" (the frame fills the free height) but only until the subject sphere
+ *   touches the free area with `margin` to spare; if the sphere does not fit even into the plain safe frame, the
+ *   picture is pulled back, down to `min`;
+ * - **a shot without `fit`**: as if the safe frame were as narrow as the free area, but never narrower than
+ *   `autoAspect` (a square around the shot target) — at most ×1.5 for the default 1.5 : 1 frame. The sides of
+ *   the composition are cropped, the target stays centred.
+ *
+ * The factor is eased (`lambda`), so a moving sheet or a shot change never pops.
+ */
+export const REFRAME = { min: 0.7, max: 2.5, autoAspect: 1, margin: 0.06, lambda: 6 } as const;
+
 function toVec3(v: Vec3Like, out = new Vector3()): Vector3 {
   return Array.isArray(v) ? out.set(v[0]!, v[1]!, v[2]!) : out.copy(v as Vector3);
 }
@@ -88,6 +106,8 @@ export class DirectedCamera extends PerspectiveCamera {
   /** Vertical FOV of the safe frame in degrees. */
   frameFov = DEFAULT_FOV;
   frameAspect = DEFAULT_FRAME_ASPECT;
+  /** Extra magnification of the safe frame (F5 re-framing; exactly 1 on desktops — see `REFRAME`). */
+  frameZoom = 1;
   /** Viewport size in CSS px. */
   viewWidth = 1;
   viewHeight = 1;
@@ -114,7 +134,7 @@ export class DirectedCamera extends PerspectiveCamera {
     const fh = Math.max(1 - i.top - i.bottom, 0.1) * H;
     const tanV = Math.tan(MathUtils.degToRad(this.frameFov) / 2);
     // "contain": the whole safe frame must fit into the free rectangle
-    const frameHeightPx = fw / fh >= this.frameAspect ? fh : fw / this.frameAspect;
+    const frameHeightPx = (fw / fh >= this.frameAspect ? fh : fw / this.frameAspect) * this.frameZoom;
     const pxPerTan = frameHeightPx / 2 / tanV;
     const cx = (i.left + (1 - i.right)) * 0.5 * W;
     const cy = (i.top + (1 - i.bottom)) * 0.5 * H; // from the top edge
@@ -177,6 +197,16 @@ export class CameraDirector {
   userControl = true;
   /** Shorter moves, no drift (set from the `reducedMotion` setting). */
   reducedMotion = false;
+  /**
+   * Re-frame for narrow free areas (F5; see `REFRAME`). The runtime switches it on for phones and tablets;
+   * on desktops it stays off and the projection is exactly the safe-frame fit it always was.
+   */
+  reframe = false;
+  private zoomSnap = true;
+  private fitObject: Object3D | null = null;
+  private readonly fitSphere = new Sphere();
+  private hasFit = false;
+  private fitAge = 0;
 
   private readonly named = new Map<string, Shot>();
   private from: Pose;
@@ -243,6 +273,7 @@ export class CameraDirector {
     const focus = resolved.focus;
     this.focusObject = focus && (focus as Object3D).isObject3D ? (focus as Object3D) : null;
     if (!this.focusObject) toVec3((focus as Vec3Like | undefined) ?? resolved.target, this.focusPoint);
+    this.resolveFit(resolved.fit);
     // the user's orbit unwinds while the camera travels
     this.orbitAzTarget = 0;
     this.orbitPolTarget = 0;
@@ -250,6 +281,7 @@ export class CameraDirector {
     let duration = opts.duration ?? MOTION.camera.duration;
     if (this.reducedMotion) duration = Math.min(duration, Math.max(0.3, duration * REDUCED_MOTION.camera));
     if (opts.instant || duration <= 0) {
+      this.zoomSnap = true;
       this.copyPose(this.to, this.pose);
       this.progress = 1;
       this.orbitAz = this.orbitPol = this.orbitZoom = 0;
@@ -294,6 +326,8 @@ export class CameraDirector {
         position: center.clone().addScaledVector(dir, distance),
         target: center,
         focus: center,
+        // the focused subject is what must stay in frame on a narrow screen
+        fit: { center, radius },
         fov,
       },
       opts,
@@ -376,6 +410,65 @@ export class CameraDirector {
     this.applyToCamera(dt);
   }
 
+  /** Take a shot's subject bounds (`Shot.fit`): a sphere, or an object whose bounds are re-read now and then. */
+  private resolveFit(fit: ShotFit | undefined): void {
+    this.fitObject = null;
+    this.hasFit = false;
+    if (!fit) return;
+    if ((fit as Object3D).isObject3D) {
+      this.fitObject = fit as Object3D;
+      this.fitAge = 0;
+      this.refreshFitObject();
+      return;
+    }
+    const sphere = fit as { center: Vec3Like; radius: number };
+    toVec3(sphere.center, this.fitSphere.center);
+    this.fitSphere.radius = Math.max(sphere.radius, 1e-4);
+    this.hasFit = true;
+  }
+
+  private refreshFitObject(): void {
+    if (!this.fitObject) return;
+    worldBounds(this.fitObject, _box);
+    this.hasFit = !_box.isEmpty();
+    if (this.hasFit) _box.getBoundingSphere(this.fitSphere);
+  }
+
+  /**
+   * Magnification of the safe frame the free area asks for right now (see `REFRAME`); 1 when re-framing is off
+   * or the free area is at least as wide as the frame and the subject fits.
+   */
+  private desiredZoom(): number {
+    if (!this.reframe) return 1;
+    const cam = this.camera;
+    const i = cam.insets;
+    const fw = Math.max(1 - i.left - i.right, 0.1) * cam.viewWidth;
+    const fh = Math.max(1 - i.top - i.bottom, 0.1) * cam.viewHeight;
+    const aspect = this.pose.frameAspect;
+    const free = fw / fh;
+    if (!this.hasFit) return aspect / MathUtils.clamp(free, Math.min(REFRAME.autoAspect, aspect), aspect);
+    // objects move and grow: their bounds are re-read a few times a second, not every frame
+    if (this.fitObject && ++this.fitAge >= 20) {
+      this.fitAge = 0;
+      this.refreshFitObject();
+      if (!this.hasFit) return 1;
+    }
+    const containH = free >= aspect ? fh : fw / aspect;
+    const pxPerTan = containH / 2 / Math.tan(MathUtils.degToRad(this.pose.fov) / 2);
+    // the sphere in camera space: centre direction (tan units) and angular half-size along each screen axis
+    _v.copy(this.fitSphere.center).applyMatrix4(cam.matrixWorldInverse);
+    const depth = Math.max(-_v.z, 1e-4);
+    const r = this.fitSphere.radius;
+    const tanR = r / Math.sqrt(Math.max(depth * depth - r * r, depth * depth * 0.02));
+    const room = 1 - REFRAME.margin;
+    const fitZoom = Math.min(
+      ((fw / 2) * room) / ((Math.abs(_v.x) / depth + tanR) * pxPerTan),
+      ((fh / 2) * room) / ((Math.abs(_v.y) / depth + tanR) * pxPerTan),
+    );
+    const cover = Math.max(1, aspect / free);
+    return MathUtils.clamp(Math.min(cover, fitZoom), REFRAME.min, REFRAME.max);
+  }
+
   private resolveFocus(out: Vector3): Vector3 {
     if (this.focusObject) return this.focusObject.getWorldPosition(out);
     return out.copy(this.focusPoint);
@@ -436,7 +529,7 @@ export class CameraDirector {
     this.orbitAz = this.orbitPol = this.orbitZoom = 0;
   }
 
-  private applyToCamera(_dt: number): void {
+  private applyToCamera(dt: number): void {
     const cam = this.camera;
     const drift = this.reducedMotion ? REDUCED_MOTION.drift : (this.shot.drift ?? 1);
     const t = this.time;
@@ -457,8 +550,13 @@ export class CameraDirector {
     cam.far = this.shot.far ?? Math.max(distance * 40, 600);
     cam.frameFov = this.pose.fov;
     cam.frameAspect = this.pose.frameAspect;
-    cam.updateProjectionMatrix();
     cam.updateMatrixWorld(true);
+    // F5 re-framing: eased, so sheets and shot changes never pop; exactly 1 while `reframe` is off (desktops)
+    const zoom = this.desiredZoom();
+    if (this.zoomSnap || !this.reframe) cam.frameZoom = zoom;
+    else cam.frameZoom = damp(cam.frameZoom, zoom, REFRAME.lambda, dt);
+    this.zoomSnap = false;
+    cam.updateProjectionMatrix();
     // DOF focus tracking: distance of the focus point along the view axis
     cam.getWorldDirection(_right);
     this.focusDistance = Math.max(_v.copy(this.focusCurrent).sub(cam.position).dot(_right), cam.near);

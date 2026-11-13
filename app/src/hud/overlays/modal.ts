@@ -8,6 +8,7 @@ import {
   Icon,
   Label,
   Panel,
+  ScrollView,
   UI,
   UiNode,
   conceal,
@@ -34,9 +35,19 @@ export interface ModalSpec {
   fresh?: boolean;
   key?(e: KeyboardEvent): boolean;
   onClose?(): void;
+  /**
+   * Touch shells: the body scrolls by itself (it pins a search field, say) — do not wrap it in the modal's
+   * scroll view. `bodyHeight()` then tells the body how tall it may be.
+   */
+  ownScroll?: boolean;
 }
 
-export function createModal(hud: Hud, spec: ModalSpec): Overlay {
+/** What `createModal` returns: the overlay plus the height its body may take right now (touch shells). */
+export interface ModalOverlay extends Overlay {
+  bodyHeight(): number;
+}
+
+export function createModal(hud: Hud, spec: ModalSpec): ModalOverlay {
   const scrim = new Scrim({ width: 'fill', height: 'fill' });
   scrim.on({ cursor: 'default', click: () => hud.close(), wheel: () => true });
   const body = new UiNode({ dir: 'col', gap: UI.gap.md, width: 'fill' });
@@ -64,6 +75,16 @@ export function createModal(hud: Hud, spec: ModalSpec): Overlay {
       body,
     ],
   });
+  // the panel is centred in the part of the screen that is really free: on phones the frame's padding keeps
+  // it clear of the notch, the home indicator and the on-screen keyboard (all zero on desktops)
+  const frame = new UiNode({
+    dir: 'stack',
+    align: 'center',
+    justify: 'center',
+    width: 'fill',
+    height: 'fill',
+    children: [panel],
+  });
   const root = new UiNode({
     dir: 'stack',
     align: 'center',
@@ -72,18 +93,46 @@ export function createModal(hud: Hud, spec: ModalSpec): Overlay {
     height: 'fill',
     visible: false,
     opacity: 0,
-    children: [scrim, panel],
+    children: [scrim, frame],
   });
   hud.modal.add(root);
   let built = false;
+  // touch shells: a phone screen is shorter than most of these panels — the body scrolls under the title bar
+  const scroll = new ScrollView({ name: 'modal-scroll', height: 'hug' });
   const fit = (): void => {
     const m = hud.metrics;
+    const touch = m.shell !== 'desk';
+    const wrap = touch && !spec.ownScroll;
+    if (wrap && body.parent !== scroll.content) {
+      scroll.content.add(body);
+      panel.add(scroll);
+    } else if (!wrap && body.parent === scroll.content) {
+      panel.remove(scroll);
+      panel.add(body);
+    }
     panel.width = Math.min(spec.width, m.width - m.safeMargin * 2);
     panel.maxH = m.height - m.safeMargin * 2;
+    const s = m.safeArea;
+    frame.pad = [s.top, s.right, s.bottom, s.left];
+    if (touch) {
+      // phones: margins of 8 inside the safe area, and the panel's own padding shrinks with the screen
+      panel.width = Math.min(spec.width, m.width - s.left - s.right - 16);
+      panel.maxH = m.height - s.top - s.bottom - 16;
+      panel.pad = m.formFactor === 'phone' ? [16, 16] : UI.pad.panel;
+      scroll.maxH = bodyHeight();
+    }
+    // a phone panel with a list of its own takes its full height at once: it must not jump when the list arrives
+    panel.minH = touch && spec.ownScroll && m.formFactor === 'phone' ? panel.maxH : 0;
   };
   hud.engine.hud.onResize(fit);
+  /** Height left for the body under the title bar (touch shells). */
+  function bodyHeight(): number {
+    const pad = hud.metrics.formFactor === 'phone' ? 16 : UI.pad.panel;
+    return Math.max((panel.maxH === Infinity ? hud.metrics.height : panel.maxH) - pad * 2 - 40 - UI.gap.md, 120);
+  }
   return {
     fullscreen: false,
+    bodyHeight,
     key: spec.key,
     open(arg) {
       fit();

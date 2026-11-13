@@ -20,11 +20,13 @@ import {
   conceal,
   reveal,
   setAccent,
+  uiPointer,
   type ToastOptions,
   type UiHost,
 } from '@/ui3d';
 import type { HudContext, HudModule, OverlayName } from './context';
 import { Landing } from './landing';
+import { touchTop } from './touch/geometry';
 
 /** Screen edge a region counts toward (`auto`: right on wide screens, bottom otherwise). */
 export type InsetSide = 'left' | 'right' | 'top' | 'bottom' | 'auto';
@@ -46,6 +48,7 @@ export class Hud implements HudContext {
   chapter: ChapterManifest | null = null;
   content: ChapterContent | null = null;
   overlay: OverlayName | null = null;
+  readonly touch: HudContext['touch'] = { insets: null, card: null, sheet: null };
   /** Regions that hide while a full-screen view is open or a chapter transition runs. */
   readonly chrome = new UiNode({
     name: 'chrome',
@@ -173,7 +176,12 @@ export class Hud implements HudContext {
   }
 
   toast(text: string, opts?: ToastOptions): () => void {
-    return this.toasts.push(text, opts);
+    const m = this.metrics;
+    if (m.shell === 'desk') return this.toasts.push(text, opts);
+    // touch shells: a message is never wider than the scene it sits over (it wraps instead)
+    const sides = this.touch.insets?.(m) ?? { left: 0, right: 0 };
+    const room = m.width - sides.left - sides.right - 16 - 68; // margins, icon and paddings of the pill
+    return this.toasts.push(text, { ...opts, maxWidth: Math.max(Math.min(opts?.maxWidth ?? 520, room), 160) });
   }
 
   open(name: OverlayName, arg?: unknown): void {
@@ -181,6 +189,8 @@ export class Hud implements HudContext {
     if (!next) return;
     if (this.overlay && this.overlay !== name) this.overlays.get(this.overlay)?.close();
     this.overlay = name;
+    // phones: event messages sit where a full-screen view has its own buttons — they go with the step view
+    if (next.fullscreen && this.metrics.shell !== 'desk') this.toasts.flush();
     next.open(arg);
     if (next.fullscreen) this.showChrome(false);
   }
@@ -303,11 +313,24 @@ export class Hud implements HudContext {
     const m = this.metrics;
     this.surface.setSize(m.width, m.height);
     this.surface.cssPxPerUnit = m.pxPerUnit;
+    // touch devices: real-pixel minimum for pointer targets (48 px on tablets, 44 px on phones)
+    uiPointer.coarse = m.pointer === 'coarse';
+    uiPointer.minHitPx = !uiPointer.coarse ? 0 : m.formFactor === 'phone' ? 44 : 48;
+    // event messages sit under the header: lower on phones (notch + compact header row)
+    if (m.shell !== 'desk') {
+      // centred over the scene: beside the side sheet in landscape, never over its tabs
+      const sides = this.touch.insets?.(m) ?? { left: 0, right: 0 };
+      this.toasts.float = { ax: 0.5, ay: 0, dx: (sides.left - sides.right) / 2, dy: touchTop(m) + 10 };
+    }
+    else if (this.toasts.float?.dy !== 96) this.toasts.float = { ax: 0.5, ay: 0, dy: 96 };
     for (const mod of this.modules) mod.onLayout?.(m);
     this.surface.flush();
     // free area for the camera director: what the regions leave uncovered
     const insets = { left: 0, right: 0, top: 0, bottom: 0 };
-    if (this.chromeShown) {
+    if (m.shell !== 'desk' && this.touch.insets) {
+      // touch shells: the sheet knows what it covers (its snap height, not its box)
+      if (this.chromeShown) Object.assign(insets, this.touch.insets(m));
+    } else if (this.chromeShown) {
       for (const src of this.insetSources) {
         const n = src.node;
         if (!n.visible || n.slot < 0) continue;

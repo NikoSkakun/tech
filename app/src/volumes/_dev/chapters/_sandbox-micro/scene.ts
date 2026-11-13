@@ -187,11 +187,13 @@ export default defineScene((ctx) => {
     0,
   ).applyEuler(hero.orbit.tilt);
   camera.shots({
-    atom: { position: [0.5, 4.4, 16.5], target: [0, 0, 0], fov: 32 },
+    // `fit`: the subject every screen must show (phones re-frame from it, docs/MOBILE.md §4 d)
+    atom: { position: [0.5, 4.4, 16.5], target: [0, 0, 0], fov: 32, fit: { center: [0, 0, 0], radius: 5.6 } },
     nucleus: {
       position: [1.9, 1.5, 5.4],
       target: [0, 0.05, 0],
       fov: 30,
+      fit: { center: [0, 0.05, 0], radius: 1.5 },
       orbit: { azimuth: 1.2, polar: 0.6 },
     },
     electron: {

@@ -38,9 +38,10 @@ export default defineScene((ctx) => {
   const protonLabel = label(content.labels.proton, proton);
 
   // 2. Shots: where the camera rests in each step (the user may orbit around them within limits).
+  //    `fit` = what must stay in frame on any screen: phones re-frame from it (docs/MOBILE.md §4 d).
   camera.shots({
-    single: { position: [-1.6, 0.6, 5], target: [-1.6, 0, 0], focus: electron },
-    both: { position: [0, 1.2, 8.5], target: [0, 0, 0] },
+    single: { position: [-1.6, 0.6, 5], target: [-1.6, 0, 0], focus: electron, fit: { center: [-1.6, 0, 0], radius: 0.8 } },
+    both: { position: [0, 1.2, 8.5], target: [0, 0, 0], fit: { center: [0, 0, 0], radius: 2.3 } },
   });
 
   // 3. Steps: the complete target state of each one. Whatever a step does not list goes back to its default

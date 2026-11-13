@@ -86,6 +86,8 @@ export interface ChapterCardOptions {
   maxHeight: number;
   onStep(stepId: string): void;
   onClose(): void;
+  /** Short screens (a phone held sideways): smaller title, no chips, a slimmer button — the list keeps the room. */
+  compact?: boolean;
 }
 
 export function chapterCard(o: ChapterCardOptions): Panel {
@@ -94,7 +96,12 @@ export function chapterCard(o: ChapterCardOptions): Panel {
   const done = c.steps.filter((s) => isVisited(o.visited, key, s.id)).length;
   const next = c.steps.find((s) => !isVisited(o.visited, key, s.id)) ?? c.steps[0]!;
   const start = o.currentStep ?? next.id;
-  const list = new ScrollView({ height: 'hug', maxH: Math.max(o.maxHeight - 250, 180), gap: 2 });
+  const compact = o.compact === true;
+  const list = new ScrollView({
+    height: 'hug',
+    maxH: compact ? Math.max(o.maxHeight - 172, 88) : Math.max(o.maxHeight - 250, 180),
+    gap: 2,
+  });
   c.steps.forEach((s, i) => {
     const row = new StepRow(i, s.title, isVisited(o.visited, key, s.id), s.id === o.currentStep, () =>
       o.onStep(s.id),
@@ -111,7 +118,8 @@ export function chapterCard(o: ChapterCardOptions): Panel {
         : 'Продовжити';
   const card = new Panel({
     width: 470,
-    gap: 12,
+    gap: compact ? 8 : 12,
+    ...(compact ? { pad: [14, 16] as const } : {}),
     children: [
       new UiNode({
         dir: 'row',
@@ -136,7 +144,11 @@ export function chapterCard(o: ChapterCardOptions): Panel {
                 letterSpacing: 0.08,
                 nowrap: true,
               }),
-              new Label(c.title, { font: 'display', size: UI.text.h2, lineHeight: 1.16 }, { width: 'fill' }),
+              new Label(
+                c.title,
+                { font: 'display', size: compact ? UI.text.h3 : UI.text.h2, lineHeight: 1.16 },
+                { width: 'fill' },
+              ),
             ],
           }),
           new Button({
@@ -153,6 +165,7 @@ export function chapterCard(o: ChapterCardOptions): Panel {
         wrap: true,
         gap: 8,
         width: 'fill',
+        visible: !compact,
         children: [
           new Chip({ kind: 'scale', text: c.axisLabel }),
           new Chip({
@@ -168,7 +181,7 @@ export function chapterCard(o: ChapterCardOptions): Panel {
             label,
             icon: 'play',
             variant: 'primary',
-            size: 'lg',
+            size: compact ? 'md' : 'lg',
             width: 'fill',
             onClick: () => o.onStep(start),
           })

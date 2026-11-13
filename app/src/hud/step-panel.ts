@@ -36,6 +36,13 @@ export interface StepPanel extends HudModule {
   want(): number;
   /** Compact title (smaller type) when the column is short of height. */
   setCompact(on: boolean): void;
+  /**
+   * Touch shells (F5): the panel becomes a plain view inside the sheet — no plate of its own, no counter and
+   * title (the sheet's head shows the title), the text flows as one scroll instead of pages.
+   */
+  setTouch(on: boolean): void;
+  /** Title of the step on screen (the sheet's head shows it). */
+  readonly stepTitle: string;
 }
 
 export function createStepPanel(hud: HudContext, popups: UiNode): StepPanel {
@@ -56,16 +63,50 @@ export function createStepPanel(hud: HudContext, popups: UiNode): StepPanel {
   let content: ChapterContent | null = null;
   let stepId: string | null = null;
   let quiz: QuizCard | null = null;
+  let touch = false;
 
+  /** Touch shells: the quiz lives in the sheet as a card; this removes it from there. */
+  let quizDismiss: (() => void) | null = null;
   const closeQuiz = (): void => {
     if (!quiz) return;
     const q = quiz;
     quiz = null;
+    if (quizDismiss) {
+      const dismiss = quizDismiss;
+      quizDismiss = null;
+      dismiss();
+      return;
+    }
     conceal(q, { onDone: () => q.detach() });
   };
   const openQuiz = (): void => {
     const items = quizCopy(hud.engine, content);
     if (!items.length || quiz) return;
+    if (hud.metrics.shell !== 'desk' && hud.touch.card) {
+      // phones and tablets: the quiz is a card of the sheet, opened to its full height
+      const card = new QuizCard({
+        name: 'quiz-card',
+        variant: 'plain',
+        items,
+        title: 'Міні-квіз розділу',
+        width: 'fill',
+        onDone: closeQuiz,
+      });
+      card.pad = 0;
+      quiz = card;
+      quizDismiss = hud.touch.card(
+        card,
+        () => {
+          if (quiz === card) {
+            quiz = null;
+            quizDismiss = null;
+          }
+        },
+        { back: true },
+      );
+      hud.touch.sheet?.setSnap('full');
+      return;
+    }
     quiz = new QuizCard({
       items,
       title: 'Міні-квіз розділу',
@@ -86,9 +127,9 @@ export function createStepPanel(hud: HudContext, popups: UiNode): StepPanel {
     counter.text = `КРОК ${index + 1} / ${manifest.steps.length}`;
     title.text = data?.title ?? step.title;
     const pages = data?.panel.length ? data.panel : [step.blurb];
-    pager.setPages(
-      pages.map((text) => new Label(text, { size: UI.text.body, lineHeight: 1.46 }, { width: 'fill' })),
-    );
+    // phones and tablets: a unit is a real pixel there, 17 px is the comfortable reading size (desktop: 19 units)
+    const size = touch ? UI.text.small : UI.text.body;
+    pager.setPages(pages.map((text) => new Label(text, { size, lineHeight: 1.46 }, { width: 'fill' })));
     extra.clear();
     const sections = data ? buildSections(hud, data) : null;
     if (sections) extra.add(sections);
@@ -155,6 +196,20 @@ export function createStepPanel(hud: HudContext, popups: UiNode): StepPanel {
     setCompact(on) {
       const size = on ? UI.text.h3 : UI.text.h1;
       if (title.style.size !== size) title.setStyle({ size });
+    },
+    setTouch(on) {
+      if (touch === on) return;
+      touch = on;
+      node.variant = on ? 'plain' : 'glass';
+      node.pad = on ? 0 : UI.pad.panel;
+      counter.visible = !on;
+      title.visible = !on;
+      pager.continuous = on;
+      node.repaint();
+      fill();
+    },
+    get stepTitle() {
+      return title.text;
     },
     fit(width, maxScroll) {
       node.width = width;

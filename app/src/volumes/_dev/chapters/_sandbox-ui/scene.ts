@@ -17,7 +17,7 @@ export default defineScene((ctx) => {
   const ring = new Mesh(new TorusGeometry(2.2, 0.08, 16, 96), K.glow({ color: 'cyan', intensity: 1.8 }));
   ring.rotation.x = 1.2;
   root.add(core, ring);
-  camera.shots({ main: { position: [0, 1.5, 11], target: [0, 0, 0] } });
+  camera.shots({ main: { position: [0, 1.5, 11], target: [0, 0, 0], fit: { center: [0, 0.2, 0], radius: 2.6 } } });
   const desk = createConsole(ctx);
   desk.surface.position.set(-5.2, 0.4, 0.4);
   desk.surface.rotation.y = 0.5;

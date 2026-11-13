@@ -127,7 +127,8 @@ export function createSpine(hud: HudContext, journey: Journey): HudModule {
       hud.relayout();
     },
     onLayout(m) {
-      node.visible = m.layout === 'wide';
+      // touch shells: the map button replaces the spine
+      node.visible = m.layout === 'wide' && m.shell === 'desk';
       node.float = { ax: 0, ay: 0.5, dx: m.safeMargin - 6, dy: 30 };
     },
   };

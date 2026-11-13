@@ -7,10 +7,13 @@ import { kGlobals } from '@/style/materials/globals';
 import { textViewport } from '@/text/text3d';
 import type { Viewport } from './chapter';
 import { Clock, FIXED_DT } from './clock';
+import { budgetDpr, isFormFactor, type DeviceState, type EdgeInsets, type FormFactor } from './device';
+import { DeviceMonitor, parseSafeArea } from './device-monitor';
 import { Emitter, type Unsubscribe } from './events';
 import { HudLayer } from './hud';
 import { InputSystem } from './input';
 import { Nav } from './nav';
+import { installPagePlumbing } from './page';
 import { RenderPipeline } from './pipeline/pipeline';
 import { benchmarkGpu, isQualityTier, Quality, tierFromBenchmark, type QualityTier } from './quality';
 import type { Library } from './library';
@@ -32,6 +35,10 @@ export interface UrlFlags {
   freeze: number | null;
   /** `?level=simple|detailed` — session override of the reading level (QA, links for a reader). */
   level: ReadingLevel | null;
+  /** `?ff=phone|tablet|desktop` — force the device form factor (QA; `docs/MOBILE.md`). */
+  formFactor: FormFactor | null;
+  /** `?safe=top,right,bottom,left` — emulate safe-area insets, CSS px (QA). */
+  safeArea: EdgeInsets | null;
 }
 
 export function parseFlags(search: string): UrlFlags {
@@ -40,7 +47,10 @@ export function parseFlags(search: string): UrlFlags {
   const freeze = q.get('freeze');
   const level = q.get('level');
   const freezeValue = freeze === null ? null : Number(freeze === '' ? 0 : freeze);
+  const ff = q.get('ff');
   return {
+    formFactor: isFormFactor(ff) ? ff : null,
+    safeArea: parseSafeArea(q.get('safe')),
     quality: isQualityTier(tier) ? tier : null,
     noaudio: q.has('noaudio'),
     debug: q.has('debug'),
@@ -81,6 +91,9 @@ export interface FrameStats {
   width: number;
   height: number;
   dpr: number;
+  /** Frame-rate cap in effect (0 = display rate) and the dynamic-resolution scale (1 = full). */
+  frameCap: number;
+  resolutionScale: number;
   quality: QualityTier;
   time: number;
   frame: number;
@@ -144,6 +157,12 @@ export class Engine {
   readonly runtime: ChapterRuntime;
   /** Dynamic-resolution scale currently applied (1 = full). */
   resolutionScale = 1;
+  /** Frame-rate cap currently applied: 0 = display rate, 30 = every frame held for ≥ 1/30 s (see `Settings.frameCap`). */
+  frameCap = 0;
+  private readonly deviceMonitor: DeviceMonitor;
+  private lastRenderAt = 0;
+  /** Consecutive long frames at the lowest dynamic resolution (drives the automatic 30 fps cap). */
+  private stuckFrames = 0;
 
   private readonly events = new Emitter<{
     update: number;
@@ -183,6 +202,14 @@ export class Engine {
     library: Library,
   ) {
     this.store = new Store(safeStorage(), library.defaultVolume.id);
+    // device model first: the quality tier, the pixel budget and the HUD metrics depend on it
+    this.deviceMonitor = new DeviceMonitor(
+      window,
+      { formFactor: flags.formFactor, safeArea: flags.safeArea },
+      (device) => this.onDevice(device),
+    );
+    this.store.set({ device: this.deviceMonitor.state });
+    this.hud.setDevice(this.deviceMonitor.state);
     this.renderer = new WebGLRenderer({
       canvas,
       antialias: false, // the pipeline renders into its own MSAA targets
@@ -197,12 +224,16 @@ export class Engine {
 
     // quality: URL flag > user setting > first-run benchmark
     const settings = this.store.get().settings;
-    let benchTier = settings.benchmarkTier;
-    if (flags.quality === null && settings.quality === 'auto' && benchTier === null) {
-      benchTier = tierFromBenchmark(benchmarkGpu(this.renderer));
-      this.store.updateSettings({ benchmarkTier: benchTier });
-    }
-    const tier = flags.quality ?? (settings.quality === 'auto' ? (benchTier ?? 'high') : settings.quality);
+    // phones and tablets take the `mobile` tier without a benchmark (a fill-rate test says little about
+    // thermals); desktops benchmark once, as before
+    if (
+      flags.quality === null &&
+      settings.quality === 'auto' &&
+      settings.benchmarkTier === null &&
+      this.device.formFactor === 'desktop'
+    )
+      this.store.updateSettings({ benchmarkTier: tierFromBenchmark(benchmarkGpu(this.renderer)) });
+    const tier = flags.quality ?? this.resolveTier(settings.quality);
     this.quality.set(tier);
     this.store.set({ quality: tier });
     this.pipeline = new RenderPipeline(this.renderer, this.quality.profile);
@@ -245,8 +276,13 @@ export class Engine {
       (s) => s.settings.quality,
       (q) => {
         if (this.flags.quality !== null) return;
-        this.quality.set(q === 'auto' ? (this.store.get().settings.benchmarkTier ?? 'high') : q);
+        this.quality.set(this.resolveTier(q));
       },
+    );
+    this.store.subscribe(
+      (s) => s.settings.frameCap,
+      () => this.applyFrameCap(),
+      { immediate: true },
     );
     this.runtime.on('step', () => {
       if (this.flags.freeze !== null) this.freezePending = this.flags.freeze;
@@ -276,10 +312,18 @@ export class Engine {
       this.events.emit('contextRestored', undefined);
     });
     window.addEventListener('resize', () => this.resize());
+    // mobile browsers resize the visual viewport (address bar, rotation) without always firing `resize`
+    window.visualViewport?.addEventListener('resize', () => this.resize());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) this.stopLoop();
       else if (this.running) this.startLoop();
     });
+    // back/forward cache and app switching on phones: `pagehide` may come without `visibilitychange`
+    window.addEventListener('pagehide', () => this.stopLoop());
+    window.addEventListener('pageshow', () => {
+      if (this.running && !document.hidden) this.startLoop();
+    });
+    installPagePlumbing(canvas);
     if (flags.freeze !== null) this.clock.paused = true;
     this.resize();
   }
@@ -287,6 +331,17 @@ export class Engine {
   /** Current viewport (CSS px) and effective pixel ratio. */
   get viewport(): Viewport {
     return this.currentViewport;
+  }
+
+  /** The device model: form factor, orientation, pointer, safe area, pixel budget (live; `docs/MOBILE.md`). */
+  get device(): DeviceState {
+    return this.deviceMonitor.state;
+  }
+
+  /** False where the Fullscreen API is missing (iPhone Safari): the HUD hides its fullscreen control. */
+  get canFullscreen(): boolean {
+    const el = this.canvas.parentElement ?? this.canvas;
+    return typeof el.requestFullscreen === 'function' && document.fullscreenEnabled !== false;
   }
 
   /** Effective reduced-motion preference (setting, or the OS media query when the setting is `auto`). */
@@ -337,8 +392,39 @@ export class Engine {
     const previous = this.store.get().settings.quality;
     this.store.updateSettings({ quality: tier });
     // same setting as before (e.g. the flag pinned another tier): apply it anyway
-    if (previous === tier)
-      this.quality.set(tier === 'auto' ? (this.store.get().settings.benchmarkTier ?? 'high') : tier);
+    if (previous === tier) this.quality.set(this.resolveTier(tier));
+  }
+
+  /** The tier a quality setting means on this device: `auto` = `mobile` on phones / tablets, else the benchmark. */
+  private resolveTier(setting: QualityTier | 'auto'): QualityTier {
+    if (setting !== 'auto') return setting;
+    if (this.device.formFactor !== 'desktop') return 'mobile';
+    return this.store.get().settings.benchmarkTier ?? 'high';
+  }
+
+  private onDevice(device: DeviceState): void {
+    const previous = this.store.get().device;
+    this.store.set({ device });
+    this.hud.setDevice(device);
+    if (previous.formFactor !== device.formFactor && this.flags.quality === null) {
+      const setting = this.store.get().settings.quality;
+      // a desktop reached for the first time in this profile (emulation switched off): benchmark lazily
+      if (
+        setting === 'auto' &&
+        device.formFactor === 'desktop' &&
+        this.store.get().settings.benchmarkTier === null
+      )
+        this.store.updateSettings({ benchmarkTier: tierFromBenchmark(benchmarkGpu(this.renderer)) });
+      this.quality.set(this.resolveTier(setting));
+    }
+    this.resize();
+  }
+
+  /** `Settings.frameCap`: a forced value applies at once; `auto` starts uncapped (see `adaptResolution`). */
+  private applyFrameCap(): void {
+    const cap = this.store.get().settings.frameCap;
+    this.frameCap = cap === 30 ? 30 : 0;
+    this.stuckFrames = 0;
   }
 
   /** Reading level in effect: the `?level=` flag of this session, else the setting. */
@@ -406,6 +492,8 @@ export class Engine {
       width: this.pipeline.width,
       height: this.pipeline.height,
       dpr: this.currentViewport.dpr,
+      frameCap: this.frameCap,
+      resolutionScale: this.resolutionScale,
       quality: this.quality.tier,
       time: this.clock.time,
       frame: this.clock.frame,
@@ -456,6 +544,12 @@ export class Engine {
   private readonly frame = (now: number): void => {
     this.rafId = requestAnimationFrame(this.frame);
     if (this.contextLost) return;
+    // frame cap (30 fps): skip display refreshes until 1/30 s has passed (2 ms slack for timer jitter);
+    // never while a QA measurement or a deterministic run needs every frame
+    if (this.frameCap > 0 && !this.measuring && this.flags.freeze === null) {
+      if (now - this.lastRenderAt < 1000 / this.frameCap - 2) return;
+    }
+    this.lastRenderAt = now;
     const t0 = performance.now();
     const m = this.measuring;
     const gl = this.renderer.getContext() as WebGL2RenderingContext;
@@ -568,14 +662,27 @@ export class Engine {
       return;
     const interval = this.intervals[this.intervals.length - 1];
     if (interval === undefined || now < 4000) return;
-    if (interval > 22) {
+    // under a 30 fps cap a frame is "long" when it misses the 33 ms slot, not the 16.7 ms one
+    const long = this.frameCap > 0 ? 1000 / this.frameCap + 8 : 22;
+    if (interval > long) {
       this.fastFrames = 0;
       if (++this.slowFrames > 45 && this.resolutionScale > 0.6) {
         this.resolutionScale = Math.max(0.6, this.resolutionScale - 0.1);
         this.slowFrames = 0;
         this.resize();
       }
+      // `mobile` tier, lowest resolution, still missing vsync for ~3 s: hold a steady 30 fps instead of a
+      // stuttering 40-something (battery / thermals). Stays for the session; a forced setting overrides it.
+      if (
+        this.frameCap === 0 &&
+        this.resolutionScale <= 0.6 &&
+        this.quality.tier === 'mobile' &&
+        this.store.get().settings.frameCap === 'auto' &&
+        ++this.stuckFrames > 180
+      )
+        this.frameCap = 30;
     } else {
+      this.stuckFrames = Math.max(0, this.stuckFrames - 2);
       this.slowFrames = Math.max(0, this.slowFrames - 1);
       if (++this.fastFrames > 900 && this.resolutionScale < 1) {
         this.resolutionScale = Math.min(1, this.resolutionScale + 0.05);
@@ -588,7 +695,10 @@ export class Engine {
   private resize(): void {
     const width = Math.max(this.canvas.clientWidth, 1);
     const height = Math.max(this.canvas.clientHeight, 1);
-    const dpr = Math.min(window.devicePixelRatio || 1, this.quality.profile.maxDpr) * this.resolutionScale;
+    // DPR: the display's, capped by the tier and — on phones / tablets — by the device's pixel budget
+    const budget = budgetDpr(this.device, width, height);
+    const dpr =
+      Math.min(window.devicePixelRatio || 1, this.quality.profile.maxDpr, budget) * this.resolutionScale;
     this.currentViewport = { width, height, aspect: width / height, dpr };
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(width, height, false);

@@ -143,6 +143,27 @@ export function createHome(hud: Hud, map: JourneyMap): Overlay {
     });
     subtitle.setStyle({ maxWidth: Math.min(760, m.width - m.safeMargin * 4) });
     column.float = { ax: 0.5, ay: 0, dy: m.height * (m.layout === 'portrait' ? 0.12 : 0.09) };
+    if (m.shell !== 'desk') {
+      // phones and tablets: clear of the notch; a landscape phone has no height to spare for a tall margin
+      const top = m.safeArea.top + (m.shell === 'side' && m.formFactor === 'phone' ? 14 : m.height * 0.08);
+      column.float = { ax: 0.5, ay: 0, dy: top };
+      column.gap = m.formFactor === 'phone' ? 12 : 18;
+      const room = m.width - Math.max(m.safeArea.left, m.safeArea.right) * 2 - 32;
+      title.setStyle({ size: Math.min(UI.text.hero, Math.max(room / 13, 28)), maxWidth: room });
+      subtitle.setStyle({ size: m.formFactor === 'phone' ? UI.text.small : UI.text.h3, maxWidth: Math.min(760, room) });
+      // a phone held upright stacks the buttons (a wrapped row would hug the left edge)
+      const stack = room < 520;
+      actions.dir = stack ? 'col' : 'row';
+      actions.gap = stack ? 10 : 16;
+      actions.maxW = room;
+      facts.maxW = room;
+    } else if (actions.dir === 'col') {
+      actions.dir = 'row';
+      actions.gap = 16;
+      column.gap = 18;
+      actions.maxW = facts.maxW = Infinity;
+      subtitle.setStyle({ size: UI.text.h3 });
+    }
     veil.float = { ax: 0.5, ay: 0, dy: m.height * 0.02 };
     veil.width = Math.min(1200, m.width);
   };

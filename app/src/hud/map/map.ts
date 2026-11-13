@@ -126,10 +126,47 @@ export class JourneyMap implements Overlay {
       children: [catcher, this.labels, this.bar, overview, close, hint, this.cardSlot],
     });
     hud.modal.add(this.ui);
+    // two fingers on the open map zoom the map, not the scene behind it
+    engine.input.capturePinch((scale) => {
+      if (!this.isOpen) return false;
+      if (scale !== 1) this.zoomBy(scale);
+      return true;
+    });
+    const mapTitle = (this.bar.children[1] as UiNode).children[0] as Label;
     const place = (): void => {
       const m = hud.metrics;
       const g = m.safeMargin;
       this.backdrop.resize(m.width, m.height);
+      // The catcher lies 6000 units behind the screen plane, where a screen-sized box covers only the middle
+      // quarter of the view: scale it by the perspective ratio so that it really is full-screen (F5: on a
+      // phone the finger starts its travel anywhere; found while testing touch — see docs/reports/F5-mobile.md)
+      catcher.scale = 1 + 6000 / Math.max(engine.hud.camera.position.z, 1);
+      if (m.shell !== 'desk') {
+        // phones and tablets: clear of the notch, the title bar and a round close button share the top row,
+        // «Уся подорож» sits under the close button; the card comes up from the bottom (portrait) / the right
+        const top = m.safeArea.top + 8;
+        const narrow = m.width < 520;
+        mapTitle.setStyle({ size: narrow ? UI.text.h3 : UI.text.h2 });
+        close.label = ''; // a round button: the cross says it
+        this.bar.float = { ax: 0, ay: 0, dx: m.safeArea.left + 8, dy: top };
+        close.float = { ax: 1, ay: 0, dx: -(m.safeArea.right + 8), dy: top + 6 };
+        // portrait: under the close button; landscape: beside it (the card needs the height)
+        overview.float =
+          m.shell === 'side'
+            ? { ax: 1, ay: 0, dx: -(m.safeArea.right + 8 + 78), dy: top + 6 }
+            : { ax: 1, ay: 0, dx: -(m.safeArea.right + 8), dy: top + 62 };
+        hint.visible = false;
+        this.cardSlot.float =
+          m.shell === 'side'
+            ? { ax: 1, ay: 1, dx: -(m.safeArea.right + 8), dy: -(m.safeArea.bottom + 8) }
+            : { ax: 0.5, ay: 1, dy: -(m.safeArea.bottom + 8) };
+        if (this.isOpen || this.attract) this.frame(true);
+        return;
+      }
+      if (close.label === '') {
+        close.label = 'Закрити';
+        mapTitle.setStyle({ size: UI.text.h2 });
+      }
       this.bar.float = { ax: 0, ay: 0, dx: g, dy: g };
       close.float = { ax: 1, ay: 0, dx: -g, dy: g };
       overview.float = { ax: 1, ay: 0, dx: -g - 170, dy: g };
@@ -254,7 +291,7 @@ export class JourneyMap implements Overlay {
     this.selected = index;
     const node = this.layout.nodes[index] ?? null;
     if (node) this.u = node.u;
-    this.hint.visible = !node && this.hud.metrics.layout === 'wide';
+    this.hint.visible = !node && this.hud.metrics.layout === 'wide' && this.hud.metrics.shell === 'desk';
     this.frame(false);
     this.setCard(node);
   }
@@ -291,11 +328,19 @@ export class JourneyMap implements Overlay {
         state.volumeId === node.chapter.volume && state.chapterId === node.chapter.id && !this.hud.unseenStep
           ? state.stepId
           : null,
-      maxHeight: m.layout === 'wide' ? m.height - 190 : m.height * 0.5,
+      compact: m.shell === 'side' && m.height < 560,
+      maxHeight:
+        m.shell === 'side'
+          ? m.height - m.safeArea.top - m.safeArea.bottom - 82
+          : m.layout === 'wide'
+            ? m.height - 190
+            : m.height * 0.5,
       onStep: (stepId) => this.enter(node, stepId),
       onClose: () => this.select(-1),
     });
-    if (m.layout !== 'wide') card.width = Math.min(m.width - m.safeMargin * 2, 620);
+    if (m.shell === 'side') card.width = Math.min(m.width * 0.46, 470);
+    else if (m.shell === 'sheet') card.width = Math.min(m.width - 16, 620);
+    else if (m.layout !== 'wide') card.width = Math.min(m.width - m.safeMargin * 2, 620);
     card.visible = false;
     this.cardSlot.add(card);
     reveal(card, { dx: 40, dy: 0 });
@@ -316,14 +361,23 @@ export class JourneyMap implements Overlay {
       const span = this.layout.width + 620;
       const fit = Math.min((m.width * 0.95) / span, (m.height * 0.66) / (top - this.layout.ground + 200));
       const at = pathPoint(this.layout, this.u);
+      // phones and tablets: a long journey is not squeezed into the screen (25 titles would pile up) — the
+      // chapters stay about a thumb-and-a-half apart and the path scrolls under the finger
+      let zoom = fit;
+      if (m.shell !== 'desk' && !this.attract) {
+        const pitch = this.layout.width / Math.max(this.layout.spine.length - 1, 1);
+        const tall = (m.height * 0.66) / (top - this.layout.ground + 200);
+        zoom = Math.max(fit, Math.min(150 / Math.max(pitch, 1), tall));
+      }
       // in the overview the whole path is in frame; on narrow screens it scrolls with `u`
-      const x = fit * span >= m.width * 0.9 && !wide ? at.x : -60;
+      const scrolls = zoom > fit || (fit * span >= m.width * 0.9 && !wide);
+      const x = scrolls ? at.x : -60;
       this.camera.go(
         {
           x,
           y: (top + this.layout.ground) / 2 + 70,
           z: 0,
-          zoom: this.attract ? fit * 1.12 : fit,
+          zoom: this.attract ? fit * 1.12 : zoom,
           yaw: -0.06,
           pitch: 0.3,
           sx: 0,
@@ -398,7 +452,12 @@ export class JourneyMap implements Overlay {
     const all = journeyProgress(visited, this.journey.chapters);
     this.total.value = all.fraction;
     this.total.label = `${Math.round(all.fraction * 100)}%`;
-    this.totalText.text = `Переглянуто ${all.done} з ${all.total} кроків · ${this.journey.chapters.length} розділів`;
+    // a phone's title bar shares its row with the close button: the short form there
+    const m = this.hud.metrics;
+    this.totalText.text =
+      m.shell !== 'desk' && m.width < 520
+        ? `${all.done} з ${all.total} кроків`
+        : `Переглянуто ${all.done} з ${all.total} кроків · ${this.journey.chapters.length} розділів`;
   }
 
   private update(dt: number): void {

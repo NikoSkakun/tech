@@ -46,7 +46,9 @@ export function createLoading(hud: Hud): HudModule {
   return {
     node,
     onLayout(m) {
-      node.float = { ax: 0.5, ay: 1, dy: -(m.safeMargin + 96) };
+      // touch shells: over the scene, above whatever the sheet covers
+      const lift = m.shell === 'desk' ? m.safeMargin + 96 : (hud.touch.insets?.(m).bottom ?? 96) + 14;
+      node.float = { ax: 0.5, ay: 1, dy: -lift };
     },
     update(dt) {
       if (!active || ring.spin === null) return;
@@ -72,11 +74,19 @@ export function installOnboarding(hud: Hud): void {
     // storage unavailable: do not nag on every visit
   }
   if (seen || flags.freeze !== null || flags.debug) return;
-  const hints: [string, 'hand' | 'keyboard' | 'map'][] = [
-    ['Тягніть сцену, щоб обертати її; колесо або щипок — масштаб.', 'hand'],
-    ['← і → перемикають кроки. Усе з блакитним контуром можна натискати.', 'keyboard'],
-    ['Мапа подорожі (кнопка або клавіша M) перенесе на будь-який крок курсу.', 'map'],
-  ];
+  // a finger has no keys and no wheel: the hints speak the language of the device
+  const touch = hud.engine.device.pointer === 'coarse';
+  const hints: [string, 'hand' | 'keyboard' | 'map' | 'touch'][] = touch
+    ? [
+        ['Обертайте сцену пальцем; двома пальцями — наближайте й віддаляйте.', 'touch'],
+        ['Панель унизу тягнеться вгору й униз. «Далі» веде до наступного кроку.', 'hand'],
+        ['Кнопка мапи вгорі перенесе на будь-який крок курсу.', 'map'],
+      ]
+    : [
+        ['Тягніть сцену, щоб обертати її; колесо або щипок — масштаб.', 'hand'],
+        ['← і → перемикають кроки. Усе з блакитним контуром можна натискати.', 'keyboard'],
+        ['Мапа подорожі (кнопка або клавіша M) перенесе на будь-який крок курсу.', 'map'],
+      ];
   const off = hud.engine.runtime.on('step', () => {
     if (hud.overlay !== null) return;
     off();

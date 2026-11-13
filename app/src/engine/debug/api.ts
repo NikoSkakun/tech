@@ -3,6 +3,7 @@
  * The QA tools in `tools/qa/` drive the app exclusively through this object.
  */
 import type { Engine, FrameStats, MeasureResult } from '../app';
+import type { DeviceState } from '../device';
 import type { QualityTier } from '../quality';
 import type { LocatedProbe } from '../qa-probes';
 import { fontData } from '@/text/fonts';
@@ -59,6 +60,8 @@ export interface DebugApi {
   listChapters(volumeId?: string): ChapterListing[];
   position(): { volumeId: string | null; chapterId: string | null; stepId: string | null };
   setQuality(tier: QualityTier | 'auto'): void;
+  /** The device model in effect (form factor, orientation, pointer, safe area, pixel budget). */
+  device(): DeviceState;
   /** Console errors/warnings, uncaught errors and unhandled rejections captured since boot. */
   errors(): CapturedMessage[];
   clearErrors(): void;
@@ -235,6 +238,7 @@ export function installDebugApi(ready: Promise<Engine>): void {
         maxTextureSize: Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)),
       };
     },
+    device: () => need().device,
     simulateContextLoss(restoreAfterMs = 600) {
       const ext = need().renderer.getContext().getExtension('WEBGL_lose_context');
       if (!ext) return false;

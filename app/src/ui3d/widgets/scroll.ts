@@ -18,6 +18,9 @@ export class ScrollView extends UiNode {
   offset = 0;
   private target = 0;
   private readonly feather: number;
+  /** Finger velocity while dragging, units / s (positive = content moves down), for the fling on release. */
+  private velocity = 0;
+  private lastDragAt = 0;
 
   constructor(props: ScrollProps = {}) {
     super({
@@ -40,9 +43,44 @@ export class ScrollView extends UiNode {
         this.scrollTo(this.target + dy * 0.9);
         return true;
       },
-      dragStart: () => undefined,
-      drag: (e) => this.scrollTo(this.target - e.dy / Math.max(this.pxPerUnit(), 0.01), true),
+      dragStart: () => {
+        this.velocity = 0;
+        this.lastDragAt = performance.now();
+      },
+      drag: (e) => {
+        const du = e.dy / Math.max(this.pxPerUnit(), 0.01);
+        const now = performance.now();
+        const dt = Math.max((now - this.lastDragAt) / 1000, 1 / 240);
+        this.lastDragAt = now;
+        // low-pass: single events are noisy
+        this.velocity = this.velocity * 0.6 + (du / dt) * 0.4;
+        this.scrollTo(this.target - du, true);
+      },
+      dragEnd: (e) => {
+        // a finger flick keeps the content moving and lets it settle (mouse drags stop where they are)
+        if (e.pointerType === 'mouse' || performance.now() - this.lastDragAt > 80) return;
+        const v = this.velocity;
+        if (Math.abs(v) < 220) return;
+        this.fling(this.target - v * 0.28, Math.min(0.9, 0.35 + Math.abs(v) / 4000));
+      },
     });
+  }
+
+  /** Touch: take over a vertical finger drag from the content when there is something to scroll that way. */
+  override wantsDrag(dx: number, dy: number): boolean {
+    if (Math.abs(dy) < Math.abs(dx) || this.range <= 0) return false;
+    return dy < 0 ? this.target < this.range - 0.5 : this.target > 0.5;
+  }
+
+  private fling(offset: number, duration: number): void {
+    this.target = Math.min(Math.max(offset, 0), this.range);
+    const host = this.surface?.host;
+    if (!host) return;
+    host.tweens.to(
+      this as ScrollView,
+      { offset: this.target },
+      { duration, ease: 'power3.out', onUpdate: () => this.sync() },
+    );
   }
 
   /** Scrollable distance in units. */

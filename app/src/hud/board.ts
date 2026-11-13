@@ -18,6 +18,18 @@ export interface StepBoard extends HudModule {
   place(m: HudMetrics, top: number, bottom: number): void;
   /** Whether a board is on screen. */
   readonly active: boolean;
+  /**
+   * Touch shells (F5): the board is a view of the sheet («Графіки» tab) — no plate of its own, no fold button,
+   * never collapsed. `fitTouch` gives it the view's width and height.
+   */
+  setTouch(on: boolean): void;
+  fitTouch(width: number, height: number): void;
+  /**
+   * Touch shells: the scrolling host for panels that live in the world on desktops (`worldConsole`) and
+   * re-home into the sheet on phones; `setGuests` says how many are in it (they make the board `active`).
+   */
+  readonly guests: UiNode;
+  setGuests(count: number): void;
 }
 
 export function createBoard(hud: HudContext): StepBoard {
@@ -51,28 +63,76 @@ export function createBoard(hud: HudContext): StepBoard {
     children: [head, body],
   });
   let spec: BoardSpec | null = null;
+  let touch = false;
+  let guestCount = 0;
+  const guests = new UiNode({ name: 'board-guests', dir: 'col', gap: 18, width: 'fill', visible: false });
 
   return {
     node,
+    guests,
+    setGuests(count) {
+      if (count === guestCount) return;
+      guestCount = count;
+      guests.visible = count > 0;
+      // guests follow the board's own content in the same scroll
+      if (count > 0 && guests.parent !== content.content) content.content.add(guests);
+      if (count > 0 && !spec) {
+        title.visible = false;
+        actions.visible = false;
+        reveal(node, { instant: true });
+      } else if (count === 0 && !spec) conceal(node, { instant: true });
+      hud.relayout();
+    },
+    setTouch(on) {
+      if (touch === on) return;
+      touch = on;
+      node.variant = on ? 'plain' : 'glass';
+      node.pad = on ? 0 : [16, 20];
+      fold.visible = !on;
+      placeActions();
+      if (on && collapsed) {
+        collapsed = false;
+        fold.icon = 'chevronUp';
+        reveal(body, { instant: true });
+      }
+      node.float = null;
+      node.x = node.y = 0;
+      node.repaint();
+      hud.relayout();
+    },
+    fitTouch(width, height) {
+      node.width = width;
+      // the buttons scroll with the content here (`placeActions`): only the title stays fixed
+      const head = title.visible ? (title.bh || 26) + 12 : 0;
+      content.maxH = Math.max(height - head, 80);
+    },
     get active() {
-      return spec !== null;
+      return spec !== null || guestCount > 0;
     },
     show(next, nodes, buttons, instant) {
       spec = next;
       content.content.clear();
       actions.clear();
       if (!next) {
-        conceal(node, { instant, dx: -16, dy: 0, onDone: () => hud.relayout() });
+        if (guestCount > 0) {
+          content.content.add(guests);
+          title.visible = false;
+          actions.visible = false;
+        } else conceal(node, { instant: instant || touch, dx: -16, dy: 0, onDone: () => hud.relayout() });
         hud.relayout();
         return;
       }
       for (const n of nodes) content.content.add(n);
       for (const b of buttons) actions.add(b);
       actions.visible = buttons.length > 0;
+      placeActions();
+      if (guestCount > 0) content.content.add(guests);
       title.text = next.title ?? '';
       title.visible = !!next.title;
       content.scrollTo(0, true);
-      reveal(node, { instant, dx: -24, dy: 0 });
+      // inside the sheet the tab decides whether the board is seen; it must not slide in from the side
+      if (touch) reveal(node, { instant: true });
+      else reveal(node, { instant, dx: -24, dy: 0 });
       hud.relayout();
     },
     place(m, top, bottom) {
@@ -93,6 +153,16 @@ export function createBoard(hud: HudContext): StepBoard {
       }
     },
   };
+
+  /**
+   * Desktop: the buttons sit in a fixed row under the scrolling content. Touch shells (F5): they go at the end
+   * of the scroll — a short landscape sheet has no room for a fixed row of wrapped buttons under a chart.
+   */
+  function placeActions(): void {
+    if (touch) {
+      if (actions.parent !== content.content) content.content.add(actions);
+    } else if (actions.parent !== body) body.add(actions);
+  }
 
   /** Height of the board without its scrolling content (title row, actions, padding). */
   function chrome(): number {

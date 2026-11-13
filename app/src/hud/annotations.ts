@@ -22,11 +22,18 @@ import type { Anchor, HotspotSpec, StepUiSpec } from './step-ui-types';
 const _v = new Vector3();
 const _dir = new Vector3();
 
+/**
+ * Callouts a touch shell shows at once (F5): a phone's scene area holds about three labels without hiding the
+ * subject, a tablet five. The rest of a step's callouts are dropped by priority (`CalloutSpec.priority`, then
+ * declaration order); hidden ones (`visible`) do not count. Desktops are not limited.
+ */
+const MAX_CALLOUTS = { phone: 3, tablet: 5, desktop: Infinity } as const;
+
 export function mountAnnotations(hud: Hud): (spec: StepUiSpec | null) => void {
   const layer = new AnnotationLayer();
   hud.world.add(layer);
   const ray = new Raycaster();
-  let card: { node: UiNode; marker: HotspotMarker } | null = null;
+  let card: { node: UiNode; marker: HotspotMarker; dismiss?: () => void } | null = null;
   let checks: (() => void)[] = [];
   let turn = 0;
   let last = hud.engine.clock.time;
@@ -67,6 +74,10 @@ export function mountAnnotations(hud: Hud): (spec: StepUiSpec | null) => void {
     const c = card;
     card = null;
     c.marker.open = false;
+    if (c.dismiss) {
+      c.dismiss(); // the sheet owns the card's place
+      return;
+    }
     conceal(c.node, { onDone: () => c.node.detach() });
   };
   // an open hotspot card shows the copy of the level it was opened at: close it when the level changes
@@ -82,7 +93,8 @@ export function mountAnnotations(hud: Hud): (spec: StepUiSpec | null) => void {
     if (checks.length > 0) checks[turn++ % checks.length]!();
     const m = hud.metrics;
     const f = hud.engine.hud.insetFractions();
-    const pad = 12;
+    // touch shells: a marker's whole 44-px target stays on screen (desktops: the margin they always had)
+    const pad = m.shell === 'desk' ? 12 : 24;
     layer.update(dt, {
       left: -m.width / 2 + f.left * m.width + pad,
       right: m.width / 2 - f.right * m.width - pad,
@@ -107,8 +119,25 @@ export function mountAnnotations(hud: Hud): (spec: StepUiSpec | null) => void {
   return (spec) => {
     closeCard();
     checks = [];
+    const callouts = spec?.callouts ?? [];
+    // importance order of the step's callouts: explicit priority first, then declaration order
+    const order = callouts
+      .map((c, i) => ({ c, i, p: c.priority ?? i }))
+      .sort((a, b) => a.p - b.p || a.i - b.i)
+      .map((x) => x.c);
+    /** Small screens: is this callout beyond the device's limit among those that would show right now? */
+    const thinned = (c: (typeof callouts)[number]): boolean => {
+      const max = MAX_CALLOUTS[hud.metrics.formFactor];
+      if (callouts.length <= max) return false;
+      let rank = 0;
+      for (const other of order) {
+        if (other === c) return rank >= max;
+        if (other.visible === undefined || holds(other.visible)) rank++;
+      }
+      return false;
+    };
     layer.set(
-      (spec?.callouts ?? []).map((c) => {
+      callouts.map((c) => {
         const text = c.text;
         const when = c.visible;
         return {
@@ -118,7 +147,10 @@ export function mountAnnotations(hud: Hud): (spec: StepUiSpec | null) => void {
           color: c.color,
           side: c.side,
           occluded: occluder(c.anchor, c.occluders),
-          hidden: when === undefined ? undefined : () => !holds(when),
+          hidden:
+            when === undefined && callouts.length <= MAX_CALLOUTS.phone
+              ? undefined
+              : () => (when !== undefined && !holds(when)) || thinned(c),
         };
       }),
       (spec?.hotspots ?? []).map((h) => {
@@ -134,6 +166,28 @@ export function mountAnnotations(hud: Hud): (spec: StepUiSpec | null) => void {
             if (same) return;
             const bound = contentOf(h);
             const m = hud.metrics;
+            if (m.shell !== 'desk' && hud.touch.card) {
+              // phones and tablets: the card opens in the sheet, where the thumb and the reading are
+              const inSheet = new Card({
+                variant: 'plain',
+                kicker: 'Гаряча точка',
+                icon: 'info',
+                title: h.title ?? display(bound),
+                body: h.text ?? bound?.text ?? '',
+                onClose: closeCard,
+              });
+              inSheet.pad = 0;
+              const dismiss = hud.touch.card(inSheet, () => {
+                if (card?.node === inSheet) {
+                  card = null;
+                  marker.open = false;
+                }
+              });
+              marker.open = true;
+              card = { node: inSheet, marker, dismiss };
+              h.onOpen?.();
+              return;
+            }
             const right = marker.x < m.width / 2 - hud.engine.hud.insetFractions().right * m.width - 470;
             const node = new Card({
               kicker: 'Гаряча точка',

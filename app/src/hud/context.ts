@@ -4,8 +4,19 @@
 import type { ChapterManifest, Engine, HudMetrics, Position, VolumeManifest } from '@/engine/api';
 import type { ChapterContent } from '@/content';
 import type { ToastOptions, UiNode, UiSurface } from '@/ui3d';
+import type { SheetInsets, TouchSheet } from './touch/sheet';
 
-export type OverlayName = 'library' | 'map' | 'home' | 'settings' | 'glossary' | 'help';
+/** Hooks of the touch shells (F5): installed by the sheet when a phone / tablet layout is first built. */
+export interface TouchHooks {
+  /** Area the sheet and the compact header take from the scene (HUD units from each edge). */
+  insets: ((m: HudMetrics) => SheetInsets) | null;
+  /** Show a card (an opened hotspot) inside the sheet; returns a function that removes it. */
+  card: ((card: UiNode, onDismiss: () => void, opts?: { back?: boolean }) => () => void) | null;
+  /** The sheet itself (QA hook, menu). */
+  sheet: TouchSheet | null;
+}
+
+export type OverlayName = 'library' | 'map' | 'home' | 'settings' | 'glossary' | 'help' | 'menu';
 
 export interface HudContext {
   readonly engine: Engine;
@@ -37,6 +48,8 @@ export interface HudContext {
   readonly overlay: OverlayName | null;
   /** Jump to a step through the engine (closes overlays first). `chapter`: short id or `volume/chapter`. */
   goto(chapter: string, stepId?: string): void;
+  /** Touch shells (phones, tablets): see `TouchHooks`. All null on desktops. */
+  readonly touch: TouchHooks;
 }
 
 /** A HUD region: owns a node, reacts to chapter / step / resize. All hooks are optional. */

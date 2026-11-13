@@ -2,6 +2,7 @@
  * Small observable application store with localStorage persistence of the user-facing slices
  * (settings, progress, last position). No framework: `get`, `set`, `subscribe(selector, listener)`.
  */
+import { DESKTOP_DEVICE, type DeviceState } from './device';
 import type { QualityTier } from './quality';
 
 /**
@@ -34,6 +35,11 @@ export interface Settings {
   textScale: number;
   /** «Рівень тексту: Просто / Докладно» (a `?level=` URL flag overrides it for the session). */
   readingLevel: ReadingLevel;
+  /**
+   * Frame-rate cap (F5): `auto` = display rate, dropping to 30 fps only on the `mobile` tier when frames stay
+   * long even at the lowest dynamic resolution (steady pacing, cooler device); `30` / `60` force it.
+   */
+  frameCap: 'auto' | 30 | 60;
 }
 
 export interface Progress {
@@ -76,6 +82,8 @@ export interface AppState {
   transition: TransitionState;
   /** Effective quality tier in use right now. */
   quality: QualityTier;
+  /** The device the app runs on right now (form factor, orientation, pointer, safe area) — live, not persisted. */
+  device: DeviceState;
   settings: Settings;
   progress: Progress;
   /** Last settled position, persisted across sessions. */
@@ -93,6 +101,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reducedMotion: 'auto',
   textScale: 1,
   readingLevel: DEFAULT_READING_LEVEL,
+  frameCap: 'auto',
 };
 
 export function initialState(): AppState {
@@ -103,6 +112,7 @@ export function initialState(): AppState {
     target: null,
     transition: { phase: 'idle', from: null, to: null, direction: 1, progress: 0 },
     quality: 'high',
+    device: DESKTOP_DEVICE,
     settings: { ...DEFAULT_SETTINGS },
     progress: { visited: {} },
     last: null,

@@ -7,7 +7,7 @@
  * row at its bottom; when text and controls do not both fit, the text yields first (down to `TEXT_MIN`, it
  * scrolls), then the dock's controls scroll inside the dock, then the title switches to the compact size.
  */
-import { Panel, ScrollView, Tabs, UiNode, conceal, reveal } from '@/ui3d';
+import { Panel, ScrollView, Tabs, UiNode, conceal, reveal, worldConsoles } from '@/ui3d';
 import { fullChapterId, type HudMetrics } from '@/engine/api';
 import { createBoard } from './board';
 import type { HudContext, HudModule } from './context';
@@ -15,6 +15,7 @@ import { bindVisible, buildControls, honestyChips, type BuiltControls } from './
 import { PANEL_WIDTH, createStepPanel } from './step-panel';
 import { bindingOf, watchBindings, type StepUiBinding } from './step-ui';
 import type { StepUiSpec } from './step-ui-types';
+import { createTouchSheet, type TouchSheet } from './touch/sheet';
 
 /** Least height of the step text when the dock needs room (≈ 4 lines of body text), units. */
 export const TEXT_MIN = 130;
@@ -76,6 +77,12 @@ export function createStepColumn(hud: HudContext, popups: UiNode, header: UiNode
   let time = 0;
   let hintOff: (() => void) | null = null;
   const relayout = (): void => hud.relayout();
+  /** Touch shells (phones, tablets): the same views live in a sheet instead of the column (`touch/sheet.ts`). */
+  let sheet: TouchSheet | null = null;
+  let touch = false;
+  let boardHome: UiNode | null = null;
+  /** World consoles currently shown in the sheet. */
+  let rehomed = 0;
 
   const self: StepColumn = {
     node,
@@ -92,16 +99,87 @@ export function createStepColumn(hud: HudContext, popups: UiNode, header: UiNode
       stepId = id;
       panel.onStep?.(id, instant);
       rebuild(instant);
+      if (touch) sheet?.enterStep(instant);
     },
     update(dt) {
       time += dt;
       for (const fn of tick) fn(time);
+      if (worldConsoles.size > 0 || rehomed > 0) syncConsoles();
     },
     onLayout(m) {
+      if (m.shell !== 'desk') {
+        layoutTouch(m);
+        return;
+      }
+      leaveTouch();
       if (m.layout === 'wide') layoutWide(m);
       else layoutSheet(m);
     },
   };
+
+  /**
+   * World consoles (`worldConsole()`): on a phone the panel of every console that is shown in the scene moves
+   * into the sheet's «Графіки» view; when the step hides the console, or the device stops being a phone, it
+   * goes back. Polled every frame — a handful of visibility checks.
+   */
+  function syncConsoles(): void {
+    const phone = touch && hud.metrics.formFactor === 'phone';
+    let count = 0;
+    for (const c of worldConsoles) {
+      let shown = phone && c.surface.parent !== null;
+      for (let o: typeof c.surface.parent = c.surface; shown && o; o = o.parent) shown = o.visible;
+      if (shown) {
+        c.moveTo(board.guests);
+        count++;
+      } else c.home();
+    }
+    if (count !== rehomed) {
+      rehomed = count;
+      board.setGuests(count);
+    }
+  }
+
+  /** Phones and tablets: hand the views to the touch sheet and let it lay them out. */
+  function layoutTouch(m: HudMetrics): void {
+    if (!sheet) {
+      sheet = createTouchSheet(hud, { panel, dock, dockBody: body, board });
+      node.parent?.add(sheet.node);
+      hud.touch.insets = (metrics) => sheet!.insets(metrics);
+      hud.touch.card = (card, onDismiss, opts) => sheet!.showCard(card, onDismiss, opts);
+      hud.touch.sheet = sheet;
+    }
+    if (!touch) {
+      touch = true;
+      placeActions();
+      boardHome = board.node.parent;
+      tabs.visible = false;
+      node.visible = false;
+      sheet.adopt(true);
+    }
+    sheet.layout(m, { controls: hasDock(), board: board.active });
+  }
+
+  /** Back on a desktop (emulation switched off, a mouse plugged in): the column takes its views back. */
+  function leaveTouch(): void {
+    if (!touch || !sheet) return;
+    touch = false;
+    placeActions();
+    sheet.adopt(false);
+    node.add(panel.node, dock);
+    boardHome?.add(board.node);
+    node.visible = true;
+    panel.node.visible = true;
+  }
+
+  /**
+   * Desktop: the step's buttons sit in a fixed row under the scrolling controls. Touch shells (F5): they go at
+   * the end of the scroll — a half-open sheet has no room for a fixed block of several wrapped buttons.
+   */
+  function placeActions(): void {
+    if (touch) {
+      if (actions.parent !== body.content) body.content.add(actions);
+    } else if (actions.parent !== dock) dock.add(actions);
+  }
 
   const hasDock = (): boolean => built !== null && built.body.length + built.actions.length > 0;
   /** Lay the surface out now with the constraints set so far (field changes do not invalidate by themselves). */
@@ -205,7 +283,9 @@ export function createStepColumn(hud: HudContext, popups: UiNode, header: UiNode
     for (const n of built?.body ?? []) body.content.add(n);
     for (const n of built?.actions ?? []) actions.add(n);
     actions.visible = (built?.actions.length ?? 0) > 0;
-    body.visible = (built?.body.length ?? 0) > 0;
+    placeActions();
+    // on touch shells the buttons are inside the scroll: keep it when a step has buttons only
+    body.visible = (built?.body.length ?? 0) > 0 || (touch && actions.visible);
     body.scrollTo(0, true);
     const has = hasDock();
     if (has) reveal(dock, { instant, dy: -10 });

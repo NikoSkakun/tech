@@ -53,7 +53,13 @@ class Track extends Control {
       cursor: 'ew-resize',
       press: (e) => {
         uiFocus.set(this, false); // arrows adjust the slider from now on
+        // a finger may be starting a scroll of the sheet: its value comes with the tap or the drag instead
+        if (e.pointerType === 'mouse') setFromPointer(e);
+      },
+      click: (e) => {
+        if (e.pointerType === 'mouse') return;
         setFromPointer(e);
+        owner.commit();
       },
       dragStart: () => this.tween({ dragT: 1 }, MOTION.hover),
       drag: setFromPointer,
@@ -68,6 +74,11 @@ class Track extends Control {
         return true;
       },
     });
+  }
+
+  /** Touch: a mostly vertical swipe that begins on the track belongs to the scroll view around it. */
+  override wantsDrag(dx: number, dy: number, own: boolean): boolean {
+    return own && Math.abs(dx) >= Math.abs(dy) * 0.8;
   }
 
   /** Usable track length (the knob never overhangs the ends). */

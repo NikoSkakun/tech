@@ -299,10 +299,11 @@ export default defineScene((ctx) => {
 
   /* ------------------------------------------------------------------------------ declarative steps */
   camera.shots({
-    hero: { position: [5.6, 3.5, 7.8], target: [0, 0.85, 0], fov: 28, orbit: { azimuth: 1.6, polar: 0.4 } },
-    coil: { position: [-3.3, 2.3, 2.7], target: [-0.95, 1.0, 0], fov: 28, focus: coil },
-    induction: { position: [2.2, 2.9, 6.6], target: [0.35, 1.05, 0.3], fov: 28 },
-    exploded: { position: [0.6, 4.6, 9.4], target: [0, 1.45, 0], fov: 28 },
+    // `fit`: the subject every screen must show (phones re-frame from it, docs/MOBILE.md §4 d)
+    hero: { position: [5.6, 3.5, 7.8], target: [0, 0.85, 0], fov: 28, orbit: { azimuth: 1.6, polar: 0.4 }, fit: { center: [0, 0.85, 0], radius: 2.5 } },
+    coil: { position: [-3.3, 2.3, 2.7], target: [-0.95, 1.0, 0], fov: 28, focus: coil, fit: { center: [-0.95, 1.0, 0], radius: 1.1 } },
+    induction: { position: [2.2, 2.9, 6.6], target: [0.35, 1.05, 0.3], fov: 28, fit: { center: [0.35, 1.05, 0.3], radius: 2.3 } },
+    exploded: { position: [0.6, 4.6, 9.4], target: [0, 1.45, 0], fov: 28, fit: { center: [0, 1.45, 0], radius: 2.8 } },
   });
   const fade = { appear: 'fade', inDuration: 0.4 } as const;
   const aField = stage.actor(field, { appear: 'fade', inDuration: 0.8 });

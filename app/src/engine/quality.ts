@@ -14,7 +14,11 @@ import {
 } from 'three';
 import { Emitter, type Unsubscribe } from './events';
 
-export const QUALITY_TIERS = ['low', 'medium', 'high', 'ultra'] as const;
+/**
+ * `mobile` (F5) is the tier of phones and tablets: picked automatically there instead of the benchmark result,
+ * selectable anywhere with `?q=mobile`. The four desktop tiers are unchanged.
+ */
+export const QUALITY_TIERS = ['low', 'medium', 'high', 'ultra', 'mobile'] as const;
 export type QualityTier = (typeof QUALITY_TIERS)[number];
 
 export function isQualityTier(v: unknown): v is QualityTier {
@@ -45,6 +49,19 @@ export interface QualityProfile {
   readonly particles: number;
   /** Anisotropic filtering for textures that ask for it. */
   readonly anisotropy: number;
+  /** Size of the first bloom level relative to the render resolution (0.5 on desktop tiers, 0.25 on `mobile`). */
+  readonly bloomScale: number;
+  /**
+   * "Low detail" signal (true on `mobile` only): kit models and chapters may drop optional set dressing,
+   * use coarser tessellation and skip secondary effects. Purely advisory — nothing may break when it is ignored.
+   */
+  readonly lowDetail: boolean;
+  /**
+   * Render the world straight into the buffer the HUD is drawn on, skipping the full-screen "prep" pass
+   * (which exists to merge ambient occlusion and to compute the depth-of-field blur). Only valid for a profile
+   * without AO, DOF and MSAA — the `mobile` tier; false on every desktop tier.
+   */
+  readonly directWorld: boolean;
 }
 
 export const QUALITY_PROFILES: Record<QualityTier, QualityProfile> = {
@@ -61,6 +78,9 @@ export const QUALITY_PROFILES: Record<QualityTier, QualityProfile> = {
     fxaa: true,
     particles: 0.35,
     anisotropy: 2,
+    bloomScale: 0.5,
+    lowDetail: false,
+    directWorld: false,
   },
   medium: {
     tier: 'medium',
@@ -75,6 +95,9 @@ export const QUALITY_PROFILES: Record<QualityTier, QualityProfile> = {
     fxaa: true,
     particles: 0.6,
     anisotropy: 4,
+    bloomScale: 0.5,
+    lowDetail: false,
+    directWorld: false,
   },
   high: {
     tier: 'high',
@@ -89,6 +112,9 @@ export const QUALITY_PROFILES: Record<QualityTier, QualityProfile> = {
     fxaa: true,
     particles: 1,
     anisotropy: 8,
+    bloomScale: 0.5,
+    lowDetail: false,
+    directWorld: false,
   },
   ultra: {
     tier: 'ultra',
@@ -103,6 +129,32 @@ export const QUALITY_PROFILES: Record<QualityTier, QualityProfile> = {
     fxaa: true,
     particles: 1.5,
     anisotropy: 16,
+    bloomScale: 0.5,
+    lowDetail: false,
+    directWorld: false,
+  },
+  /**
+   * Phones and tablets: fill-rate first. No MSAA (FXAA only), no AO, no depth of field / tilt-shift, bloom
+   * from a short quarter-resolution chain, the world drawn straight into the HUD buffer (`directWorld`), a
+   * 1024 shadow map, half the particles. The DPR cap works together with the device's pixel budget
+   * (`device.ts`) and dynamic resolution.
+   */
+  mobile: {
+    tier: 'mobile',
+    maxDpr: 2,
+    msaa: 0,
+    hudMsaa: 0,
+    shadowMapSize: 1024,
+    aoSamples: 0,
+    aoScale: 0.5,
+    bloomLevels: 3,
+    dofTaps: 0,
+    fxaa: true,
+    particles: 0.5,
+    anisotropy: 2,
+    bloomScale: 0.25,
+    lowDetail: true,
+    directWorld: true,
   },
 };
 

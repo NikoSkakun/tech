@@ -14,6 +14,8 @@
 //                             --eval "app.locate('rotor')"     --eval "const s = app.stats(); return s.drawCalls"
 //   --script <file.mjs>  module exporting `default async (page, helpers) => {…}` for scripted pointer interactions
 //   --dpr <n>            deviceScaleFactor (default 1; 2 = how 4K laptops run 1920x1080)
+//   --touch              emulate a touch screen (coarse pointer → phone / tablet adaptation by viewport size)
+//   --extra "k=v&k2=v2"  extra URL parameters, e.g. "ff=phone&safe=47,0,34,0" (docs/MOBILE.md); --q auto
 //   --port / --base      where the app is served (default port 5201)
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
@@ -47,10 +49,11 @@ const out =
     ? args.out
     : `${outRoot(args)}/${(route || 'home').replace(/\//g, '-')}-${width}x${height}.jpg`;
 
-const { browser, page } = await launch({ width, height, dpr: Number(args.dpr ?? 1) });
+const extra = Object.fromEntries(new URLSearchParams(String(args.extra ?? '')));
+const { browser, page } = await launch({ width, height, dpr: Number(args.dpr ?? 1), touch: !!args.touch });
 let failed = false;
 try {
-  const gpu = await openApp(page, appUrl(base, { route, q: String(args.q ?? 'high'), freeze }));
+  const gpu = await openApp(page, appUrl(base, { route, q: String(args.q ?? 'high'), freeze, extra }));
   if (typeof args.eval === 'string') {
     const value = await page.evaluate(evalSource(args.eval));
     if (value !== undefined) console.log(`eval → ${printable(value)}`);

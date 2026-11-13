@@ -16,6 +16,7 @@ import {
   Label,
   Panel,
   ProgressRing,
+  ScrollView,
   TEXT_COLOR,
   UI,
   UiNode,
@@ -81,6 +82,8 @@ export function createLibrary(hud: Hud, map: () => JourneyMap | null): Overlay {
     nowrap: true,
   });
   const shelf = new UiNode({ dir: 'row', wrap: true, gap: 22, justify: 'center', align: 'start' });
+  const scroll = new ScrollView({ name: 'library-scroll', height: 'hug' });
+  let cardWidth = CARD_WIDTH;
   const column = new UiNode({
     dir: 'col',
     align: 'center',
@@ -136,7 +139,7 @@ export function createLibrary(hud: Hud, map: () => JourneyMap | null): Overlay {
       variant: 'card',
       dir: 'col',
       gap: 14,
-      width: CARD_WIDTH,
+      width: cardWidth,
       pad: [20, 22, 20, 22],
       children: [
         new UiNode({
@@ -166,7 +169,7 @@ export function createLibrary(hud: Hud, map: () => JourneyMap | null): Overlay {
                 new Label(volume.subtitle, { size: UI.text.small, color: TEXT_COLOR.dim }, { width: 'fill' }),
               ],
             }),
-            ring,
+            cardWidth < 400 ? null : ring,
           ],
         }),
         volume.lead
@@ -195,7 +198,10 @@ export function createLibrary(hud: Hud, map: () => JourneyMap | null): Overlay {
             new Chip({ kind: 'scale', text: volume.journey.axis.range, tooltip: volume.journey.axis.label }),
           ],
         }),
-        open,
+        // a phone's card is too narrow for the ring beside the title: it joins the button row
+        cardWidth < 400
+          ? new UiNode({ dir: 'row', align: 'center', justify: 'between', width: 'fill', children: [open, ring] })
+          : open,
       ],
     });
     setAccent(panel, volume.accent);
@@ -211,6 +217,37 @@ export function createLibrary(hud: Hud, map: () => JourneyMap | null): Overlay {
 
   const place = (): void => {
     const m = hud.metrics;
+    const touch = m.shell !== 'desk';
+    // phones and tablets: the shelf scrolls (a phone shows one card per row), cards never exceed the screen
+    if (touch && shelf.parent !== scroll.content) {
+      scroll.content.add(shelf);
+      column.add(scroll);
+    } else if (!touch && shelf.parent === scroll.content) {
+      column.remove(scroll);
+      column.add(shelf);
+    }
+    if (touch) {
+      const top = m.safeArea.top + 18;
+      const safeX = Math.max(m.safeArea.left, m.safeArea.right);
+      const room = m.width - (8 + safeX) * 2;
+      const width = Math.min(CARD_WIDTH, room);
+      column.float = { ax: 0.5, ay: 0, dy: top };
+      title.setStyle({ maxWidth: room - 16, size: m.formFactor === 'phone' ? UI.text.h2 : UI.text.h1 });
+      // two cards side by side where they fit, otherwise one centred column
+      shelf.width = room >= CARD_WIDTH * 2 + 22 ? CARD_WIDTH * 2 + 22 : width;
+      scroll.width = shelf.width;
+      scroll.maxH = Math.max(m.height - top - 120 - m.safeArea.bottom, 160);
+      if (width !== cardWidth) {
+        cardWidth = width;
+        if (hud.overlay === 'library') build();
+      }
+      return;
+    }
+    if (cardWidth !== CARD_WIDTH) {
+      cardWidth = CARD_WIDTH;
+      title.setStyle({ size: UI.text.h1 });
+      if (hud.overlay === 'library') build();
+    }
     column.float = { ax: 0.5, ay: 0, dy: m.height * (m.layout === 'portrait' ? 0.06 : 0.09) };
     shelf.width = Math.min(m.width - m.safeMargin * 2, CARD_WIDTH * 3 + 44 + 8);
     title.setStyle({ maxWidth: m.width - m.safeMargin * 4 });

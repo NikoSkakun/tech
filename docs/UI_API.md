@@ -410,3 +410,34 @@ The HUD is driven by the volume on screen (`hud.volume`, a `VolumeManifest` — 
 
 Chapter code needs none of this: it keeps using `stepUi(ctx)`, `ctx.nav.goto('chapter', 'step')` and the content
 of its own chapter. Text of the volume itself (titles, group names, axis words) lives in `volume.json`.
+
+## 15. Phones and tablets (F5 — `docs/MOBILE.md`)
+
+Nothing to code: the same `stepUi` declarations drive the touch shells.
+
+| You declare | Desktop | Phone / tablet |
+|---|---|---|
+| step text (content) | step panel, paged | «Текст» tab of the sheet, one scroll |
+| `controls` | control dock | «Керування» tab (inputs and buttons in one scroll, buttons last) |
+| `board` | board panel top-left | «Графіки» tab (its buttons at the end of the scroll) |
+| `worldConsole()` | panel in the scene | phone: moved into «Графіки»; tablet: stays in the scene |
+| `hotspots` | floating card | card inside the sheet |
+| `callouts` | all | the 3 (phone) / 5 (tablet) most important: `priority`, then declaration order |
+| chapter quiz | floating card | card inside the sheet |
+| `hint`, `ui.toast()` | toast under the header | same, under the compact header |
+
+New in the API: `CalloutSpec.priority` (lower = more important; default: declaration order). Rules that make
+the tabs work well: most important control first; short labels (a phone row is ≈ 330 px); charts on the board,
+not in the dock; nothing that needs hover. A slider sets its value on tap or horizontal drag — a vertical swipe
+across it scrolls the view. Touch targets are ≥ 44 px on phones and ≥ 48 px on tablets automatically.
+
+`window.__ui` additions: `sheet()` → `{ shell, snap, tab, tabs }` (null on desktops), `setSheet({ snap, tab })`,
+`smallText(minCssPx = 14)`, `smallTargets(minCssPx)`, `controls()` (id / type / where of the step's controls),
+`sounds()` (UI feedback counters), `offscreen({ clipped, partial })` (`partial`: a target cut by its scroll view
+is reported as clipped); named nodes `sheet`, `sheet-grip`, `sheet-side-grip`,
+`sheet-tabs:text|controls|board`, `sys-menu`, `menu-<item>`, `hotspot-<i>`, `callout-<i>`, `tooltip`,
+`glossary-search`, `chapter-quiz`, `quiz-card`. Test with `node tools/qa/mobile-check.mjs <chapter>`.
+
+Widgets (`@/ui3d`): `UiNode.wantsDrag(dx, dy, own)` (touch drag arbitration: override in containers),
+`ScrollView` flings and takes over vertical finger drags from its content, `Pager.continuous`, `uiPointer`
+(`minHitPx`, `coarse`), `Tooltip.showAt(…, 'touch')`, `worldConsoles` (registry of consoles).

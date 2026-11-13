@@ -3,7 +3,7 @@
  * Chapter authors: read `docs/UI_API.md`.
  */
 export { UiNode, layoutTree, type NodeProps, type UiHandlers, type Size, type FloatSpec } from './core/node';
-export { UiSurface, MeshNode, type UiHost, type SurfaceOptions } from './core/surface';
+export { UiSurface, MeshNode, uiPointer, uiSurfaces, type UiHost, type SurfaceOptions } from './core/surface';
 export { Painter, rgba, mixRgba, withAlpha, lit, type Rgba, type ShapeStyle } from './core/painter';
 export { ICON_NAMES, type IconName } from './core/icons';
 export { uiFocus, sfx, onUiSound, type UiSound } from './core/focus';
@@ -19,7 +19,13 @@ export {
   type PlantType,
 } from './theme';
 export { uiHost, hudSurface, worldSurface, type WorldSurfaceOptions } from './host';
-export { worldConsole, type WorldConsole, type WorldConsoleOptions } from './console';
+export {
+  worldConsole,
+  worldConsoles,
+  type WorldConsole,
+  type WorldConsoleEntry,
+  type WorldConsoleOptions,
+} from './console';
 export { Label, type LabelStyle } from './widgets/label';
 export { Control } from './widgets/control';
 export { Panel, Icon, Divider, row, col, spacer, type PanelProps } from './widgets/panel';

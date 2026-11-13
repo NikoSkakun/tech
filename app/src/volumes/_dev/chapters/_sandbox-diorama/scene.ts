@@ -315,19 +315,22 @@ export default defineScene(async (ctx) => {
   /* ------------------------------------------------------------------------------ declarative steps */
   const hub = turbine.group.position.clone().add(new Vector3(0, turbine.hubHeight, 0));
   camera.shots({
+    // `fit`: the subject every screen must show (phones re-frame from it, docs/MOBILE.md §4 d)
     island: {
       position: [11, 6.8, 25.5],
       target: [0, -1.5, 0],
       fov: 30,
+      fit: { center: [0, -1, 0], radius: 10 },
       orbit: { azimuth: 1.4, polar: 0.4, zoom: [0.6, 1.4] },
     },
     wind: {
       position: hub.clone().add(new Vector3(3.6, 1.2, 8.2)),
       target: hub.clone().add(new Vector3(-0.3, -0.9, 0)),
       fov: 30,
+      fit: { center: hub.clone().add(new Vector3(0, -0.9, 0)), radius: 3.4 },
     },
-    line: { position: [-0.2, 3.9, 7.6], target: [-0.9, 1.35, -2.0], fov: 30 },
-    dusk: { position: [-8.4, 3.9, 3.6], target: [-3.0, 0.8, -3.3], fov: 30 },
+    line: { position: [-0.2, 3.9, 7.6], target: [-0.9, 1.35, -2.0], fov: 30, fit: { center: [-0.9, 1.35, -2.0], radius: 3.2 } },
+    dusk: { position: [-8.4, 3.9, 3.6], target: [-3.0, 0.8, -3.3], fov: 30, fit: { center: [-3.0, 0.8, -3.3], radius: 3.6 } },
     night: {
       position: [-12, 6.2, 23.5],
       target: [0, -1.3, 0],

@@ -19,11 +19,26 @@ import {
   Scene,
   Vector3,
 } from 'three';
+import {
+  DESKTOP_DEVICE,
+  type DeviceState,
+  type EdgeInsets,
+  type FormFactor,
+  type Orientation,
+  type PointerKind,
+} from './device';
 import { Emitter, type Unsubscribe } from './events';
 import type { Insets } from './camera/director';
 import type { StyleRig } from './pipeline/pipeline';
 
 export type HudLayout = 'wide' | 'narrow' | 'portrait';
+
+/**
+ * Which interface shell the HUD builds (F5, `docs/MOBILE.md`): `desk` — the desktop layouts (`layout` picks
+ * wide / narrow / portrait, exactly as before); `sheet` — touch portrait: a bottom sheet with snap heights;
+ * `side` — touch landscape: a collapsible side sheet. Desktops always get `desk`.
+ */
+export type HudShell = 'desk' | 'sheet' | 'side';
 
 export interface HudMetrics {
   /** Size of the screen plane in HUD units. */
@@ -38,6 +53,27 @@ export interface HudMetrics {
   readonly layout: HudLayout;
   /** Safe margin (3 % of the short side) in HUD units. */
   readonly safeMargin: number;
+  /** Device form factor, orientation and primary pointer (F5; `desktop` / `fine` on desktops). */
+  readonly formFactor: FormFactor;
+  readonly orientation: Orientation;
+  readonly pointer: PointerKind;
+  /** Interface shell for this device and orientation. */
+  readonly shell: HudShell;
+  /**
+   * Device safe area (notch, rounded corners, home indicator; the on-screen keyboard is added to `bottom`) in
+   * HUD units from each edge. All zero on desktops. Regions add `safeMargin` on top of it.
+   */
+  readonly safeArea: EdgeInsets;
+}
+
+/** Smallest `pxPerUnit` on touch devices: 1 HUD unit = 1 CSS px, so the 15-unit caption is ≥ 14 CSS px and a
+ * 44-unit target is 44 CSS px (STYLE_GUIDE §6 minimums become real pixels). Desktops keep 0.7. */
+export const TOUCH_MIN_PX_PER_UNIT = 1;
+const DESK_MIN_PX_PER_UNIT = 0.7;
+
+export function shellOf(device: Pick<DeviceState, 'formFactor' | 'orientation'>): HudShell {
+  if (device.formFactor === 'desktop') return 'desk';
+  return device.orientation === 'portrait' ? 'sheet' : 'side';
 }
 
 /** Vertical field of view of the HUD camera: narrow, so depth layering is subtle rather than fish-eyed. */
@@ -61,7 +97,13 @@ export class HudLayer {
     cssHeight: 1080,
     layout: 'wide',
     safeMargin: 32,
+    formFactor: 'desktop',
+    orientation: 'landscape',
+    pointer: 'fine',
+    shell: 'desk',
+    safeArea: { top: 0, right: 0, bottom: 0, left: 0 },
   };
+  private device: DeviceState = DESKTOP_DEVICE;
   private readonly events = new Emitter<{ resize: HudMetrics; insets: Insets }>();
   private readonly insetsUnits = { left: 0, right: 0, top: 0, bottom: 0 };
   private textScale = 1;
@@ -118,13 +160,23 @@ export class HudLayer {
     this.setViewport(this.current.cssWidth, this.current.cssHeight);
   }
 
+  /** @internal The device model changed (form factor, rotation, safe area, keyboard). */
+  setDevice(device: DeviceState): void {
+    this.device = device;
+    this.setViewport(this.current.cssWidth, this.current.cssHeight);
+  }
+
   /** @internal Viewport changed (CSS px). */
   setViewport(cssWidth: number, cssHeight: number): void {
     const w = Math.max(cssWidth, 1);
     const h = Math.max(cssHeight, 1);
-    // px-equivalent scale: proportional to the viewport, but never so small that 14-unit captions become unreadable
+    const d = this.device;
+    const touch = d.formFactor !== 'desktop';
+    // px-equivalent scale: proportional to the viewport, but never so small that 14-unit captions become
+    // unreadable; on phones and tablets a unit is at least one CSS px (TOUCH_MIN_PX_PER_UNIT)
     const base = Math.min(h, (w * 9) / 16) / 1080;
-    const pxPerUnit = MathUtils.clamp(base, 0.7, 3) * this.textScale;
+    const floor = touch ? TOUCH_MIN_PX_PER_UNIT : DESK_MIN_PX_PER_UNIT;
+    const pxPerUnit = MathUtils.clamp(base, floor, 3) * this.textScale;
     const width = w / pxPerUnit;
     const height = h / pxPerUnit;
     const aspect = w / h;
@@ -136,6 +188,16 @@ export class HudLayer {
       cssHeight: h,
       layout: aspect >= 1.6 ? 'wide' : aspect >= 1 ? 'narrow' : 'portrait',
       safeMargin: Math.min(width, height) * 0.03,
+      formFactor: d.formFactor,
+      orientation: d.orientation,
+      pointer: d.pointer,
+      shell: shellOf(d),
+      safeArea: {
+        top: d.safeArea.top / pxPerUnit,
+        right: d.safeArea.right / pxPerUnit,
+        bottom: (d.safeArea.bottom + d.keyboard) / pxPerUnit,
+        left: d.safeArea.left / pxPerUnit,
+      },
     };
     // place the camera so that the z = 0 plane spans exactly width × height units
     const distance = height / 2 / Math.tan(MathUtils.degToRad(HUD_FOV) / 2);

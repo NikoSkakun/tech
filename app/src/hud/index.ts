@@ -22,6 +22,7 @@ import { Hud, type Overlay } from './shell';
 import { setToastSink } from './step-ui';
 import { createSpine } from './spine';
 import { createSystemButtons } from './system';
+import { createMenu } from './touch/menu';
 import { mountTooltips } from './tooltips';
 
 let instance: Hud | null = null;
@@ -54,6 +55,7 @@ export const plugin: EnginePlugin = {
     installOnboarding(h);
     h.register('settings', createSettings(h));
     h.register('help', createHelp(h));
+    h.register('menu', createMenu(h));
     h.register(
       'library',
       createLibrary(h, () => journeyMap),

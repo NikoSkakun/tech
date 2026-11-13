@@ -34,9 +34,10 @@ export type {
   Vec3Like,
 } from './camera/director';
 export type { ClockView } from './clock';
+export type { DeviceState, EdgeInsets, FormFactor, Orientation, PointerKind } from './device';
 export { markShared, type Disposable, type DisposeFn } from './disposables';
 export { Emitter, type Unsubscribe } from './events';
-export type { HudLayer, HudLayout, HudMetrics } from './hud';
+export type { HudLayer, HudLayout, HudMetrics, HudShell } from './hud';
 export { OVERLAY_LAYER, WORLD_LAYER, toOverlay, worldBounds } from './layers';
 export type {
   DragInfo,
@@ -46,6 +47,7 @@ export type {
   KeyCapture,
   InteractionHandlers,
   KeyAction,
+  PinchCapture,
   PointerInfo,
   ScopedInput,
 } from './input';

@@ -23,7 +23,8 @@ import { Button, Chip, Label, ScrollView, Tabs, TEXT_COLOR, UI, UiNode, rgba, ty
 import { contentKey } from '@/content';
 import { wantsFixture, type Journey } from '../journey';
 import type { Hud, Overlay } from '../shell';
-import { createModal } from './modal';
+import { textEntry } from '../touch/text-entry';
+import { createModal, type ModalOverlay } from './modal';
 
 const PAGE = 24;
 type Scope = 'volume' | 'library';
@@ -34,13 +35,17 @@ class SearchBox extends UiNode {
     { size: UI.text.small, nowrap: true, reserve: 40, stable: true },
     { width: 'fill', height: 26 },
   );
+  /** Touch devices: the box is a button that brings up the on-screen keyboard; the hint says so. */
+  touch = false;
   constructor() {
     super({ dir: 'row', align: 'center', gap: 8, width: 'fill', height: UI.hit, pad: [0, 14] });
     this.add(this.text);
   }
   set(query: string): void {
     this.text.setStyle({ color: query ? 'white' : TEXT_COLOR.mute });
-    this.text.text = query ? `${query}▏` : 'Почніть друкувати, щоб знайти термін…';
+    const hint = this.touch ? 'Торкніться, щоб шукати…' : 'Почніть друкувати, щоб знайти термін…';
+    // (the desktop caret glyph U+258F is not in the font atlas — see docs/requests/F5-mobile.md; touch uses `|`)
+    this.text.text = query ? `${query}${this.touch ? '|' : '▏'}` : hint;
   }
   override paint(p: Painter): void {
     p.rect(0, 0, this.bw, this.bh, {
@@ -105,6 +110,31 @@ export function createGlossary(hud: Hud, journey: Journey): Overlay {
   const count = new Label('', { size: UI.text.caption, color: TEXT_COLOR.mute, nowrap: true });
   const list = new ScrollView({ height: 'hug', gap: 10 });
   const letters = new UiNode({ dir: 'row', wrap: true, gap: 4, width: 'fill' });
+  // touch shells: the search field stays put; the filters scroll away with the list and step aside while typing
+  const filters = new UiNode({ name: 'glossary-filters', dir: 'col', gap: UI.gap.md, width: 'fill' });
+  const clear = new Button({
+    name: 'glossary-clear',
+    icon: 'close',
+    variant: 'icon',
+    size: 'sm',
+    tooltip: 'Очистити пошук',
+    visible: false,
+    onClick: () => {
+      query = '';
+      refilter();
+    },
+  });
+  let touch = false;
+  /** Longest link caption a row holds (bold caption type ≈ 8.6 units per character). */
+  let linkChars = 54;
+  /** A tap on the search box brings up the on-screen keyboard (touch); what is typed lands in `query`. */
+  const type = (): void => {
+    if (!touch) return;
+    textEntry().open(query, (value) => {
+      query = value.slice(0, 32);
+      refilter();
+    });
+  };
 
   const row = (r: GlossaryRecord): UiNode => {
     // the chapter that introduces the term: in this volume's journey, or (library scope) in another volume
@@ -115,7 +145,8 @@ export function createGlossary(hud: Hud, journey: Journey): Overlay {
     const home = foreign ? `${library.get(r.volumeId!)?.title ?? r.volumeId} · ` : '';
     const where = c ? `${home}${c.title}${step ? ` · ${step.title}` : ''}` : r.chapterId;
     const link = new Button({
-      label: where.length > 54 ? `${where.slice(0, 52)}…` : where,
+      // cut to what a row can hold: 54 characters on a desktop panel, fewer on a phone
+      label: where.length > linkChars ? `${where.slice(0, linkChars - 2)}…` : where,
       icon: 'link',
       variant: 'ghost',
       size: 'sm',
@@ -149,6 +180,11 @@ export function createGlossary(hud: Hud, journey: Journey): Overlay {
 
   const render = (): void => {
     list.content.clear();
+    if (touch) {
+      list.content.add(filters);
+      filters.visible = query === '';
+      clear.visible = query !== '';
+    }
     if (!records) {
       list.content.add(new Label('Завантаження термінів…', { size: UI.text.small, color: TEXT_COLOR.dim }));
       return;
@@ -177,18 +213,28 @@ export function createGlossary(hud: Hud, journey: Journey): Overlay {
     search.set(query);
     hud.relayout();
   };
-  const refilter = (): void => {
+  function refilter(): void {
     shown = PAGE;
     list.scrollTo(0, true);
     render();
-  };
+  }
 
-  return createModal(hud, {
+  /** Touch shells: height left for the list under the pinned search row. */
+  const listRoom = (): number => Math.max(modal.bodyHeight() - UI.hit - UI.gap.md, 120);
+  const modal: ModalOverlay = createModal(hud, {
     title: 'Глосарій',
     icon: 'glossary',
     width: 920,
     fresh: true,
+    ownScroll: true,
+    onClose: () => textEntry().close(),
     build(body, arg) {
+      touch = hud.metrics.shell !== 'desk';
+      const m = hud.metrics;
+      const inner = Math.min(920, m.width - m.safeArea.left - m.safeArea.right - 16) - 32;
+      linkChars = touch ? Math.max(20, Math.min(54, Math.floor((inner - 56) / 8.6))) : 54;
+      search.touch = touch;
+      search.name = touch ? 'glossary-search' : '';
       query = typeof arg === 'string' ? arg : '';
       group = 'all';
       letter = '';
@@ -222,13 +268,28 @@ export function createGlossary(hud: Hud, journey: Journey): Overlay {
         letters.add(chip);
       }
       list.maxH = Math.max(hud.metrics.height - 470, 220);
-      if (scopes) body.add(scopes);
-      body.add(
-        new UiNode({ dir: 'row', align: 'center', gap: 12, width: 'fill', children: [search, count] }),
-        tabs,
-        letters,
-        list,
-      );
+      if (touch) {
+        // (the box gets its tap handler only here: on a desktop it stays the passive field it always was)
+        search.on({ cursor: 'text', click: type });
+        search.minHit = UI.hit; // a pointer target now: the touch minimum applies (48 px on tablets)
+        // search pinned on top; scope switch, parts and letters are the first rows of the list
+        filters.clear();
+        if (scopes) filters.add(scopes);
+        filters.add(tabs, letters);
+        list.maxH = listRoom();
+        body.add(
+          new UiNode({ dir: 'row', align: 'center', gap: 8, width: 'fill', children: [search, clear, count] }),
+          list,
+        );
+      } else {
+        if (scopes) body.add(scopes);
+        body.add(
+          new UiNode({ dir: 'row', align: 'center', gap: 12, width: 'fill', children: [search, count] }),
+          tabs,
+          letters,
+          list,
+        );
+      }
       render();
       if (!records) {
         const wanted = scope;
@@ -247,4 +308,9 @@ export function createGlossary(hud: Hud, journey: Journey): Overlay {
       return true;
     },
   });
+  // the on-screen keyboard opening / closing changes the room: the list follows without a rebuild
+  hud.engine.hud.onResize(() => {
+    if (touch && hud.overlay === 'glossary') list.maxH = listRoom();
+  });
+  return modal;
 }

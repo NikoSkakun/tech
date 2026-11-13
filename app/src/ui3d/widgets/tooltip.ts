@@ -21,15 +21,23 @@ export class Tooltip extends UiNode {
    * Show `text` near a point given in surface units from the surface centre (x right, y up). The bubble sits
    * above-right of the pointer and flips / clamps to stay inside `bounds` (half extents of the surface).
    */
-  showAt(text: string, x: number, y: number, bounds: { hw: number; hh: number }): void {
+  showAt(
+    text: string,
+    x: number,
+    y: number,
+    bounds: { hw: number; hh: number },
+    mode: 'pointer' | 'touch' = 'pointer',
+  ): void {
     this.text.text = text;
     const w = this.text.measure(360)[0] + 28;
     const h = this.text.measure(360)[1] + 14;
     const margin = 12;
-    let cx = x + 18 + w / 2;
-    if (cx + w / 2 > bounds.hw - margin) cx = x - 18 - w / 2;
-    let cy = y + 22 + h / 2;
-    if (cy + h / 2 > bounds.hh - margin) cy = y - 26 - h / 2;
+    // a finger covers what is below and beside it: the bubble sits centred well above the touch point
+    const touch = mode === 'touch';
+    let cx = touch ? x : x + 18 + w / 2;
+    if (!touch && cx + w / 2 > bounds.hw - margin) cx = x - 18 - w / 2;
+    let cy = y + (touch ? 48 : 22) + h / 2;
+    if (cy + h / 2 > bounds.hh - margin) cy = y - (touch ? 56 : 26) - h / 2;
     cx = Math.min(Math.max(cx, -bounds.hw + margin + w / 2), bounds.hw - margin - w / 2);
     // float anchored at the parent's centre: offsets are in layout space (y down)
     this.float = { ax: 0.5, ay: 0.5, dx: cx, dy: -cy };
