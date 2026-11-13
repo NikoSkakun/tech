@@ -1,7 +1,7 @@
 /**
  * Shared context of the HUD modules: the engine, the one HUD surface, the region tree and a few services.
  */
-import type { ChapterManifest, Engine, HudMetrics, VolumeManifest } from '@/engine/api';
+import type { ChapterManifest, Engine, HudMetrics, Position, VolumeManifest } from '@/engine/api';
 import type { ChapterContent } from '@/content';
 import type { ToastOptions, UiNode, UiSurface } from '@/ui3d';
 
@@ -19,6 +19,11 @@ export interface HudContext {
    * library, the glossary scope switch)? False while the library is a single published volume.
    */
   readonly libraryLevel: boolean;
+  /**
+   * The step loaded behind the landing screen of a first visit, not seen by the learner yet: it is neither
+   * visited nor "the current step" for the map, home and library until the learner reaches it (`landing.ts`).
+   */
+  readonly unseenStep: Position | null;
   /** Manifest and content of the chapter on screen (content is null until loaded / when absent). */
   readonly chapter: ChapterManifest | null;
   readonly content: ChapterContent | null;

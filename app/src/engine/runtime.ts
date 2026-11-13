@@ -483,11 +483,22 @@ export class ChapterRuntime {
     clock.resetReal();
     this.zoom = { elapsed: 0, duration, reduced, from, to, direction, warmup: 3 };
     store.settle(here);
-    store.markVisited(here);
+    this.visit(here);
     // a step change requested while loading
     const want = this.wanted;
     if (want && samePosition(want, { ...here, stepId: want.stepId }) && want.stepId !== next.stepId)
       this.enterStep(next, want.stepId, true);
+  }
+
+  /**
+   * Decides whether entering a step counts as a visit (progress marks). Null: every entered step does. The HUD
+   * sets it while the first step of a first visit sits behind the landing screen (`hud/landing.ts`).
+   */
+  visitGate: ((pos: Position) => boolean) | null = null;
+
+  private visit(here: Position): void {
+    if (this.visitGate?.(here) === false) return;
+    this.deps.store.markVisited(here);
   }
 
   private enterStep(instance: Instance, stepId: string, instant: boolean, announce = true): void {
@@ -511,7 +522,7 @@ export class ChapterRuntime {
     const here: Position = { volumeId: manifest.volume, chapterId: manifest.id, stepId };
     store.set({ volumeId: here.volumeId, chapterId: here.chapterId, stepId });
     store.settle(here);
-    store.markVisited(here);
+    this.visit(here);
     this.events.emit('step', { ...here, from, instant });
   }
 

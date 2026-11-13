@@ -252,3 +252,27 @@ If a chapter document contradicts this file, this file wins and the document mus
       platform on request;
     - saved progress moved to the key `electricity:v2` (full chapter ids); the `v1` record is migrated once
       and left in place.
+
+59. **The interface is ordinary 2D web UI (HTML/CSS), not WebGL.** User, 2026-11-13 ≈23:55, verbatim: «Зараз в
+    проекті є багато 2D UI. Наприклад, я зараз на першому кроці в Мікросвіті. Блок справа з інформацією (котрий
+    починається з "Усе складається з атомів"), блок зліва вгорі з назвою розділу і кроку, сервісні і меню кнопки
+    справа вгорі, шкала масштабу, перемикач кроків - все це варто робити в 2D звичайними веб браузерними
+    техніками, і щоб текст виділявся. Зроби цю зміну для усієї системи.» This withdraws PLAN §1/§4 "UI integrated
+    into the 3D scene (panels, buttons, sliders, charts are WebGL objects)".
+    a. **Scope:** every piece of interface that is not part of the 3D world — header, step panel and its
+       sections, system buttons and menus, scale spine, step navigator, dock controls, boards (charts, tables,
+       readouts), tooltips, toasts, hotspot cards, the journey map's panels and cards, home, library, glossary,
+       settings, help, loading screen, touch shells (F5). The 3D world (scenes, the journey map's world of
+       platforms) stays WebGL.
+    b. **Text:** selectable and copyable («щоб текст виділявся»), crisp at any DPR and browser zoom, real DOM
+       text (screen readers, find-in-page, translation tools).
+    c. **Look:** keep the style guide (palette tokens, fonts, panels, motion); the change is the technique, not a
+       redesign. Desktop layout as now; phones/tablets per §57 with CSS.
+    d. **Chapters do not change:** the declarative chapter API (`stepUi`, `board`, `visible`, `ctl-<id>`, hotspots,
+       links) and the QA hooks (`__ui.*`) keep their meaning, so existing chapters and their interaction tests
+       keep working. Anything a chapter must change is listed by the design and done by the platform.
+    e. **Open for the design (D0):** in-scene labels and callouts anchored to 3D objects (DOM overlay vs WebGL),
+       world consoles that are part of a prop, migration order, feature flag, framework choice. Decided by the
+       orchestrator from D0's proposal; questions of taste go to the user.
+    f. **Process (user, same message):** «Пам'ятай про те, що ти - оркестратор, планувальник і аудитор. Для
+       кожної задачі запускай субагента на opus-5-5 high effort.»

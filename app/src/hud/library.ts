@@ -102,6 +102,8 @@ export function createLibrary(hud: Hud, map: () => JourneyMap | null): Overlay {
     hud.close();
     // inside the volume the user lands where they left it; a first visit starts on the volume's home screen
     const first = store.get().lastIn[volume.id] === undefined;
+    // the volume's first step loads behind its home screen: not visited until the learner reaches it
+    if (first) hud.landing.arm();
     void nav.gotoVolume(volume.id).then((ok) => {
       if (ok && first) hud.open('home');
     });
@@ -111,7 +113,7 @@ export function createLibrary(hud: Hud, map: () => JourneyMap | null): Overlay {
     const chapters = library.registry(volume.id)?.chapters ?? [];
     const steps = chapters.reduce((n, c) => n + c.steps.length, 0);
     const progress = journeyProgress(store.get().progress.visited, chapters);
-    const current = store.get().volumeId === volume.id;
+    const current = store.get().volumeId === volume.id && hud.unseenStep === null;
     const started = store.get().lastIn[volume.id] !== undefined;
     const ring = new ProgressRing({
       name: `volume-progress-${volume.id}`,

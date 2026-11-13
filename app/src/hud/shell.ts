@@ -8,6 +8,7 @@ import {
   type ChapterManifest,
   type Engine,
   type HudMetrics,
+  type Position,
   type VolumeManifest,
 } from '@/engine/api';
 import { linkTarget, loadContent, type ChapterContent } from '@/content';
@@ -23,6 +24,7 @@ import {
   type UiHost,
 } from '@/ui3d';
 import type { HudContext, HudModule, OverlayName } from './context';
+import { Landing } from './landing';
 
 /** Screen edge a region counts toward (`auto`: right on wide screens, bottom otherwise). */
 export type InsetSide = 'left' | 'right' | 'top' | 'bottom' | 'auto';
@@ -89,7 +91,11 @@ export class Hud implements HudContext {
   private chromeShown = true;
   private contentToken = 0;
 
+  /** The first step of a first visit, loaded behind the landing screen and not seen yet (`landing.ts`). */
+  readonly landing: Landing;
+
   constructor(readonly engine: Engine) {
+    this.landing = new Landing(engine);
     this.host = {
       tweens: engine.tweens.root.scope(),
       input: engine.input,
@@ -108,7 +114,8 @@ export class Hud implements HudContext {
     engine.hud.onResize(() => this.relayout());
     engine.onUpdate((dt) => this.update(dt));
     engine.runtime.on('chapter', ({ volumeId, chapterId }) => this.setChapter(volumeId, chapterId));
-    engine.runtime.on('step', ({ stepId, instant }) => {
+    engine.runtime.on('step', ({ volumeId, chapterId, stepId, instant }) => {
+      this.landing.moved({ volumeId, chapterId, stepId });
       this.modules.forEach((mod) => mod.onStep?.(stepId, instant));
       // accessibility plumbing: announce the step in the page's invisible live region
       const live = document.getElementById('live');
@@ -184,6 +191,7 @@ export class Hud implements HudContext {
     this.overlay = null;
     this.overlays.get(name)?.close();
     this.showChrome(true);
+    this.landing.revealed();
     return true;
   }
 
@@ -192,7 +200,12 @@ export class Hud implements HudContext {
     return (this.overlay && this.overlays.get(this.overlay)?.key?.(e)) || false;
   }
 
+  get unseenStep(): Position | null {
+    return this.landing.step;
+  }
+
   goto(chapter: string, stepId?: string): void {
+    this.landing.leaving(chapter, stepId);
     this.close();
     void this.engine.nav.goto(chapter, stepId);
   }

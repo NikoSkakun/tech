@@ -288,7 +288,9 @@ export class JourneyMap implements Overlay {
       group: groupLabel(this.journey.volume, node.chapter.group),
       visited,
       currentStep:
-        state.volumeId === node.chapter.volume && state.chapterId === node.chapter.id ? state.stepId : null,
+        state.volumeId === node.chapter.volume && state.chapterId === node.chapter.id && !this.hud.unseenStep
+          ? state.stepId
+          : null,
       maxHeight: m.layout === 'wide' ? m.height - 190 : m.height * 0.5,
       onStep: (stepId) => this.enter(node, stepId),
       onClose: () => this.select(-1),
