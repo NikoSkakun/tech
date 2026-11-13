@@ -75,6 +75,36 @@ export interface QuizItem {
   explanation?: string | null;
 }
 
+/** A word of the simple level («Слова»): the word as it appears in the simple text and one plain sentence. */
+export interface SimpleWord {
+  word: string;
+  text: string;
+}
+
+/** A plain hotspot card text («Підказки»). */
+export interface SimpleHotspot {
+  id: string;
+  text: string;
+}
+
+/**
+ * The simple reading level of a step («Просто», docs/briefs/L-simple-level.md §4). Every part is optional except
+ * the pages; a missing part falls back to the detailed copy (see `@/hud/level`). There are no formulas.
+ */
+export interface SimpleStep {
+  /** Shorter title where the detailed one is long. */
+  title?: string;
+  /** 1–2 pages, ≤ 250 characters each. */
+  panel: readonly string[];
+  /** «Слова» (replaces «Терміни» in the simple level). */
+  words?: readonly SimpleWord[];
+  /** «Цікаво» (replaces «Цифри і факти»). */
+  facts?: readonly string[];
+  /** Plain hotspot card texts, bound by the hotspot `id` (a list: JSON inference cannot widen an id-keyed object). */
+  hotspots?: readonly SimpleHotspot[];
+  misconception?: Misconception;
+}
+
 /** On-screen content of one step. Field names equal the export's `steps[]` entries. */
 export interface StepContent {
   id: string;
@@ -91,6 +121,8 @@ export interface StepContent {
   quiz?: readonly QuizItem[];
   /** UI labels quoted «…» in the document's «Інтерактив» items, verbatim — use them for control captions. */
   labels?: readonly string[];
+  /** The simple reading level of the step, when the chapter has one. */
+  simple?: SimpleStep;
 }
 
 export interface GlossaryEntry {
@@ -139,6 +171,8 @@ export interface ChapterContent {
   steps: readonly StepContent[];
   glossary?: readonly GlossaryEntry[];
   quiz?: readonly QuizItem[];
+  /** «Простий квіз» — the chapter quiz of the simple reading level (3 questions, no arithmetic). */
+  simpleQuiz?: readonly QuizItem[];
   crossReferences?: readonly CrossReference[];
   /** Free-form scene labels of the chapter (callouts, button captions…), keyed by the builder. */
   labels?: Readonly<Record<string, string>>;

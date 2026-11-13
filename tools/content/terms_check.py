@@ -71,6 +71,32 @@ def onscreen(d):
     return [x for x in out if x[1]]
 
 
+def onscreen_simple(d):
+    """[(path, text, kind)] of the simple reading layer (docs/briefs/L-simple-level.md) in reading order; [] when the
+    chapter has none. Steps without a simple block show their detailed copy (already in onscreen())."""
+    out = []
+    for s in d['steps']:
+        x = s.get('simple')
+        if not x:
+            continue
+        sid = s['id'] + '.simple'
+        out.append((sid + '.title', x.get('title') or '', 'title'))
+        out += [('%s.panel[%d]' % (sid, i), p, 'panel') for i, p in enumerate(x['panel'])]
+        for w in x['words']:
+            out.append(('%s.word «%s»' % (sid, w['word']), w['word'], 'name'))
+            out.append(('%s.word «%s» text' % (sid, w['word']), w['text'], 'copy'))
+        out += [('%s.fact' % sid, f, 'copy') for f in x['facts']]
+        out += [('%s.hotspot `%s`' % (sid, h['id']), h['text'], 'copy') for h in x['hotspots']]
+        if x.get('misconception'):
+            out.append((sid + '.misconception', x['misconception']['myth'], 'copy'))
+            out.append((sid + '.misconception correction', x['misconception']['correction'], 'copy'))
+    for i, q in enumerate(d.get('simpleQuiz') or []):
+        out.append(('simpleQuiz[%d]' % i, q['question'], 'copy'))
+        out += [('simpleQuiz[%d].option' % i, o, 'copy') for o in q['options']]
+        out.append(('simpleQuiz[%d].explanation' % i, q.get('explanation') or '', 'copy'))
+    return [x for x in out if x[1]]
+
+
 def load(cid):
     with open(os.path.join(C.EXPORT_DIR, cid + '.json'), encoding='utf-8') as f:
         return json.load(f)
@@ -85,10 +111,10 @@ ROMAN_RE = re.compile(r'[IVX]+')
 # parts of compound units besides UNITS: g CO₂-eq/kWh, MWd/kgU, mg/Nm³, imp/kWh, ng TEQ/m³, MeV/c²
 UNIT_PARTS = {'eq', 'kgU', 'MWd', 'Nm', 'imp', 'TEQ', 'c', 'kAh', 'EJ', 'atm', 'ft', 'ha', 'fm', 'nC'}
 # SI and customary unit symbols, kept international (DECISIONS §54 f); exempt wherever they stand
-UNITS = set('''V mV kV MV A mA kA μA W mW kW MW GW TW Wh kWh MWh GWh TWh mAh Ah Hz kHz MHz GHz Ω kΩ MΩ mΩ J kJ MJ GJ
+UNITS = set("""V mV kV MV A mA kA μA W mW kW MW GW TW Wh kWh MWh GWh TWh mAh Ah Hz kHz MHz GHz Ω kΩ MΩ mΩ J kJ MJ GJ
 eV keV MeV GeV TeV C F μF mF nF pF H mH μH T mT μT Wb Pa kPa MPa GPa bar K s ms μs ns min h m mm cm km μm nm pm
 kg g mg t Mt Gt l L ml var kvar Mvar Gvar VA kVA MVA GVA kWp MWp GWp Wp lm lx dB rpm mol ppm ppb Bq Sv mSv μSv Gy
-cd sr rad p.u. p.u mHz kvarh ng'''.split())
+cd sr rad p.u. p.u mHz kvarh ng""".split())
 
 
 def latin_words(text):
@@ -114,7 +140,7 @@ def inventory(ids):
     """{word: {chapter: count}} over on-screen strings (symbol cells excluded: they are symbols by definition)."""
     inv = {}
     for cid in ids:
-        for _, text, kind in onscreen(load(cid)):
+        for _, text, kind in onscreen(load(cid)) + onscreen_simple(load(cid)):
             if kind == 'symbol':
                 continue
             for w, _ in latin_words(text):
@@ -224,9 +250,11 @@ def stems_in_order(want, window):
     return True
 
 
-def check_chapter(cid, allow, problems, table):
+def check_chapter(cid, allow, problems, table, strings=None):
+    """`strings`: the on-screen strings of one reading layer (default: the detailed layer, onscreen()); the first
+    mention of an abbreviation is looked for within that layer, since a reader sees only one of them."""
     seen = set()
-    for path, text, kind in onscreen(load(cid)):
+    for path, text, kind in (onscreen(load(cid)) if strings is None else strings):
         if kind == 'symbol':
             continue
         bare = CODE_RE.sub(lambda m: ' ' * len(m.group(0)), text)
@@ -281,6 +309,7 @@ def main():
     table = {}
     for cid in ids:
         check_chapter(cid, allow, problems, table)
+        check_chapter(cid, allow, problems, table, onscreen_simple(load(cid)))
     if '--abbr-table' in sys.argv:
         print('| Скорочення | Українське пояснення в документах (перша згадка в розділі) | Розділи |')
         print('|---|---|---|')

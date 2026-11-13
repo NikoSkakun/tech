@@ -1,8 +1,18 @@
 /**
  * The expandable sections under a step's text: key terms (chips that open their definition), formulas,
- * «Цифри і факти», misconceptions. One section is open at a time, so the panel stays compact.
+ * «Цифри і факти», misconceptions. One section is open at a time, so the panel stays compact. At the simple reading
+ * level (a `LeveledStep` from `./level`) the chips read «Слова» and «Цікаво»; the selector already left out formulas.
  */
-import { termIntl, termName, type Fact, type StepContent, type Term } from '@/content';
+import {
+  LEVEL_LABELS,
+  termIntl,
+  termName,
+  type Fact,
+  type LevelLabels,
+  type ReadingLevel,
+  type StepContent,
+  type Term,
+} from '@/content';
 import {
   Button,
   Card,
@@ -25,26 +35,30 @@ interface Section {
   body: UiNode;
 }
 
-function termCard(hud: HudContext, term: Term): UiNode {
+function termCard(hud: HudContext, term: Term, labels: LevelLabels): UiNode {
   const intl = termIntl(term);
   const tail = [term.symbol, term.unit].filter((v): v is string => !!v && v !== '—').join(', ');
   return new Card({
     width: 'fill',
-    kicker: 'Термін',
+    kicker: labels.term,
     title: termName(term),
     body: `${tail ? `\`${tail}\` — ` : ''}${term.definition ?? ''}`,
     extra: [
       ...(intl
         ? [new Label(intl, { size: UI.text.caption, color: TEXT_COLOR.mute, rich: false }, { width: 'fill' })]
         : []),
-      new Button({
-        label: 'Відкрити глосарій',
-        icon: 'glossary',
-        variant: 'ghost',
-        size: 'sm',
-        alignSelf: 'start',
-        onClick: () => hud.open('glossary', termName(term)),
-      }),
+      ...(labels.glossary
+        ? [
+            new Button({
+              label: 'Відкрити глосарій',
+              icon: 'glossary',
+              variant: 'ghost',
+              size: 'sm',
+              alignSelf: 'start',
+              onClick: () => hud.open('glossary', termName(term)),
+            }),
+          ]
+        : []),
     ],
   });
 }
@@ -88,7 +102,8 @@ function factNode(f: Fact): UiNode {
 }
 
 /** Build the accordion for a step. Returns null when the step has nothing to put in it. */
-export function buildSections(hud: HudContext, step: StepContent): UiNode | null {
+export function buildSections(hud: HudContext, step: StepContent & { level?: ReadingLevel }): UiNode | null {
+  const labels = LEVEL_LABELS[step.level ?? 'detailed'];
   const sections: Section[] = [];
   const bar = new UiNode({ dir: 'row', wrap: true, gap: 8, width: 'fill' });
   const bodies = new UiNode({ dir: 'col', width: 'fill' });
@@ -133,7 +148,7 @@ export function buildSections(hud: HudContext, step: StepContent): UiNode | null
           onClick: () => {
             slot.clear();
             shown = shown === t ? null : t;
-            if (shown) slot.add(termCard(hud, t));
+            if (shown) slot.add(termCard(hud, t, labels));
             hud.relayout();
           },
         }),
@@ -141,7 +156,7 @@ export function buildSections(hud: HudContext, step: StepContent): UiNode | null
     }
     add(
       'terms',
-      `Терміни · ${terms.length}`,
+      `${labels.terms} · ${terms.length}`,
       'book',
       new UiNode({ dir: 'col', gap: 10, width: 'fill', children: [chips, slot] }),
     );
@@ -168,7 +183,7 @@ export function buildSections(hud: HudContext, step: StepContent): UiNode | null
   if (facts.length > 0) {
     add(
       'facts',
-      `Цифри і факти · ${facts.length}`,
+      `${labels.facts} · ${facts.length}`,
       'lightning',
       new UiNode({
         dir: 'col',

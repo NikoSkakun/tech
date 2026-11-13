@@ -20,6 +20,7 @@ export interface ContentSource {
   })[];
   glossary?: ChapterContent['glossary'];
   quiz?: ChapterContent['quiz'];
+  simpleQuiz?: ChapterContent['simpleQuiz'];
   crossReferences?: ChapterContent['crossReferences'];
   labels?: Readonly<Record<string, string>>;
 }
@@ -62,9 +63,10 @@ export function defineContent(
       misconceptions: s.misconceptions?.map((m) => ({ myth: m.myth, correction: m.correction })),
       quiz: s.quiz,
       labels: s.labels,
+      simple: s.simple,
     };
   });
-  for (const q of source.quiz ?? []) {
+  for (const q of [...(source.quiz ?? []), ...(source.simpleQuiz ?? [])]) {
     if (q.correct < 0 || q.correct >= q.options.length)
       throw new Error(`defineContent(${source.id}): quiz answer index out of range`);
   }
@@ -77,6 +79,7 @@ export function defineContent(
     steps,
     glossary: source.glossary,
     quiz: source.quiz,
+    simpleQuiz: source.simpleQuiz,
     crossReferences: source.crossReferences,
     labels: { ...(source.labels ?? {}), ...(extra.labels ?? {}) },
   };

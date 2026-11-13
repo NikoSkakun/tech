@@ -36,6 +36,13 @@ const FIELDS = [
   'steps.*.facts.items.*.{text,source}',
   'steps.*.hotspots.*.{name,international,ukrainian,text}',
   'steps.*.misconceptions.*.{myth,correction}',
+  // the simple reading level (docs/briefs/L-simple-level.md): present only in chapters that have it
+  'steps.*.simple.title',
+  'steps.*.simple.{panel,facts}.*',
+  'steps.*.simple.{words,hotspots}.*.{word,text}',
+  'steps.*.simple.misconception.{myth,correction}',
+  'simpleQuiz.*.{question,explanation}',
+  'simpleQuiz.*.options.*',
   'glossary.*.{international,ukrainian,symbol,unit,definition}',
   'quiz.*.{question,explanation}',
   'quiz.*.options.*',

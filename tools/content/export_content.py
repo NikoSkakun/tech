@@ -27,6 +27,7 @@ import chapters as C  # noqa: E402
 import typography as T  # noqa: E402
 import build_index  # noqa: E402
 import xref_check  # noqa: E402
+import simple_layer as SL  # noqa: E402
 
 SCHEMA_VERSION = 2  # v2: `volume`, full-id cross-reference targets, axisLabel / axisRaw (DECISIONS §58)
 CYR_RE = re.compile(r'[А-Яа-яіїєґІЇЄҐ]')
@@ -38,7 +39,7 @@ REF_RE = re.compile(r'`([a-z][a-z0-9-]*/[a-z0-9-]+)`')
 FIELD_KEYS = {
     'Бачимо': 'see', 'Текст панелі': 'panel', 'Терміни': 'terms', 'Формули': 'formulas', 'Цифри і факти': 'facts',
     'Інтерактив': 'interaction', 'Hotspots': 'hotspots', 'Хибні уявлення': 'misconceptions', 'Перехід': 'transition',
-    'Зв’язки': 'links',
+    'Зв’язки': 'links', SL.SIMPLE_LABEL: 'simple',
 }
 
 
@@ -343,6 +344,11 @@ def parse_misconceptions(field):
             out.append(dict(myth=inner if t2 == '' else left.strip(), correction=right.strip(), raw=chunk))
         else:
             out.append(dict(myth=None, correction=chunk, raw=chunk))
+    for m in out:  # `… [Сцена: …]` closes the item: builder guidance, never shown (key only when present)
+        learner, scene, problem = SL.split_scene(m['correction'])
+        if scene is not None and not problem:
+            m['correction'] = learner
+            m['scene'] = scene
     return out
 
 
@@ -436,6 +442,8 @@ def parse_step(lines, s):
             step['transition'] = dict(note=f['note'], text=whole)
         elif key == 'links':
             step['links'] = whole
+        elif key == 'simple':  # the simple reading level; the key exists only in steps that have the block
+            step['simple'] = SL.parse_simple(lines, s['start'], s['end'], s['id'])
     return step
 
 
@@ -478,9 +486,11 @@ def split_options(body):
     return opts, body[end:]
 
 
-def parse_quiz(text):
+def parse_quiz(text, section='Міні-квіз', marks=None):
+    """Quiz items of a section («Міні-квіз», «Простий квіз»). `marks`, if a list, receives the number of options
+    marked correct per item (the export keeps the first; simple_check requires exactly one)."""
     items = []
-    for line in C.section_lines(text, 'Міні-квіз') or []:
+    for line in C.section_lines(text, section) or []:
         m = QUIZ_Q_RE.match(line)
         if m:
             items.append(dict(n=int(m.group(1)), question=m.group(2).strip(), body=[m.group(3)]))
@@ -492,6 +502,7 @@ def parse_quiz(text):
         opts, rest = split_options(body)
         correct = None
         clean = []
+        n_marked = 0
         for i, o in enumerate(opts):
             o = o.strip()
             o = re.sub(r'\s*[;·]\s*$', '', o)
@@ -507,12 +518,14 @@ def parse_quiz(text):
                 o = re.sub(r'\*\*[.;]?$', '', o[2:]).strip()
             if marked and correct is None:
                 correct = i
+            n_marked += marked
             clean.append(o.strip())
         rest = rest.strip()
         m = re.match(r'^\*\*Правильно:\s*([' + OPTION_LETTERS + r'])\.?\*\*\s*(.*)$', rest, re.S)
         explanation = None
         if m:
             correct = OPTION_LETTERS.index(m.group(1))
+            n_marked = max(n_marked, 1)
             explanation = m.group(2).strip() or None
         else:
             m = re.match(r'^(?:—\s*)?_Пояснення:_\s*(.*)$', rest, re.S)
@@ -521,6 +534,8 @@ def parse_quiz(text):
             elif rest:
                 explanation = rest
         out.append(dict(question=it['question'], options=clean, correct=correct, explanation=explanation))
+        if marks is not None:
+            marks.append(n_marked)
     return out
 
 
@@ -590,7 +605,7 @@ def parse_chapter(cid):
         mood_text = squash(' '.join(mood_lines))
     steps = [parse_step(lines, s) for s in C.steps(text)]
     vis = C.section_lines(text, 'Наскрізна візуальна ідея') or []
-    return dict(
+    data = dict(
         schemaVersion=SCHEMA_VERSION, volume=C.VOLUME, id=cid, title=title, order=C.CHAPTER_IDS.index(cid) + 1, group=C.GROUP[cid],
         parent=C.PARENT.get(cid), groupLabel=group.group(1) if group else None,
         axisLabel=build_index.short_scale(C.axis_label(text)), axisRaw=C.axis_label(text), accentMood=mood_text,
@@ -598,6 +613,11 @@ def parse_chapter(cid):
         visualIdea='\n'.join(vis).strip().rstrip('-').strip(),
         steps=steps, models=parse_models(text), glossary=parse_glossary(text), quiz=parse_quiz(text),
         crossReferences=parse_xrefs(text), source=dict(document='%s' % C.rel(C.chapter_path(cid)), generator='tools/content/export_content.py'))
+    if C.section_lines(text, SL.SIMPLE_QUIZ_SECTION) is not None:  # key only when the section exists
+        source = data.pop('source')
+        data['simpleQuiz'] = parse_quiz(text, SL.SIMPLE_QUIZ_SECTION)
+        data['source'] = source
+    return data
 
 
 def render(data):
@@ -661,6 +681,46 @@ def doc_field_sig(field, drop_page_labels=False):
     return sig(' '.join(parts))
 
 
+def quiz_coverage(text, section, items, name, bad, counts):
+    """Independent count of the numbered questions of a quiz section; text round-trip; structure of every item."""
+    quiz_lines = C.section_lines(text, section) or []
+    n_q = sum(1 for l in quiz_lines if re.match(r'^\d+\.\s+\*\*', l))
+    if n_q != len(items):
+        bad('%s: %d questions in the document, %d in the export' % (name, n_q, len(items)))
+    doc_quiz = ' '.join(l for l in quiz_lines if l.strip())
+    doc_quiz = re.sub(r'(?:(?<=^)|(?<=[\s;·]))[' + OPTION_LETTERS + r']\)\s', ' ', doc_quiz)
+    doc_quiz = re.sub(r'\*\*Правильно:\s*[' + OPTION_LETTERS + r']\.?\*\*', ' ', doc_quiz)
+    doc_quiz = re.sub(r'_Пояснення:_', ' ', doc_quiz)
+    doc_quiz = re.sub(r'(?m)(?:^|\s)\d+\.\s+\*\*', ' **', doc_quiz)
+    exp_quiz = ' '.join(q['question'] + ' ' + ' '.join(q['options']) + ' ' + (q['explanation'] or '') for q in items)
+    if sig(doc_quiz) != sig(exp_quiz):
+        bad('%s: text is not fully covered by the export (%d vs %d signature characters)'
+            % (name, len(sig(doc_quiz)), len(sig(exp_quiz))))
+    for i, q in enumerate(items, 1):
+        if len(q['options']) < 2:
+            bad('%s %d: fewer than two options parsed' % (name, i))
+        if q['correct'] is None or not (0 <= q['correct'] < len(q['options'])):
+            bad('%s %d: no correct option marked' % (name, i))
+    counts['%s items' % name] += len(items)
+    counts['%s items without explanation' % name] += sum(1 for q in items if not q['explanation'])
+
+
+def simple_coverage(lines, s, simple, bad, counts):
+    """Round-trip of a step's `Просто` block: every letter and digit of the block (labels aside) is exported;
+    independent page count (the `**[n]**` labels of the block)."""
+    where = 'step `%s` simple layer' % s['id']
+    doc = SL.doc_signature_text(lines, s['start'], s['end'])
+    if sig(doc) != sig(SL.export_signature_text(simple)):
+        bad('%s: not fully covered by the export (%d vs %d signature characters)'
+            % (where, len(sig(doc)), len(sig(SL.export_signature_text(simple)))))
+    first, end = SL.block_lines(lines, s['start'], s['end'])
+    n_pages = sum(1 for l in lines[first:end] if re.match(r'^\s+[-*]\s+\*\*\[\d+\]\*\*', l))
+    if n_pages and n_pages != len(simple['panel']):
+        bad('%s: %d pages in the document, %d in the export' % (where, n_pages, len(simple['panel'])))
+    counts['steps with a simple layer'] += 1
+    counts['simple panel pages'] += len(simple['panel'])
+
+
 def coverage(cid, data, problems, counts):
     text = C.read(cid)
     lines = text.split('\n')
@@ -707,8 +767,15 @@ def coverage(cid, data, problems, counts):
         same('transition', e['transition']['text'] if e['transition'] else '')
         same('links', e['links'] or '')
         for m in e['misconceptions']:
-            if sig((m['myth'] or '') + m['correction']) != sig(m['raw']):
+            raw = m['raw'].replace(SL.SCENE_OPEN, ' ', 1) if 'scene' in m else m['raw']
+            if sig((m['myth'] or '') + m['correction'] + (m.get('scene') or '')) != sig(raw):
                 bad('%s: misconception split loses text' % where)
+            if 'scene' in m:
+                counts['misconceptions with a [Сцена: …] part'] += 1
+        if 'simple' in e:
+            simple_coverage(lines, s, e['simple'], bad, counts)
+        elif SL.block_lines(lines, s['start'], s['end']):
+            bad('%s: «%s» block not exported' % (where, SL.SIMPLE_LABEL))
         if not e['panel']:
             bad('%s: no panel pages' % where)
         if e['see'] is None:
@@ -723,26 +790,9 @@ def coverage(cid, data, problems, counts):
         counts['parsed controls'] += sum(len(i['controls']) for i in e['interaction']['items']) if e['interaction'] else 0
         counts['misconceptions'] += len(e['misconceptions'])
         counts['misconceptions without a myth/correction split'] += sum(1 for m in e['misconceptions'] if m['myth'] is None)
-    # quiz: independent count of numbered questions; structure of every item
-    quiz_lines = C.section_lines(text, 'Міні-квіз') or []
-    n_q = sum(1 for l in quiz_lines if re.match(r'^\d+\.\s+\*\*', l))
-    if n_q != len(data['quiz']):
-        bad('quiz: %d questions in the document, %d in the export' % (n_q, len(data['quiz'])))
-    doc_quiz = ' '.join(l for l in quiz_lines if l.strip())
-    doc_quiz = re.sub(r'(?:(?<=^)|(?<=[\s;·]))[' + OPTION_LETTERS + r']\)\s', ' ', doc_quiz)
-    doc_quiz = re.sub(r'\*\*Правильно:\s*[' + OPTION_LETTERS + r']\.?\*\*', ' ', doc_quiz)
-    doc_quiz = re.sub(r'_Пояснення:_', ' ', doc_quiz)
-    doc_quiz = re.sub(r'(?m)(?:^|\s)\d+\.\s+\*\*', ' **', doc_quiz)
-    exp_quiz = ' '.join(q['question'] + ' ' + ' '.join(q['options']) + ' ' + (q['explanation'] or '') for q in data['quiz'])
-    if sig(doc_quiz) != sig(exp_quiz):
-        bad('quiz: text is not fully covered by the export (%d vs %d signature characters)' % (len(sig(doc_quiz)), len(sig(exp_quiz))))
-    for i, q in enumerate(data['quiz'], 1):
-        if len(q['options']) < 2:
-            bad('quiz %d: fewer than two options parsed' % i)
-        if q['correct'] is None or not (0 <= q['correct'] < len(q['options'])):
-            bad('quiz %d: no correct option marked' % i)
-    counts['quiz items'] += len(data['quiz'])
-    counts['quiz items without explanation'] += sum(1 for q in data['quiz'] if not q['explanation'])
+    quiz_coverage(text, 'Міні-квіз', data['quiz'], 'quiz', bad, counts)
+    if 'simpleQuiz' in data:
+        quiz_coverage(text, SL.SIMPLE_QUIZ_SECTION, data['simpleQuiz'], 'simple quiz', bad, counts)
     # glossary, goals, cross-references, models
     import build_glossary
     if len(build_glossary.chapter_entries(cid)) != len(data['glossary']):

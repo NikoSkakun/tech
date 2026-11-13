@@ -4,7 +4,7 @@
  * hotspot markers open a card with the text from the step's content.
  */
 import { Raycaster, Vector3, type Object3D } from 'three';
-import { stepContent, termName, type Hotspot } from '@/content';
+import { termName, type Hotspot } from '@/content';
 import {
   AnnotationLayer,
   Card,
@@ -16,6 +16,7 @@ import {
 } from '@/ui3d';
 import type { Hud } from './shell';
 import { holds } from './dock-build';
+import { onReadingLevel, stepCopy } from './level';
 import type { Anchor, HotspotSpec, StepUiSpec } from './step-ui-types';
 
 const _v = new Vector3();
@@ -68,6 +69,8 @@ export function mountAnnotations(hud: Hud): (spec: StepUiSpec | null) => void {
     c.marker.open = false;
     conceal(c.node, { onDone: () => c.node.detach() });
   };
+  // an open hotspot card shows the copy of the level it was opened at: close it when the level changes
+  onReadingLevel(hud.engine, closeCard);
 
   hud.surface.beforeFlush = () => {
     const now = hud.engine.clock.time;
@@ -90,7 +93,7 @@ export function mountAnnotations(hud: Hud): (spec: StepUiSpec | null) => void {
 
   /** The content hotspot a spec binds to (index, id, international name or full name). */
   const contentOf = (h: HotspotSpec): Hotspot | undefined => {
-    const list = stepContent(hud.content, hud.engine.store.get().stepId ?? '')?.hotspots ?? [];
+    const list = stepCopy(hud.engine, hud.content, hud.engine.store.get().stepId ?? '')?.hotspots ?? [];
     const key = h.content ?? h.title;
     if (typeof key === 'number') return list[key];
     if (key === undefined) return undefined;

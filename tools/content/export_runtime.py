@@ -20,6 +20,9 @@ an `id` (slug of the international name); a fact written as a Markdown table als
 rows[, note]}`; each step gets `labels` — the UI labels quoted «…» in its «Інтерактив» items. The manifest file
 holds title, subtitle (= first step title), scale label, group, parent, order and step ids / titles / blurbs
 (first sentence of the step's first page).
+L1 additions (simple reading level, docs/briefs/L-simple-level.md §4): a step with a «Просто» block carries
+`simple {title?, panel[], words[{word, text}]?, facts[]?, hotspots[{id, text}]?, misconception?}`; the chapter
+carries `simpleQuiz[]` when it has a «Простий квіз». Misconception `scene` and simple `notes` are builder guidance.
 Dropped (builder guidance or redundant): `see`, `interaction`, `transition`, `links`, `n`, `termsNote`,
 `hotspotsNote`, hotspot `note` / `tail`, `facts.note`, `formulas.raw`, term `raw` and misconception `raw` (the
 parsed fields carry the same text), `visualIdea`, `accentMood`, `notes`, `models`, `source`, labels of the
@@ -224,7 +227,28 @@ def runtime_step(s):
     labels = ui_labels(s)
     if labels:
         step['labels'] = labels
+    if s.get('simple'):
+        step['simple'] = runtime_simple(s['simple'])
     return step
+
+
+def runtime_simple(x):
+    """The simple reading level (docs/briefs/L-simple-level.md §4): empty parts and the builder `notes` dropped,
+    hotspot texts as `[{id, text}]` (an id-keyed object would make TypeScript infer per-chapter literal key
+    unions from the JSON that are not assignable to a record type)."""
+    out = {}
+    if x.get('title'):
+        out['title'] = x['title']
+    out['panel'] = list(x['panel'])
+    if x['words']:
+        out['words'] = [{'word': w['word'], 'text': w['text']} for w in x['words']]
+    if x['facts']:
+        out['facts'] = list(x['facts'])
+    if x['hotspots']:
+        out['hotspots'] = [{'id': h['id'], 'text': h['text']} for h in x['hotspots']]
+    if x.get('misconception'):
+        out['misconception'] = pick(x['misconception'], ('myth', 'correction'))
+    return out
 
 
 def runtime(doc):
@@ -233,6 +257,8 @@ def runtime(doc):
     out['glossary'] = [named(g, pick(g, ('international', 'ukrainian', 'definition'), ('symbol', 'unit')))
                        for g in doc.get('glossary') or []]
     out['quiz'] = [pick(q, ('question', 'options', 'correct'), ('explanation',)) for q in doc.get('quiz') or []]
+    if doc.get('simpleQuiz'):
+        out['simpleQuiz'] = [pick(q, ('question', 'options', 'correct'), ('explanation',)) for q in doc['simpleQuiz']]
     out['crossReferences'] = [pick(x, ('where', 'targets'), ('note',)) for x in doc.get('crossReferences') or []]
     return out
 

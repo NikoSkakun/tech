@@ -316,3 +316,21 @@ New: `app/src/volumes/library.json`, `app/src/volumes/<volume>/{volume.json, vol
 `@electricity/content/generated`, `scaleLabel` / `scaleExp` → `axisLabel` / `axisValue` in `index.ts`, test paths
 to the export. `atom/step-standard-model.ts`: the bridge to `charge-field` reads the full address
 (`linkTarget` + `ctx.nav.locate` / `open` instead of `split('/')`).
+
+## L1-simple-format — reading level «Просто / Докладно» (2026-11-14; docs/briefs/L-simple-level.md)
+
+All additive; chapters need no change (a chapter shows its simple layer once its document has one).
+- **Content** (`@/content`): `StepContent.simple?: SimpleStep`, `ChapterContent.simpleQuiz?`, types `SimpleStep`, `SimpleHotspot`,
+  `SimpleWord`; selector `stepAtLevel`, `quizAtLevel`, `hasSimpleLayer`, `READING_LEVELS`, `LEVEL_LABELS`,
+  `LeveledStep`, `LevelLabels` (`app/src/content/level.ts`, pure — the 2D interface reuses it).
+- **Engine**: `Settings.readingLevel` (`'simple' | 'detailed'`, persisted), `ReadingLevel`, `DEFAULT_READING_LEVEL`
+  (`'detailed'` during the pilot), `isReadingLevel` in `engine/store.ts` / `@/engine/api`; `UrlFlags.level`
+  (`?level=simple|detailed`, session override); `Engine.readingLevel()` (level in effect), `Engine.setReadingLevel()`.
+- **HUD**: `app/src/hud/level.ts` (`readingLevel`, `stepCopy`, `quizCopy`, `onReadingLevel`) — the only place the
+  WebGL HUD asks for the level; `buildSections` takes a `LeveledStep` (chips «Слова» / «Цікаво», no glossary button
+  on a simple word card); Settings «Рівень тексту»; `__ui.value('reading-level')`; node names `chapter-quiz`,
+  Tabs segments `reading-level:simple|detailed`.
+- **Pipeline**: `tools/content/simple_layer.py` (parser), `simple_check.py` (doccheck group `simple`),
+  `test_simple_layer.py`; `export_content.parse_quiz(text, section, marks)`; export keys `steps[].simple`,
+  `simpleQuiz`, misconception `scene` (only when present); `terms_check` and `font-coverage` read the simple layer.
+- **Fixture**: `_demo/wave` has a full simple layer, a `bead` hotspot and a `[Сцена: …]` misconception.

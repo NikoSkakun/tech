@@ -17,6 +17,9 @@
  11a. terms      tools/content/terms_check.py: DECISIONS §54–§56 on the on-screen fields of the export — no
                  «English — українська» pairs, Latin words only from tools/content/terms_allowlist.tsv, every kept
                  abbreviation explained in Ukrainian at its first mention in a chapter
+ 11b. simple     tools/content/simple_check.py: the simple reading level («Просто», «Простий квіз», docs/briefs/L-simple-level.md)
+                 in chapters that have it — every step covered, page / sentence length, no formulas, hotspot ids, 3-question
+                 quiz; detailed misconceptions: «[Сцена: …]» split, no stage words in the learner part (warning until split)
  12. fonts       app/scripts/font-coverage.mjs: every character of the on-screen copy has a glyph in the font atlas
  13. oracles     tools/ref-models/C6-labs/{home,battery,thermal}_model.py --check (control points of the labs)
 
@@ -222,6 +225,7 @@ def main():
               ('export', 'export_content.py', ['--check', '--quiet'] + vol),
               ('runtime', 'export_runtime.py', ['--check'] + vol),
               ('terms', 'terms_check.py', vol),
+              ('simple', 'simple_check.py', vol),
               ('fonts', '../../app/scripts/font-coverage.mjs', vol)]
     # volume-specific checks (reference models …): volume.json → docs.checks = [[name, path from the repo root, args…]]
     checks += [(c[0], os.path.relpath(os.path.join(C.ROOT, c[1]), HERE), c[2:]) for c in C.META.get('docs', {}).get('checks', [])]

@@ -13,6 +13,18 @@ export {
   type ContentSource,
 } from './define';
 export { manifestText } from './meta';
+export {
+  stepAtLevel,
+  quizAtLevel,
+  hasSimpleLayer,
+  READING_LEVELS,
+  LEVEL_LABELS,
+  DEFAULT_READING_LEVEL,
+  isReadingLevel,
+  type ReadingLevel,
+  type LeveledStep,
+  type LevelLabels,
+} from './level';
 export { loadContent, loadContents, contentIds } from './loader';
 export {
   buildGlossary,

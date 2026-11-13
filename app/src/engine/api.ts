@@ -59,6 +59,9 @@ export type { RuntimeEvents } from './runtime';
 export type { Actor, ActorOptions, AppearMode, ColorParam, Param, PoseSpec, Stage, StepSpec } from './stage';
 export {
   samePosition,
+  DEFAULT_READING_LEVEL,
+  isReadingLevel,
+  type ReadingLevel,
   type AppState,
   type Position,
   type Progress,

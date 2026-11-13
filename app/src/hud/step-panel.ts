@@ -4,7 +4,7 @@
  * Without chapter content it falls back to the manifest's step title and blurb.
  */
 import type { ChapterManifest } from '@/engine/api';
-import { stepContent, type ChapterContent } from '@/content';
+import type { ChapterContent } from '@/content';
 import {
   Button,
   Label,
@@ -19,6 +19,7 @@ import {
   reveal,
 } from '@/ui3d';
 import type { HudContext, HudModule } from './context';
+import { onReadingLevel, quizCopy, stepCopy } from './level';
 import { buildLinks } from './step-links';
 import { buildSections, caption } from './step-sections';
 
@@ -63,9 +64,10 @@ export function createStepPanel(hud: HudContext, popups: UiNode): StepPanel {
     conceal(q, { onDone: () => q.detach() });
   };
   const openQuiz = (): void => {
-    if (!content?.quiz?.length || quiz) return;
+    const items = quizCopy(hud.engine, content);
+    if (!items.length || quiz) return;
     quiz = new QuizCard({
-      items: content.quiz,
+      items,
       title: 'Міні-квіз розділу',
       width: 560,
       visible: false,
@@ -80,7 +82,7 @@ export function createStepPanel(hud: HudContext, popups: UiNode): StepPanel {
     const index = manifest.steps.findIndex((s) => s.id === stepId);
     const step = manifest.steps[index];
     if (!step) return;
-    const data = stepContent(content, stepId);
+    const data = stepCopy(hud.engine, content, stepId);
     counter.text = `КРОК ${index + 1} / ${manifest.steps.length}`;
     title.text = data?.title ?? step.title;
     const pages = data?.panel.length ? data.panel : [step.blurb];
@@ -92,9 +94,10 @@ export function createStepPanel(hud: HudContext, popups: UiNode): StepPanel {
     if (sections) extra.add(sections);
     const links = buildLinks(hud, content, manifest, index);
     if (links) extra.add(links);
-    if (index === manifest.steps.length - 1 && content?.quiz?.length)
+    if (index === manifest.steps.length - 1 && quizCopy(hud.engine, content).length)
       extra.add(
         new Button({
+          name: 'chapter-quiz',
           label: 'Міні-квіз розділу',
           icon: 'quiz',
           variant: 'primary',
@@ -107,6 +110,11 @@ export function createStepPanel(hud: HudContext, popups: UiNode): StepPanel {
     scroll.scrollTo(0, true);
     hud.relayout();
   };
+  // «Просто / Докладно» switched: the open step shows the other copy at once (an open quiz is of the old level)
+  onReadingLevel(hud.engine, () => {
+    closeQuiz();
+    fill();
+  });
 
   return {
     node,

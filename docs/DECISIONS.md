@@ -299,5 +299,11 @@ If a chapter document contradicts this file, this file wins and the document mus
        selector (`docs/briefs/L-simple-level.md`).
     o. **Open taste questions for the user** (until answered, today's look is kept): Q2 scan band and animated
        grain on panels → static faint grain?; Q3 no perspective tilt on panels, only slight sideways parallax?;
-       Q6 behaviour at 200 % browser zoom; Q8 wording when a step has no simple layer; Q9 calmer glow on DOM
+       Q6 behaviour at 200 % browser zoom (Q3 settled by p below); Q8 wording when a step has no simple layer; Q9 calmer glow on DOM
        panels vs pushing it toward the WebGL bloom.
+    p. **No 3D effects on 2D interface (user, 2026-11-14 ≈00:45, verbatim):** «ти намагався повторити мікро рухи
+       HUD/UI за курсором. не треба цього робити. усе що справжнє 2D - не треба намагатись додати до нього ефекту
+       3D». So the interface has no pointer parallax or any cursor-following micro-movement, no perspective tilt,
+       no fake depth; it moves only when it changes state (reveal, conceal, transitions). This settles Q3 (no tilt
+       and no parallax) and applies to the current WebGL HUD as well (its pointer parallax is removed). 3D effects
+       stay where things are really 3D: the scenes and the journey map's world.

@@ -16,7 +16,7 @@ import { benchmarkGpu, isQualityTier, Quality, tierFromBenchmark, type QualityTi
 import type { Library } from './library';
 import { Router } from './router';
 import { ChapterRuntime } from './runtime';
-import { Store, type StorageLike } from './store';
+import { isReadingLevel, Store, type ReadingLevel, type StorageLike } from './store';
 import { Tweens } from './tween';
 
 export interface UrlFlags {
@@ -30,12 +30,15 @@ export interface UrlFlags {
   overlay: boolean;
   /** `?freeze=<seconds>` — deterministic clock: after every navigation simulate exactly N seconds, then hold. */
   freeze: number | null;
+  /** `?level=simple|detailed` — session override of the reading level (QA, links for a reader). */
+  level: ReadingLevel | null;
 }
 
 export function parseFlags(search: string): UrlFlags {
   const q = new URLSearchParams(search);
   const tier = q.get('q');
   const freeze = q.get('freeze');
+  const level = q.get('level');
   const freezeValue = freeze === null ? null : Number(freeze === '' ? 0 : freeze);
   return {
     quality: isQualityTier(tier) ? tier : null,
@@ -46,6 +49,7 @@ export function parseFlags(search: string): UrlFlags {
       freezeValue !== null && Number.isFinite(freezeValue) && freezeValue >= 0
         ? Math.min(freezeValue, 120)
         : null,
+    level: isReadingLevel(level) ? level : null,
   };
 }
 
@@ -335,6 +339,20 @@ export class Engine {
     // same setting as before (e.g. the flag pinned another tier): apply it anyway
     if (previous === tier)
       this.quality.set(tier === 'auto' ? (this.store.get().settings.benchmarkTier ?? 'high') : tier);
+  }
+
+  /** Reading level in effect: the `?level=` flag of this session, else the setting. */
+  readingLevel(): ReadingLevel {
+    return this.flags.level ?? this.store.get().settings.readingLevel;
+  }
+
+  /**
+   * Change the reading level. Persisted; ends the session pin of a `?level=` flag. Subscribers of the store see
+   * the change even when the setting already had this value (the flag pinned the other one).
+   */
+  setReadingLevel(level: ReadingLevel): void {
+    this.flags.level = null;
+    this.store.updateSettings({ readingLevel: level });
   }
 
   /**

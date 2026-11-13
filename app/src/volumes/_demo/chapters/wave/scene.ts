@@ -4,6 +4,7 @@
  */
 import { CylinderGeometry, Mesh, SphereGeometry } from 'three';
 import { defineScene } from '@/engine/api';
+import { stepUi } from '@/hud';
 import { K } from '@/style';
 
 const COUNT = 21;
@@ -38,6 +39,10 @@ export default defineScene((ctx) => {
     oscillation: { show: [disc, ...beads], camera: 'wide' },
     spectrum: { show: [disc, ...beads], params: { pitch: 2 }, camera: 'close' },
   });
+  // the highlighted bead carries the hotspot of step 1 (its card text comes from the content, at both levels)
+  const middle = beads[(COUNT - 1) / 2]!;
+  stepUi(ctx).define({ oscillation: { hotspots: [{ anchor: middle, content: 'bead' }] } });
+  ctx.qa.probe('wave.bead', middle);
 
   return {
     update(_dt, t) {

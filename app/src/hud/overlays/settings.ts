@@ -1,8 +1,8 @@
 /**
- * Settings overlay: quality tier, sound, reduced motion, text size, dynamic resolution, reset progress.
+ * Settings overlay: reading level («Просто / Докладно»), quality tier, sound, reduced motion, text size, dynamic resolution, reset progress.
  * Everything writes straight to the engine store (persisted in localStorage by the engine).
  */
-import { clearedProgress, fmtPercent } from '@/content';
+import { clearedProgress, fmtPercent, READING_LEVELS, type ReadingLevel } from '@/content';
 import { Button, Divider, Slider, Tabs, Toggle, UiNode } from '@/ui3d';
 import type { Hud, Overlay } from '../shell';
 import { createModal, field } from './modal';
@@ -23,6 +23,13 @@ export function createSettings(hud: Hud): Overlay {
     fresh: true,
     build(body) {
       const s = store.get().settings;
+      // segments `reading-level:simple` / `reading-level:detailed` for QA
+      const level = new Tabs({
+        name: 'reading-level',
+        items: READING_LEVELS.map((l) => ({ id: l.id, label: l.label })),
+        value: hud.engine.readingLevel(),
+        onChange: (id) => hud.engine.setReadingLevel(id as ReadingLevel),
+      });
       const quality = new Tabs({
         items: [
           { id: 'auto', label: 'Авто' },
@@ -99,6 +106,11 @@ export function createSettings(hud: Hud): Overlay {
         },
       });
       body.add(
+        field(
+          'Рівень тексту',
+          level,
+          '«Просто» — коротко і без формул. Де простого тексту ще немає, буде докладний.',
+        ),
         field(
           'Якість графіки',
           quality,

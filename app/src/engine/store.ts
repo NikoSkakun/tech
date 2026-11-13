@@ -4,6 +4,19 @@
  */
 import type { QualityTier } from './quality';
 
+/**
+ * Reading level of the step copy (docs/briefs/L-simple-level.md): `simple` = the «Просто» layer of chapters that
+ * have one (others fall back to their detailed copy), `detailed` = the full text.
+ */
+export type ReadingLevel = 'simple' | 'detailed';
+
+/** Pilot of the simple layer: new visitors start on «Докладно». Flip to `simple` once the pilot is approved. */
+export const DEFAULT_READING_LEVEL: ReadingLevel = 'detailed';
+
+export function isReadingLevel(v: unknown): v is ReadingLevel {
+  return v === 'simple' || v === 'detailed';
+}
+
 export interface Settings {
   /** `auto` = result of the first-run GPU benchmark. */
   quality: QualityTier | 'auto';
@@ -19,6 +32,8 @@ export interface Settings {
   reducedMotion: boolean | 'auto';
   /** UI text scale multiplier (0.85…1.4). */
   textScale: number;
+  /** «Рівень тексту: Просто / Докладно» (a `?level=` URL flag overrides it for the session). */
+  readingLevel: ReadingLevel;
 }
 
 export interface Progress {
@@ -77,6 +92,7 @@ export const DEFAULT_SETTINGS: Settings = {
   volume: 0.8,
   reducedMotion: 'auto',
   textScale: 1,
+  readingLevel: DEFAULT_READING_LEVEL,
 };
 
 export function initialState(): AppState {
@@ -267,6 +283,8 @@ export class Store {
         last: data.last ?? null,
         lastIn: { ...(data.lastIn ?? {}) },
       };
+      if (!isReadingLevel(this.state.settings.readingLevel))
+        this.state.settings = { ...this.state.settings, readingLevel: DEFAULT_READING_LEVEL };
     } catch {
       // Corrupt or inaccessible storage: start from defaults.
     }

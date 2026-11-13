@@ -29,7 +29,9 @@ chapter, steps in order.
 | `steps[].formulas.items[]` | on-screen formulas; `formulas.raw` keeps the explanatory words around them |
 | `steps[].facts.items[]` | on-screen fact chips: `text`, optional `source`; `facts.note` is a remark for the builder |
 | `steps[].hotspots[]` | `international` / `ukrainian` name and on-screen `text`; `note` and `tail` are remarks for the builder (where the hotspot sits, link target) |
-| `steps[].misconceptions[]` | `myth` (on-screen, the wrong belief) and `correction` (what the scene shows / says) |
+| `steps[].misconceptions[]` | `myth` (on-screen, the wrong belief) and `correction` (the explanation for the learner); optional `scene` = the `[Сцена: …]` part — **guidance for the builder**, never shown |
+| `steps[].simple` | the simple reading level («Просто», below) — only in steps that have the block |
+| `simpleQuiz[]` | «Простий квіз» — only in chapters that have the section; same shape as `quiz[]` |
 | `glossary[]`, `quiz[]` | on-screen; `quiz[].correct` is a 0-based index into `options` |
 | `steps[].see`, `steps[].interaction`, `steps[].transition`, `steps[].links`, `visualIdea`, `accentMood`, `notes[]`, `termsNote`, `hotspotsNote` | **guidance for the builder**, not copy. UI labels quoted inside «…» in `interaction` texts are copy and must be used verbatim |
 | `models[]` | ids and titles of the simulation models; the specification and control points stay in the document section «Модель симуляції» |
@@ -49,12 +51,55 @@ chapter, steps in order.
 - `interaction.items[].controls[]` is a best-effort parse (type, label, min / max / step, unit, default as written);
   the item `text` is authoritative. Numbers use a decimal point in `min` / `max` / `step`; `default` is the raw text.
 
+## The simple reading level («Просто / Докладно», docs/briefs/L-simple-level.md §3)
+
+Parsed by `tools/content/simple_layer.py`. In the document, inside a step after «Хибні уявлення»:
+
+```
+- **Просто:**
+  - **Назва:** <shorter title — optional>
+  - **Текст:**
+    - **[1]** <page 1>
+    - **[2]** <page 2 — optional>
+  - **Слова:**
+    - **<слово>** — <one-sentence explanation>
+  - **Цікаво:**
+    - <fact>
+  - **Підказки:**
+    - `<hotspot id>`: <plain sentence>
+  - **Хибне уявлення:** «<myth>» → <explanation>
+  - **Примітки:** <how comparisons were checked — guidance, never shown>
+```
+
+Export `steps[].simple`: `title` (null when absent), `panel[]`, `words[] {word, text}`, `facts[]` (strings),
+`hotspots[] {id, text}`, `misconception {myth, correction}` or null, `notes` (guidance). Runtime
+`steps[].simple`: `title?`, `panel`, `words?`, `facts?`, `hotspots?` as `[{id, text}]` (a list, not an id-keyed object: TypeScript infers per-chapter key unions from an object and they do not type-check), `misconception?` (no notes).
+Settled details of the format (L1):
+- Sub-fields at the first indent under «Просто», their items one level deeper; deeper lines continue an item. Every
+  sub-field but «Текст» is optional; an unknown sub-field, a repeated one, or a malformed item stops the export.
+- `**[n]**` page labels are optional (a single page may follow «Текст:» inline). A word item is
+  `**слово** — текст` (— / – / : accepted); a hint is `` `id`: текст ``. The «…» that delimit a page, a word
+  explanation, a fact or a hint are stripped and nested „…“ promoted, as for the detailed fields.
+- «Хибне уявлення» has one item: «міф» → пояснення.
+- `[Сцена: …]` in a detailed misconception must close the item (`… → пояснення. [Сцена: …]`); it may contain
+  brackets. Text after it, or an unclosed bracket, leaves the item unsplit and fails `simple_check.py`.
+- `## Простий квіз` follows `## Міні-квіз`, same item format (exactly one option marked ✔ / bold / «Правильно:»).
+- `id`s in «Підказки» are the runtime hotspot ids of the step (slug of the international name: `Electron cloud`
+  → `electron-cloud`); `simple_check.py` lists the valid ones when an id is wrong.
+- The keys `simple`, `simpleQuiz`, `scene` exist only when present: exports of chapters without them do not change.
+
 ## Guarantees checked by `doccheck.py`
 
 Every panel page, term, formula field, fact, interaction item, hotspot, misconception, transition, quiz item,
 glossary row, learning goal and cross-reference of a document is present in its export (round-trip comparison of
 the letters and digits, field by field), every file validates against `schema.json`, every quiz item has at least
-two options and exactly one correct index, and the files on disk are identical to a fresh run.
+two options and exactly one correct index, and the files on disk are identical to a fresh run. The «Просто» block
+and «Простий квіз» are covered the same way (letters and digits of the block minus its labels, independent page and
+question counts); a misconception with a `scene` must lose no text in the split. The group `simple`
+(`tools/content/simple_check.py`, rules in its docstring) checks the simple layer of the chapters that have one —
+every step covered, 1–2 pages ≤ 250 characters, sentences ≤ 18 words (warning > 12), no formula signs, valid hotspot
+ids, a 3-question quiz — and stage words in learner parts of the detailed misconceptions. Unit tests of the parser:
+`python3 tools/content/test_simple_layer.py`.
 After export_content.py always run tools/content/export_runtime.py (generates app/src/volumes/<volume>/content/generated/<id>.json for the app); doccheck.py verifies both.
 
 ## Runtime files — `app/src/volumes/<volume>/content/generated/` (what the app imports)

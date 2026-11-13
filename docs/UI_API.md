@@ -83,6 +83,22 @@ is ignored. Types: `ChapterContent`, `StepContent`, `Term`, `Fact`, `Hotspot`, `
 - `crossReferences` become «Див. також» link chips in the panel of the step their `where` names (`` `step-id` `` or
   «крок N»; otherwise the last step). Chips of chapters that are not built yet are dimmed with a tooltip, silent.
 
+### 2.1 Reading level «Просто / Докладно» (L1, docs/briefs/L-simple-level.md)
+
+- Content: a step may carry `simple { title?, panel[], words?, facts?, hotspots?[{id, text}], misconception? }`, the
+  chapter `simpleQuiz[]` (generated from the «Просто» block and «## Простий квіз», `docs/CONTENT_EXPORT.md`).
+  Chapters never read them: bind hotspots by `content: '<id>'` and the HUD shows the right text.
+- Setting `settings.readingLevel: 'simple' | 'detailed'` (persisted; default `DEFAULT_READING_LEVEL` in
+  `engine/store.ts`, `'detailed'` during the pilot — one constant to flip). URL flag `?level=simple|detailed`
+  overrides it for the session; `engine.readingLevel()` is the level in effect, `engine.setReadingLevel(l)` sets
+  it (and ends a `?level=` pin). Control: Settings → «Рівень тексту» (Tabs `reading-level:simple|detailed`).
+- Selector (pure, shared with the 2D interface): `stepAtLevel(step, level)` → a `StepContent` with the simple parts
+  swapped in and `level` = the level actually shown; `quizAtLevel(content, level)`; `hasSimpleLayer(content)`;
+  `LEVEL_LABELS` (chips «Слова» / «Цікаво»). Fallbacks: a step or chapter without a simple layer → detailed copy;
+  in a simple step a hotspot without a plain sentence keeps its detailed text; formulas are never shown; other
+  missing simple parts are simply absent. The WebGL HUD calls it through `app/src/hud/level.ts` only.
+- Switching re-renders the open step (panel, chips) and closes an open hotspot card or quiz.
+
 ## 3. Step UI — `stepUi(ctx)`
 
 ```ts
@@ -349,8 +365,8 @@ pointer drag) and measures the HUD cost at the run size and at 4K.
 
 `window.__ui` (QA hook, also in production builds; it relies on node names, never on class names):
 `locate(name)` → CSS px of a named node (step controls `ctl-<id>`, segmented items `ctl-<id>:<item>`, `board`,
-`dock`, `dock-scroll`, `dock-actions`, `step-panel`, `step-column`, `sheet-tabs:controls`, `xref-<volume/chapter/step>`),
-`value(id)`, `set(id, v, notify?)`, `press(id)`, **`offscreen({ clipped?, margin? })`** → interactive nodes whose
+`dock`, `dock-scroll`, `dock-actions`, `step-panel`, `section-terms|formulas|facts|myths`, `chapter-quiz`, `step-column`, `sheet-tabs:controls`, `xref-<volume/chapter/step>`),
+`value(id)` (`value('reading-level')` → the reading level in effect, §2.1), `set(id, v, notify?)`, `press(id)`, **`offscreen({ clipped?, margin? })`** → interactive nodes whose
 visible part leaves the viewport (scrolled-out parts of a scroll view are fine; `clipped: true` lists them too) —
 assert it is empty in your chapter's QA at 1280×720 —, `overlay()`, `open(name)` / `close()` (`library`, `map`, `home`, `glossary`, `settings`, `help`),
 `mapNode(chapterId)` (on the current volume's map), `smallTargets()`,

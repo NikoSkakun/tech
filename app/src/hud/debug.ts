@@ -18,7 +18,7 @@ export interface UiDebug {
   /** Open / close a full-screen view or modal (`library`, `map`, `home`, `glossary`, `settings`, `help`). */
   open(name: OverlayName, arg?: unknown): void;
   close(): void;
-  /** Value of a step control of the chapter on screen. */
+  /** Value of a step control of the chapter on screen; `reading-level` = the reading level in effect. */
   value(id: string): number | boolean | string | undefined;
   /** Interactive nodes whose pointer target is smaller than 44 px-eq in either direction. */
   smallTargets(): string[];
@@ -105,7 +105,7 @@ export function installUiDebug(hud: Hud, map: () => JourneyMap | null): void {
     overlay: () => hud.overlay,
     open: (name, arg) => hud.open(name, arg),
     close: () => void hud.close(),
-    value: (id) => binding()?.values.get(id),
+    value: (id) => (id === 'reading-level' ? hud.engine.readingLevel() : binding()?.values.get(id)),
     smallTargets() {
       const out: string[] = [];
       hud.surface.root.walk((n) => {
