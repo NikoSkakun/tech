@@ -1,0 +1,56 @@
+{
+  "id": "electricity",
+  "title": "Електроенергія",
+  "subtitle": "Від електрона до розетки",
+  "headline": "subtitle",
+  "kicker": "Інтерактивний 3D-посібник",
+  "lead": "Подорож електрикою: від кварків і атома — до енергосистеми континенту і розетки у вас удома.",
+  "order": 1,
+  "accent": "cyan",
+  "emblem": "lightning",
+  "status": "published",
+  "axis": { "label": "Масштаб", "unit": "m", "hint": "Характерний масштаб розділу", "range": "10⁻¹⁸ m … 10⁶ m" },
+  "groups": [
+    { "id": "micro", "label": "Мікросвіт", "part": "Частина I. Мікросвіт" },
+    { "id": "em", "label": "Електромагнетизм і машини", "short": "ЕМ і машини", "part": "Частина II. Електромагнетизм і машини" },
+    { "id": "plants", "label": "Генерація", "part": "Частина III. Генерація" },
+    { "id": "grid", "label": "Мережі та енергосистема", "short": "Мережі", "part": "Частина IV. Мережі та енергосистема" },
+    { "id": "home", "label": "Дім", "part": "Частина V. Дім" },
+    { "id": "labs", "label": "Лабораторії", "part": "Частина VI. Лабораторії" }
+  ],
+  "journey": [
+    { "id": "atom", "group": "micro" },
+    { "id": "charge-field", "group": "micro" },
+    { "id": "matter", "group": "micro" },
+    { "id": "current", "group": "micro" },
+    { "id": "magnetism", "group": "em" },
+    { "id": "generator-ac", "group": "em" },
+    { "id": "transformer", "group": "em" },
+    { "id": "plants", "group": "plants" },
+    { "id": "plant-coal", "group": "plants", "parent": "plants" },
+    { "id": "plant-gas", "group": "plants", "parent": "plants" },
+    { "id": "plant-nuclear", "group": "plants", "parent": "plants" },
+    { "id": "plant-hydro", "group": "plants", "parent": "plants" },
+    { "id": "plant-wind", "group": "plants", "parent": "plants" },
+    { "id": "plant-solar", "group": "plants", "parent": "plants" },
+    { "id": "plant-geo-bio", "group": "plants", "parent": "plants" },
+    { "id": "plant-ocean", "group": "plants", "parent": "plants" },
+    { "id": "plant-future", "group": "plants", "parent": "plants" },
+    { "id": "transmission", "group": "grid" },
+    { "id": "grid", "group": "grid" },
+    { "id": "distribution", "group": "grid" },
+    { "id": "home", "group": "home" },
+    { "id": "lab-pv", "group": "labs", "parent": "home" },
+    { "id": "lab-inverter", "group": "labs", "parent": "home" },
+    { "id": "lab-battery", "group": "labs", "parent": "home" },
+    { "id": "lab-hybrid-home", "group": "labs", "parent": "home" }
+  ],
+  "docs": {
+    "extra": ["_shared-house"],
+    "checks": [
+      ["oracle-home", "tools/ref-models/C6-labs/home_model.py", "--check"],
+      ["oracle-batt", "tools/ref-models/C6-labs/battery_model.py", "--check"],
+      ["oracle-heat", "tools/ref-models/C6-labs/thermal_model.py", "--check"]
+    ]
+  }
+}

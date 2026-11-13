@@ -1,0 +1,195 @@
+{
+ "schemaVersion": 2,
+ "volume": "_demo",
+ "id": "antenna",
+ "title": "Антена: дріт, що розмовляє з простором",
+ "order": 2,
+ "group": "devices",
+ "parent": null,
+ "groupLabel": "devices",
+ "axisLabel": "10⁸ Hz",
+ "axisRaw": "10⁸ Hz",
+ "accentMood": "`amber` (домінанта) + `cyan`; студійна напівтемрява з підлоговим диском.",
+ "notes": [
+  "Демонстраційний розділ тому `_demo` (лише для розробки). Він перевіряє посилання між томами: останній крок веде до кроку `electricity/atom/ions-photons` тому «Електроенергія», а попередній розділ цього тому — `wave` (`wave/spectrum`)."
+ ],
+ "learningGoals": [
+  "Антена — це провідник, у якому заряди коливаються й випромінюють хвилю в простір.",
+  "Довжина антени підбирається до довжини хвилі."
+ ],
+ "visualIdea": "Вертикальний мідний стрижень над темним диском. Від нього в усі боки розходяться кільця — гребені хвилі.\nНа другому кроці кільця стають світлішими, а поруч з’являється «порція» світла — фотон.",
+ "steps": [
+  {
+   "n": 1,
+   "id": "dipole",
+   "title": "Дріт, що випромінює",
+   "see": "мідний стрижень `amber` у центрі диска; від нього розходяться горизонтальні кільця `cyan`, кожне росте й тане.",
+   "panel": [
+    "У цьому дроті електрони гойдаються туди-сюди сто мільйонів разів за секунду. Кожне таке коливання штовхає простір довкола — і від дроту розходиться **радіохвиля**. Дріт, що так уміє, називають **антеною**."
+   ],
+   "terms": [
+    {
+     "international": "Antenna",
+     "ukrainian": "антена",
+     "symbol": null,
+     "unit": null,
+     "raw": "Antenna — антена",
+     "definition": "провідник, що перетворює коливання зарядів на хвилю в просторі й навпаки."
+    },
+    {
+     "international": "Electron",
+     "ukrainian": "електрон",
+     "symbol": null,
+     "unit": null,
+     "raw": "Electron — електрон",
+     "definition": "негативно заряджена елементарна частинка."
+    }
+   ],
+   "termsNote": null,
+   "formulas": null,
+   "facts": {
+    "note": null,
+    "items": [
+     {
+      "text": "найпростіша антена має довжину в половину довжини хвилі; для 100 MHz це близько 1,5 m.",
+      "source": null
+     }
+    ]
+   },
+   "interaction": {
+    "note": null,
+    "items": [
+     {
+      "text": "лише огляд сцени (обертання камери).",
+      "controls": []
+     }
+    ]
+   },
+   "hotspots": [],
+   "hotspotsNote": null,
+   "misconceptions": [],
+   "transition": {
+    "note": null,
+    "text": "кільця світлішають, біля стрижня з’являється яскрава порція світла."
+   },
+   "links": null
+  },
+  {
+   "n": 2,
+   "id": "photon",
+   "title": "Хвиля і фотон",
+   "see": "той самий стрижень; кільця розходяться далі, а над стрижнем повільно пульсує яскрава кулька `yellow` — фотон.",
+   "panel": [
+    "Радіохвиля і світло — одне й те саме явище, лише з різною частотою. Обидва складаються з порцій — **фотонів**. Про те, як атом поглинає й випускає фотони, розповідає том «Електроенергія» — розділ про атом."
+   ],
+   "terms": [
+    {
+     "international": "Photon",
+     "ukrainian": "фотон",
+     "symbol": null,
+     "unit": null,
+     "raw": "Photon — фотон",
+     "definition": "порція електромагнітного випромінювання."
+    }
+   ],
+   "termsNote": null,
+   "formulas": null,
+   "facts": {
+    "note": null,
+    "items": [
+     {
+      "text": "видиме світло має частоту близько 5·10¹⁴ Hz — у мільйони разів вищу, ніж радіохвиля цього розділу.",
+      "source": null
+     }
+    ]
+   },
+   "interaction": {
+    "note": null,
+    "items": [
+     {
+      "text": "лише огляд сцени (обертання камери).",
+      "controls": []
+     }
+    ]
+   },
+   "hotspots": [],
+   "hotspotsNote": null,
+   "misconceptions": [],
+   "transition": {
+    "note": null,
+    "text": "це останній крок демонстраційного тому."
+   },
+   "links": "фотони й атом — `electricity/atom/ions-photons`; довжина хвилі — `wave/spectrum`."
+  }
+ ],
+ "models": [],
+ "glossary": [
+  {
+   "international": "Antenna",
+   "ukrainian": "антена",
+   "symbol": null,
+   "unit": null,
+   "definition": "Провідник, що перетворює коливання зарядів на хвилю в просторі й навпаки."
+  },
+  {
+   "international": "Electron",
+   "ukrainian": "електрон",
+   "symbol": "e⁻",
+   "unit": null,
+   "definition": "Негативно заряджена елементарна частинка."
+  },
+  {
+   "international": "Photon",
+   "ukrainian": "фотон",
+   "symbol": "γ",
+   "unit": null,
+   "definition": "Порція електромагнітного випромінювання."
+  },
+  {
+   "international": "Frequency",
+   "ukrainian": "частота",
+   "symbol": "f",
+   "unit": "Hz",
+   "definition": "Кількість повних коливань за одну секунду."
+  }
+ ],
+ "quiz": [
+  {
+   "question": "Якої довжини найпростіша антена для хвилі 3 m?",
+   "options": [
+    "3 m",
+    "близько 1,5 m",
+    "30 m"
+   ],
+   "correct": 1,
+   "explanation": "найпростіша антена має довжину в половину довжини хвилі."
+  }
+ ],
+ "crossReferences": [
+  {
+   "where": "вступ",
+   "targets": [
+    "_demo/wave/spectrum"
+   ],
+   "note": "Частота і довжина хвилі"
+  },
+  {
+   "where": "вступ",
+   "targets": [
+    "electricity/atom/ions-photons"
+   ],
+   "note": "Іони і світло: стрибки між рівнями"
+  },
+  {
+   "where": "крок 2 `photon`",
+   "targets": [
+    "electricity/atom/ions-photons"
+   ],
+   "note": "Іони і світло: стрибки між рівнями"
+  }
+ ],
+ "source": {
+  "document": "docs/volumes/_demo/chapters/antenna.md",
+  "generator": "tools/content/export_content.py"
+ }
+}

@@ -1,0 +1,77 @@
+import { defineContent } from '@/content';
+
+/** All Ukrainian text of the fx gallery (term rule: international term first). Steps in the manifest's order. */
+export const content = {
+  steps: {
+    characters: {
+      title: 'Частинки-персонажі',
+      body:
+        'Кожна частинка має власний «характер» і виглядає однаково в усьому курсі: {cyan:electron} — сяйлива кулька з «−», ' +
+        '{coral:proton} — глянцева з «+», {mist:neutron}, {lime:ion}, кварки з {lime:gluon}-пружиною, {coral:hole} — «дірка», ' +
+        '{yellow:photon} — хвильовий пакет.',
+    },
+    fields: {
+      title: 'Електричне поле',
+      body:
+        'Лінії {amber:E} виходять із заряду `+q` і входять у `−q`; штрихи-стрілки показують напрям. Під ними — ' +
+        '**potential** (потенціал): пагорб біля плюса, яма біля мінуса, ізолінії — еквіпотенціалі. Перетягни негативний заряд.',
+    },
+    induction: {
+      title: 'Магнітне поле та індукція',
+      body:
+        'Лінії {magenta:B} замкнені: виходять із полюса **N**, входять у **S**. Коли магніт рухається, змінюється ' +
+        '**magnetic flux** — магнітний потік `Φ = B·A·cos θ` крізь котушку, і в ній виникає струм: `EMF = −dΦ/dt`.',
+    },
+    flow: {
+      title: 'Потоки і провідники',
+      body:
+        'Електрони течуть уздовж кривих: **DC** — рівномірний дрейф, **AC** — коливання навколо місця. У вузлі потік ' +
+        'ділиться `2 : 1`. Кабель несе {yellow:імпульси енергії}, три фази — {yellow:L1}, {green:L2}, {red:L3}.',
+    },
+    thermal: {
+      title: 'Тепло, пара і вода',
+      body:
+        'Пальник гріє котел: {orange:тепло} показано кольором і маревом, гаряча пара — біла з {pink:рожевим} відтінком, ' +
+        'волога — біла, дим — сірий. {sky:Вода} тече, піниться на водоскиді й розходиться колами.',
+    },
+    machine: {
+      title: 'Машини зсередини',
+      body:
+        '**Cutaway** — розріз із заштрихованими зрізами, **exploded view** — рознесений вигляд, обертання з ' +
+        '«розмитим» диском на великих `rpm`, напівпрозорий корпус і {cyan:контур} інтерактивних деталей.',
+    },
+    signals: {
+      title: 'Сигнали',
+      body:
+        '**Phasor** — вектор, що обертається; його проєкція малює синусоїду. Три фази {yellow:L1}, {green:L2}, {red:L3} ' +
+        'зсунуті на `120°`. Нижче — спотворена хвиля та її гармоніки і **PWM** (ШІМ), що «ліпить» синус з імпульсів.',
+    },
+    drama: {
+      title: 'Розряди і світло',
+      body:
+        '**Arc** — електрична дуга між електродами, **corona** — коронний розряд на високій напрузі, ' +
+        '**short circuit** — коротке замикання зі спалахом та іскрами. Усе яскраве світиться само і дає м’який ореол.',
+    },
+  },
+  labels: {
+    electron: 'Electron e⁻',
+    proton: 'Proton p⁺',
+    neutron: 'Neutron n⁰',
+    ion: 'Ion Li⁺',
+    quarks: 'Quarks u, d + gluon',
+    hole: 'Hole h⁺',
+    photon: 'Photon γ — фотон',
+    nucleus: 'Nucleus — ядро',
+    gas: 'Електронний газ',
+    dragCharge: 'Перетягни заряд',
+  },
+} as const;
+
+/** Step panels: the HUD shows them (UI_API §2) — one page per step, in the manifest's order. */
+export default defineContent(
+  {
+    id: '_sandbox-fx',
+    steps: Object.entries(content.steps).map(([id, s]) => ({ id, title: s.title, panel: [s.body] })),
+  },
+  { labels: content.labels },
+);

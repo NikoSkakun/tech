@@ -1,0 +1,43 @@
+{
+  "name": "electricity-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "«Від електрона до розетки» — interactive 3D course on electricity",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write \"src/**/*.{ts,css}\" \"*.{ts,js,json,html}\"",
+    "test": "vitest run",
+    "fonts": "node scripts/build-fonts.mjs",
+    "fonts:check": "node scripts/font-coverage.mjs"
+  },
+  "dependencies": {
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@expo-google-fonts/fira-sans": "0.4.1",
+    "@expo-google-fonts/jetbrains-mono": "0.4.1",
+    "@expo-google-fonts/noto-sans-math": "0.4.2",
+    "@expo-google-fonts/noto-sans-symbols-2": "0.4.1",
+    "@expo-google-fonts/nunito": "0.4.2",
+    "@types/node": "24.9.2",
+    "@types/three": "0.187.0",
+    "eslint": "10.14.0",
+    "eslint-config-prettier": "10.1.8",
+    "fontkit": "3.0.0",
+    "globals": "17.14.0",
+    "playwright-core": "1.65.0",
+    "pngjs": "7.0.0",
+    "prettier": "3.10.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.0"
+  },
+  "packageManager": "pnpm@12.18.0"
+}

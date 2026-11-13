@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#070A1F" />
+    <meta name="description" content="Інтерактивний 3D-посібник з електроенергії: від атома до розетки вдома." />
+    <title>%LIBRARY_TITLE%</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230D1136'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='%232E1F7A' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='8' fill='%23FFD23F'/%3E%3Ccircle cx='51' cy='32' r='5' fill='%232DE2E6'/%3E%3C/svg%3E"
+    />
+    <style>
+      /* Critical CSS only: boot splash and fatal-error screen (the only HTML UI — STYLE_GUIDE §6).
+         Colours are the palette tokens bg.void / bg.deep / bg.indigo / bg.violet / cyan / yellow / white / mist. */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #070a1f;
+        color: #f6f3ff;
+        overflow: hidden;
+        font-family: ui-rounded, 'Nunito', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      #app,
+      #stage {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      #stage {
+        outline: none;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .screen {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(120% 90% at 50% 38%, #2e1f7a 0%, #1a1657 32%, #0d1136 62%, #070a1f 100%);
+        transition: opacity 0.7s ease;
+        z-index: 10;
+      }
+      .screen[hidden] {
+        display: none;
+      }
+      .screen.out {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        /* hide only after the fade-out; showing again (context lost) is immediate */
+        transition:
+          opacity 0.7s ease,
+          visibility 0s linear 0.7s;
+      }
+      .boot-box {
+        width: min(440px, 82vw);
+        text-align: center;
+      }
+      .orbit {
+        position: relative;
+        width: 132px;
+        height: 132px;
+        margin: 0 auto 30px;
+      }
+      .orbit i {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 3px solid rgba(142, 92, 247, 0.4);
+      }
+      .orbit i:nth-child(2) {
+        inset: 0;
+        border: 0;
+        animation: spin 2.6s linear infinite;
+      }
+      .orbit i:nth-child(2)::after {
+        content: '';
+        position: absolute;
+        top: -9px;
+        left: 50%;
+        width: 18px;
+        height: 18px;
+        margin-left: -9px;
+        border-radius: 50%;
+        background: #2de2e6;
+        box-shadow:
+          0 0 18px 4px rgba(45, 226, 230, 0.75),
+          0 0 46px 12px rgba(45, 226, 230, 0.3);
+      }
+      .orbit i:nth-child(3) {
+        inset: 38px;
+        border: 0;
+        background: radial-gradient(circle at 36% 32%, #ffe680 0%, #ffd23f 45%, #ffb02e 100%);
+        box-shadow: 0 0 34px 6px rgba(255, 210, 63, 0.4);
+        animation: pulse 2.2s ease-in-out infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes pulse {
+        50% {
+          transform: scale(1.08);
+        }
+      }
+      .boot-title {
+        margin: 0 0 6px;
+        font-size: clamp(26px, 4.2vw, 38px);
+        font-weight: 800;
+        letter-spacing: 0.01em;
+      }
+      .boot-sub {
+        margin: 0 0 28px;
+        color: #c9c6ea;
+        font-size: 16px;
+      }
+      .bar {
+        height: 10px;
+        border-radius: 99px;
+        background: rgba(13, 17, 54, 0.9);
+        box-shadow: inset 0 0 0 1.5px rgba(45, 226, 230, 0.3);
+        overflow: hidden;
+      }
+      .bar > b {
+        display: block;
+        height: 100%;
+        width: 4%;
+        border-radius: 99px;
+        background: linear-gradient(90deg, #1cc8a5, #2de2e6);
+        box-shadow: 0 0 16px rgba(45, 226, 230, 0.7);
+        transition: width 0.25s ease;
+      }
+      .boot-note {
+        margin-top: 14px;
+        min-height: 20px;
+        color: #8d8fb8;
+        font-size: 14px;
+        font-variant-numeric: tabular-nums;
+      }
+      #fatal .boot-box {
+        width: min(560px, 86vw);
+      }
+      #fatal h1 {
+        margin: 0 0 14px;
+        font-size: clamp(24px, 3.6vw, 32px);
+        font-weight: 800;
+      }
+      #fatal p {
+        margin: 0 0 12px;
+        color: #c9c6ea;
+        font-size: 17px;
+        line-height: 1.5;
+      }
+      #fatal code {
+        display: block;
+        margin: 14px 0 0;
+        color: #8d8fb8;
+        font-size: 13px;
+        word-break: break-word;
+      }
+      #fatal button {
+        margin-top: 22px;
+        padding: 13px 30px;
+        border: 0;
+        border-radius: 99px;
+        background: #2de2e6;
+        color: #070a1f;
+        font: inherit;
+        font-size: 17px;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 0 22px rgba(45, 226, 230, 0.45);
+      }
+      #fatal button:hover {
+        background: #7ef0f2;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .orbit i {
+          animation: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"><canvas id="stage" tabindex="0" aria-label="Інтерактивна 3D-сцена посібника"></canvas></div>
+
+    <div id="boot" class="screen" role="status" aria-live="polite">
+      <div class="boot-box">
+        <div class="orbit" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h1 class="boot-title">%LIBRARY_TITLE%</h1>
+        <p class="boot-sub">Інтерактивний 3D-посібник з електроенергії</p>
+        <div class="bar" aria-hidden="true"><b id="boot-bar"></b></div>
+        <div class="boot-note" id="boot-note">Завантаження… 0 %</div>
+      </div>
+    </div>
+
+    <div id="fatal" class="screen" role="alert" hidden>
+      <div class="boot-box">
+        <h1 id="fatal-title"></h1>
+        <p id="fatal-text"></p>
+        <p id="fatal-hint"></p>
+        <code id="fatal-detail"></code>
+        <button id="fatal-retry" type="button">Спробувати знову</button>
+      </div>
+    </div>
+
+    <!-- invisible live region for assistive technology (the HUD announces step titles here) -->
+    <div id="live" class="sr-only" aria-live="polite"></div>
+    <noscript>
+      <div class="screen">
+        <div class="boot-box"><h1 class="boot-title">Потрібен JavaScript</h1></div>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
