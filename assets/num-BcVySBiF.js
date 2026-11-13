@@ -1,1 +1,0 @@
-var e=Math.PI/180;function t(e,t,n){let r=e.length;if(r===0)return 0;if(n<=e[0])return t[0];if(n>=e[r-1])return t[r-1];let i=0,a=r-1;for(;a-i>1;){let t=i+a>>1;e[t]<=n?i=t:a=t}let o=e[i],s=e[a],c=s>o?(n-o)/(s-o):0;return t[i]+c*(t[a]-t[i])}export{t as n,e as t};
