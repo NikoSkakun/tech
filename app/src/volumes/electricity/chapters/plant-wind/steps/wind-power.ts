@@ -2,13 +2,14 @@
  * Step 2 `wind-power` — «Енергія вітру: закон куба». In front of the hero rotor stands the cylinder of air
  * that passes through it, cut into one-second slices (parts/air-column.ts); the calculator is M1 of the
  * simulation: ρ(T), A = π·D²/4, P = ½·ρ·A·v³. Sliders v, D, T; the D slider resizes the hero rotor.
+ * The cubic curve and the numbers are on the HUD board (readable on any screen); the world shows the air.
  */
 import { fmtNumber } from '@/content';
 import { ROTOR_SILHOUETTES, airDensity, sweptArea, windPowerW } from '@electricity/sim/plant-wind';
-import { hotspotNames } from '../content';
+import { HOTSPOTS } from '../hotspots';
 import { HERO } from '../layout';
-import { Vector3 } from 'three';
-import { buildAirColumn, buildConsole } from '../parts';
+import { buildAirColumn } from '../parts/air-column';
+import { hot } from './hot';
 import type { StepFactory } from './types';
 
 const D0 = 170; // m, the hero's nominal rotor
@@ -28,37 +29,13 @@ export const windPower: StepFactory = ({ ctx, ui, L, live, hero }) => {
     ROTOR_SILHOUETTES.reduce((best, s) => (Math.abs(s.diameterM - dM) < Math.abs(best.diameterM - dM) ? s : best)).label;
   let drawn = '';
   let boost = { until: -1, label: '' };
-  // «голографічний калькулятор»: the cubic curve with the working point, standing beside the air column
-  const calc = buildConsole(ctx, {
-    title: 'P = ½·ρ·A·v³',
-    width: 430,
-    unit: 0.12,
-    chart: { height: 210, x: { min: 0, max: 25, label: 'v, m/s' }, y: { min: 0, max: 220, label: 'P, MW' }, series: [{ id: 'p', label: 'P(v)', color: 'sky', kind: 'area' }] },
-    readouts: [
-      { label: L.pWind, unit: 'MW', digits: 2, get: () => power() / 1e6 },
-      { label: L.area, unit: 'm²', digits: 0, get: () => sweptArea(d()) },
-    ],
-  });
-  calc.surface.position.copy(hero.hub).add(new Vector3(44, 10, 0));
-  ctx.root.add(calc.surface);
-  const aCalc = ctx.stage.actor(calc.surface, { appear: 'pop' });
-  const redraw = (t: number): void => {
-    const key = `${d()}|${ui.value<number>('wp.t')}`;
-    if (key !== drawn) {
-      drawn = key;
-      calc.chart.setAxis('y', { max: windPowerW(25, d(), rho()) / 1e6 });
-      calc.chart.setData('p', VS, VS.map((x) => windPowerW(x, d(), rho()) / 1e6));
-    }
-    calc.chart.setMarker('now', { x: v(), y: power() / 1e6, color: 'yellow', label: t < boost.until ? boost.label : undefined });
-    calc.update();
-  };
-  const [hsAnemometer] = hotspotNames('wind-power');
   return {
     id: 'wind-power',
     stage: {
       camera: 'wind-power',
-      show: [aColumn, aCalc],
+      show: [aColumn],
       params: { windX: hero.hub.x - 10, windY: hero.hub.y - 46, windZ: hero.hub.z, windLength: 300, windHeight: 92, windWidth: 190 },
+      enter: () => (drawn = ''),
     },
     ui: {
       honesty: ['notToScale'],
@@ -76,16 +53,43 @@ export const windPower: StepFactory = ({ ctx, ui, L, live, hero }) => {
             const from = v() > 12.5 ? 6 : Math.max(1, v());
             const to = from * 2;
             boost = { until: ctx.clock.time + 5.5, label: `×${fmtNumber((to / from) ** 3)}` };
-            ctx.tweens.value(from, to, { duration: 1.4, ease: 'power2.inOut' }, (x) => ui.set('wp.v', Math.round(x * 2) / 2));
+            ctx.stage.scope.value(from, to, { duration: 1.4, ease: 'power2.inOut' }, (x) => ui.set('wp.v', Math.round(x * 2) / 2));
           },
         },
       ],
+      board: {
+        title: 'P = ½·ρ·A·v³',
+        size: 'sm',
+        children: [
+          {
+            type: 'chart',
+            id: 'wp.curve',
+            chart: { height: 190, x: { min: 0, max: 25, label: 'v, m/s' }, y: { min: 0, max: 220, label: 'P, MW' }, series: [{ id: 'p', color: 'sky', kind: 'area' }] },
+            update: (chart, t) => {
+              const key = `${d()}|${ui.value<number>('wp.t')}`;
+              if (key !== drawn) {
+                drawn = key;
+                chart.setAxis('y', { max: windPowerW(25, d(), rho()) / 1e6 });
+                chart.setData('p', VS, VS.map((x) => windPowerW(x, d(), rho()) / 1e6));
+              }
+              chart.setMarker('now', { x: v(), y: power() / 1e6, color: 'yellow', label: t < boost.until ? boost.label : undefined });
+            },
+          },
+          {
+            type: 'stats',
+            id: 'wp.res',
+            columns: 2,
+            items: [
+              { label: L.pWind, unit: 'MW', digits: 2, get: () => power() / 1e6 },
+              { label: L.area, unit: 'm²', digits: 0, get: () => sweptArea(d()) },
+            ],
+          },
+        ],
+      },
       callouts: [{ anchor: () => column.group.localToWorld(column.group.position.clone().set(-column.length * 0.5, column.radius, 0)), text: L.airSecond, side: 'up' }],
-      hotspots: [{ anchor: hero.room.at('sensors'), title: hsAnemometer! }],
+      hotspots: [hot(hero.room.at('sensors'), HOTSPOTS['wind-power'].anemometer)],
     },
-    update(dt, t) {
-      redraw(t);
-      calc.surface.quaternion.copy(ctx.camera.camera.quaternion);
+    update(dt) {
       live.windTarget = v();
       // the hero's rotor takes the diameter of the slider; a bigger rotor turns slower (same tip-speed ratio)
       live.rotorScaleTarget = d() / D0;

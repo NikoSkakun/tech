@@ -5,7 +5,9 @@
  */
 import { FARM_DEFAULTS, TURBINE_6MW, rotorRpm, simulateFarm, type FarmResult } from '@electricity/sim/plant-wind';
 import { FARM } from '../layout';
-import { type Chain, type Farm, type WindField } from '../parts';
+import type { Chain } from '../parts/chain';
+import type { Farm } from '../parts/farm';
+import type { WindField } from '../parts/wind-field';
 import type { Live } from '../state';
 
 export interface FarmParams {
@@ -64,7 +66,7 @@ export function bindFarm(farm: Farm, chain: Chain, wind: WindField, live: Live):
       r.turbines.forEach((t, i) => {
         farm.speed[i] = (rotorRpm(TURBINE_6MW, t.inflowMs) * Math.PI) / 30;
         // wake sources at the layout scale (a drawn rotor is `enlarged`× the layout rotor)
-        wind.setWake(FARM_WAKE_SLOT + i, farm.fleet.hub(i), FARM.layoutD / 2, t.yawed ? 0.8 : 1);
+        wind.setWake(FARM_WAKE_SLOT + i, farm.hub(i), FARM.layoutD / 2, t.yawed ? 0.8 : 1);
       });
       wind.setWakeCount(FARM_WAKE_SLOT + n);
       chain.layoutCollector();

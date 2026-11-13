@@ -35,6 +35,11 @@ export interface Live {
   /** 0 day … 1 night: aviation lights, lit windows (eased toward `nightTarget`). */
   night: number;
   nightTarget: number;
+  /** Fraction of their spin all rotors give up (step 11: synthetic inertia lends kinetic energy to the grid). */
+  spinDip: number;
+  spinDipTarget: number;
+  /** 0…1 dimming of the pulses on the outgoing line (step 11: the frequency dip seen on the conductors). */
+  lineDim: number;
 }
 
 export function createLive(): Live {
@@ -58,6 +63,9 @@ export function createLive(): Live {
     farmPower: 0.5,
     night: 0,
     nightTarget: 0,
+    spinDip: 0,
+    spinDipTarget: 0,
+    lineDim: 0,
   };
 }
 
@@ -77,4 +85,6 @@ export function resetTargets(live: Live): void {
   live.towerScaleTarget = 1;
   live.coverTarget = 0;
   live.seaBoostTarget = 0;
+  live.spinDipTarget = 0;
+  live.lineDim = 0;
 }

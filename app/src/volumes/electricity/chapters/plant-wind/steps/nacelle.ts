@@ -5,16 +5,18 @@
  * energy through the units with their efficiencies; «Розріз / Зовнішній вигляд» closes the cover again.
  */
 import { audio } from '@/audio';
-import type { TweenScope } from '@/engine/api';
 import { people } from '@/kit';
-import { hotspotNames } from '../content';
-import { buildEnergyPath, NAC } from '../parts';
+import { STATUS } from '@/ui3d';
+import { HOTSPOTS } from '../hotspots';
+import { PATH_UNITS, buildEnergyPath } from '../parts/energy-path';
+import { NAC } from '../parts/nacelle';
+import { hot } from './hot';
 import type { StepFactory } from './types';
 
 export const nacelle: StepFactory = ({ ctx, ui, L, live, hero, rig, world }) => {
   const room = hero.room;
   const k = hero.k;
-  const path = buildEnergyPath(ctx, room, k, L.total);
+  const path = buildEnergyPath(ctx, k);
   hero.nacelle.add(path.group);
   // the technician, at the scale of the machine (a 6 MW nacelle is the size of a bus)
   const crew = people([{ at: [1.75 * k, NAC.floor * k, -4.9 * k], ry: -1.9, scale: 0.34, hat: 'yellow', color: 'orange', action: 'work' }], ctx.random.fork('crew'));
@@ -22,29 +24,20 @@ export const nacelle: StepFactory = ({ ctx, ui, L, live, hero, rig, world }) => 
   world.alive.push(crew);
   const aCrew = ctx.stage.actor(crew.group, { appear: 'pop' });
 
-  const names = hotspotNames('nacelle');
-  const anchors = [
-    room.at('hub'),
-    room.at('pitch'),
-    room.at('mainBearing'),
-    room.at('gearboxA'),
-    room.at('brake'),
-    room.at('generatorA'),
-    room.at('converter'),
-    room.at('yaw'),
-    room.at('sensors'),
-    room.at('cooling'),
+  const h = HOTSPOTS.nacelle;
+  const spots: [string, string][] = [
+    ['hub', h.hub],
+    ['pitch', h.pitch],
+    ['mainBearing', h.shaft],
+    ['gearboxA', h.gearbox],
+    ['brake', h.brake],
+    ['generatorA', h.generator],
+    ['converter', h.converter],
+    ['yaw', h.yaw],
+    ['sensors', h.sensors],
+    ['cooling', h.cooling],
   ];
-  let played = false;
-  // the walk-through runs on its own tween scope, so leaving the step (or closing the cover) cancels the
-  // badges that are still waiting for their turn
-  let scope: TweenScope | null = null;
-  const stop = (): void => {
-    scope?.killAll();
-    scope = null;
-    path.reset();
-    played = false;
-  };
+  const open = (): boolean => ui.value<boolean>('nc.cut');
   return {
     id: 'nacelle',
     stage: {
@@ -53,15 +46,16 @@ export const nacelle: StepFactory = ({ ctx, ui, L, live, hero, rig, world }) => 
       post: { dofAperture: 0.5, tiltAmount: 0 },
       enter: (info) => {
         rig.setVariant('A_DFIG', info.instant);
-        stop();
+        path.reset();
       },
-      leave: stop,
+      leave: () => path.reset(),
     },
     ui: {
       reset: true,
       honesty: ['notToScale', { slowed: 7 }],
       controls: [
         { type: 'toggle', id: 'nc.cut', label: L.cutaway, value: true },
+        { type: 'note', id: 'nc.total', text: L.total, icon: 'lightning', color: STATUS.ok, visible: () => path.revealed > PATH_UNITS.length },
         {
           type: 'button',
           id: 'nc.path',
@@ -69,20 +63,23 @@ export const nacelle: StepFactory = ({ ctx, ui, L, live, hero, rig, world }) => 
           icon: 'lightning',
           primary: true,
           onClick: () => {
-            stop();
             ui.set('nc.cut', true);
-            scope = ctx.tweens.scope();
-            path.play(scope);
+            // on the step's own scope: leaving the step cancels the units still waiting for their turn
+            path.play(ctx.stage.scope);
             audio.play('zap', { gain: 0.5 });
-            played = true;
           },
         },
       ],
-      hotspots: names.map((title, i) => ({ anchor: anchors[i]!, title })),
+      // efficiency of every unit the energy has reached so far
+      callouts: [
+        ...PATH_UNITS.map((u, i) => ({ anchor: room.at(u.anchor), text: u.label, color: 'yellow' as const, side: 'up' as const, visible: () => path.revealed > i && open() })),
+        { anchor: crew.group, text: L.technician, color: 'mist', side: 'down', visible: open },
+      ],
+      hotspots: spots.map(([anchor, content]) => hot(room.at(anchor), content)),
     },
     update() {
-      live.coverTarget = ui.value<boolean>('nc.cut') ? 1 : 0;
-      if (played && live.coverTarget === 0) stop();
+      live.coverTarget = open() ? 1 : 0;
+      if (path.revealed && !open()) path.reset();
     },
   };
 };

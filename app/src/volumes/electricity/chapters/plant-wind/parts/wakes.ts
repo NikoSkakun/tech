@@ -1,47 +1,25 @@
 /**
- * Step 8 farm overlay: behind every rotor a `slate` plume whose darkness is the velocity deficit of the
- * simulation itself (`wakeDeficit`, Jensen expansion with a Gaussian cross profile, evaluated per vertex in
- * real metres), deflected for steered turbines exactly as the model deflects it; and above every turbine a
- * `yellow` bar with its power in % of a free-standing turbine.
+ * Step 8 farm overlay: behind every rotor a `slate` plume of slow ribbons whose darkness is the velocity
+ * deficit of the simulation itself (`wakeDeficit`, Jensen expansion with a Gaussian cross profile, evaluated
+ * per point in real metres), deflected for steered turbines exactly as the model deflects it; and above every
+ * turbine a `yellow` bar with its power in % of a free-standing turbine.
+ * The plumes are alpha-blended `RibbonLines` (paint over the bright field, slow dashes drifting downstream).
  */
-import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, NormalBlending, Quaternion, ShaderMaterial, Vector3 } from 'three';
+import { BoxGeometry, Group, InstancedMesh, Matrix4, Quaternion, Vector3 } from 'three';
 import { fmtPercent } from '@/content';
+import { toOverlay } from '@/engine/api';
+import { RibbonLines, type RibbonLine } from '@/fx';
 import { STEER_YAW_DEG, TURBINE_6MW, thrustCoefficient, turbinePowerW, wakeDeficit, type FarmResult } from '@electricity/sim/plant-wind';
-import { K, col, kGlobals } from '@/style';
-import type { Text3D } from '@/text';
+import { K } from '@/style';
+import { Text3D } from '@/text';
 import { FARM, flowDir } from '../layout';
-import { createBadge } from './badge';
 import type { Farm } from './farm';
 
-const NX = 20;
-const NY = 8;
+/** Points along a plume ribbon and ribbons across a plume. */
+const NX = 18;
+const NY = 7;
 /** Plume length drawn, in rotor diameters. */
 const LENGTH_D = 13;
-
-const VERTEX = /* glsl */ `
-attribute float aAlpha;
-attribute vec2 aUv;
-varying float vAlpha;
-varying vec2 vUv;
-void main() {
-  vAlpha = aAlpha;
-  vUv = aUv;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-}`;
-const FRAGMENT = /* glsl */ `
-precision highp float;
-uniform vec3 uColor;
-uniform float uOpacity;
-uniform float uKTime;
-varying float vAlpha;
-varying vec2 vUv;
-void main() {
-  // slow streaks drifting downstream: the wake is turbulent, slower air
-  float streak = 0.82 + 0.18 * sin( vUv.x * 46.0 - uKTime * 1.6 + sin( vUv.y * 9.0 ) * 2.0 );
-  float a = vAlpha * uOpacity * streak;
-  if ( a < 0.01 ) discard;
-  gl_FragColor = vec4( uColor, a );
-}`;
 
 export interface Wakes {
   group: Group;
@@ -51,39 +29,21 @@ export interface Wakes {
 
 export function buildWakes(farm: Farm): Wakes {
   const n = FARM.rows * FARM.perRow;
-  const per = (NX + 1) * (NY + 1);
-  const geometry = new BufferGeometry();
-  const pos = new BufferAttribute(new Float32Array(n * per * 3), 3);
-  const alpha = new BufferAttribute(new Float32Array(n * per), 1);
-  const uv = new BufferAttribute(new Float32Array(n * per * 2), 2);
-  const index: number[] = [];
-  for (let t = 0; t < n; t++)
-    for (let i = 0; i < NX; i++)
-      for (let j = 0; j < NY; j++) {
-        const a = t * per + i * (NY + 1) + j;
-        index.push(a, a + NY + 1, a + 1, a + 1, a + NY + 1, a + NY + 2);
-      }
-  geometry.setAttribute('position', pos);
-  geometry.setAttribute('aAlpha', alpha);
-  geometry.setAttribute('aUv', uv);
-  geometry.setIndex(index);
-  const material = new ShaderMaterial({
-    name: 'plant-wind.wakes',
-    uniforms: { uColor: { value: col('slate').lerp(col('bg.indigo'), 0.25) }, uOpacity: { value: 0.9 }, uKTime: kGlobals.uKTime },
-    vertexShader: VERTEX,
-    fragmentShader: FRAGMENT,
-    transparent: true,
-    depthWrite: false,
-    side: DoubleSide,
-    blending: NormalBlending,
-  });
-  const plumes = new Mesh(geometry, material);
-  plumes.frustumCulled = false;
+  const plumes = new RibbonLines({ capacity: n * NY * (NX + 1), color: 'slate', width: 1.5, minPixels: 1.6, intensity: 0.85, dashRepeat: 0.14, dashStrength: 0.45, dashSpeed: 5, base: 0.55, hotCore: 0, endFade: [0.02, 0.2], blend: 'normal' });
+  plumes.name = 'wake-plumes';
   plumes.renderOrder = 3;
-  plumes.raycast = () => undefined;
+  const lines: (RibbonLine & { points: Vector3[]; brightness: number[] })[] = Array.from({ length: n * NY }, () => ({
+    points: Array.from({ length: NX + 1 }, () => new Vector3()),
+    brightness: new Array<number>(NX + 1).fill(0),
+  }));
   const bars = new InstancedMesh(new BoxGeometry(1, 1, 1).translate(0, 0.5, 0), K.glow({ color: 'yellow', intensity: 1.5, whiten: 0, keepHue: true }), n);
   bars.frustumCulled = false;
-  const labels: Text3D[] = Array.from({ length: n }, () => createBadge('', 'yellow', 17, 8));
+  const labels: Text3D[] = Array.from({ length: n }, () => {
+    const label = new Text3D('', { font: 'display', size: 18, color: 'yellow', anchorX: 'center', anchorY: 'bottom', billboard: true, screenSpace: true, depthTest: false, depthWrite: false });
+    label.renderOrder = 20;
+    toOverlay(label);
+    return label;
+  });
   const group = new Group();
   group.name = 'farm-wakes';
   group.add(plumes, bars, ...labels);
@@ -102,20 +62,19 @@ export function buildWakes(farm: Farm): Wakes {
       const single = turbinePowerW(TURBINE_6MW, vMs) || 1;
       const tan = Math.tan((STEER_YAW_DEG * Math.PI) / 180);
       result.turbines.forEach((t, i) => {
-        farm.fleet.hub(i, hub);
+        farm.hub(i, hub);
         const ct = thrustCoefficient(t.inflowMs);
-        for (let a = 0; a <= NX; a++) {
-          const x = ((a / NX) ** 1.25) * LENGTH_D * dReal; // real metres downstream, denser near the rotor
-          const centre = t.yawed ? 0.25 * x * tan : 0;
-          const half = (dReal / 2 + k * x) * 1.7;
-          for (let b = 0; b <= NY; b++) {
-            const y = ((b / NY) * 2 - 1) * half;
-            const v = i * per + a * (NY + 1) + b;
+        for (let b = 0; b < NY; b++) {
+          const line = lines[i * NY + b]!;
+          const across = (b / (NY - 1)) * 2 - 1; // −1 … 1 over the plume width
+          for (let a = 0; a <= NX; a++) {
+            const x = ((a / NX) ** 1.25) * LENGTH_D * dReal; // real metres downstream, denser near the rotor
+            const centre = t.yawed ? 0.25 * x * tan : 0;
+            const y = across * (dReal / 2 + k * x) * 1.45;
             const cross = (centre + y) * toy;
-            pos.setXYZ(v, hub.x + f.x * x * toy + lx * cross, hub.y - 0.4, hub.z + f.z * x * toy + lz * cross);
-            const tail = 1 - Math.max(0, (a / NX - 0.72) / 0.28);
-            alpha.setX(v, (wakeDeficit(Math.max(x, 1), y, dReal, ct, k) / 0.553) * tail * Math.min(1, a / 1.2));
-            uv.setXY(v, a / NX, b / NY);
+            line.points[a]!.set(hub.x + f.x * x * toy + lx * cross, hub.y - 0.4, hub.z + f.z * x * toy + lz * cross);
+            // darkness = the model's deficit, relative to the deficit right behind a rotor at C_T = 0.8
+            line.brightness[a] = Math.min(1, wakeDeficit(Math.max(x, 1), y, dReal, ct, k) / 0.553) * Math.min(1, a / 1.2);
           }
         }
         // power bar and its label above the blade tips
@@ -126,7 +85,7 @@ export function buildWakes(farm: Farm): Wakes {
         const text = fmtPercent(share, 0);
         if (labels[i]!.text !== text) labels[i]!.text = text;
       });
-      pos.needsUpdate = alpha.needsUpdate = uv.needsUpdate = true;
+      plumes.setLines(lines);
       bars.instanceMatrix.needsUpdate = true;
     },
   };

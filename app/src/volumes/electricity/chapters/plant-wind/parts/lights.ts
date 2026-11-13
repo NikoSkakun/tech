@@ -1,9 +1,8 @@
 /**
- * Day / night switch of the whole diorama and the aviation lights: red beacons on every nacelle blink once
- * per 1.5 s, in sync across the farm (document: «синхронно по всій ВЕС», so that pilots see one obstacle).
+ * Day / night switch of the whole diorama (lit windows, lamps) and the aviation lights (parts/beacons.ts).
  */
-import type { KGlowMaterial } from '@/style';
 import type { KitModel } from '@/kit';
+import type { Beacons } from './beacons';
 
 export interface Lights {
   /** 0 day … 1 night: lit windows, lamps, brighter beacons. */
@@ -11,10 +10,7 @@ export interface Lights {
   update(t: number): void;
 }
 
-export const BEACON_PERIOD_S = 1.5;
-
-export function buildLights(models: readonly KitModel[], beacons: readonly KitModel[]): Lights {
-  const glows = beacons.filter((m) => m.mats.has('glow')).map((m) => m.mats.get('glow') as KGlowMaterial);
+export function buildLights(models: readonly KitModel[], beacons: Beacons): Lights {
   let applied = -1;
   const lights: Lights = {
     night: 0,
@@ -23,11 +19,8 @@ export function buildLights(models: readonly KitModel[], beacons: readonly KitMo
         applied = lights.night;
         for (const m of models) m.night = applied;
       }
-      // a short flash at the start of every period; dim but visible by day, bright at night
-      const phase = (t % BEACON_PERIOD_S) / BEACON_PERIOD_S;
-      const flash = Math.exp(-phase * 7);
-      const level = 0.5 + flash * (1.6 + 2.6 * lights.night);
-      for (const g of glows) g.intensity = level;
+      beacons.night = lights.night;
+      beacons.update(t);
     },
   };
   return lights;

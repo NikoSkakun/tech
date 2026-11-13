@@ -2,7 +2,8 @@
  * Step 3 «трубка течії»: the stream tube of the actuator disc. Its end radii and speeds are exactly the
  * simulation's (`actuatorDisk(a)`: D₁ = D·√(1−a), D₂ = D·√((1−a)/(1−2a)), v·(1−a) at the rotor, v·(1−2a)
  * far behind); between them the speed follows a smooth tanh profile and the radius follows from continuity
- * A(x)·u(x) = const. Air parcels are advected on the CPU: fast before the rotor, slow and spread out behind.
+ * A(x)·u(x) = const. Air parcels are advected on the CPU — their speed changes along the way, which is the
+ * point of the step (a `Flow` swarm travels at one speed): fast before the rotor, slow and spread out behind.
  * `block` (0…1) is preset (б): a solid disc — the air stalls in front of it and slips around the rim.
  * Local frame: +X downwind, origin at the rotor centre.
  */
@@ -97,9 +98,10 @@ export function buildStreamTube(ctx: ChapterContext, R: number, upstream = 46, d
 
   const rng = ctx.random.fork('tube');
   const n = ctx.quality.count(230, 100);
-  const fast = createOrbs({ kind: 'blob', count: n, radius: 0.62, color: 'white', shade: 'sky' });
-  const slow = createOrbs({ kind: 'blob', count: n, radius: 0.62, color: 'steel', shade: 'slate' });
-  group.add(fast, slow);
+  // one swarm, coloured per parcel: white while the air is fast, `steel` once the rotor has slowed it
+  const air = createOrbs({ kind: 'blob', count: n, radius: 0.62, color: 'white', shade: 'sky', instanceColors: true });
+  group.add(air);
+  const slowed = new Uint8Array(n).fill(2); // 2 = colour not written yet
   const span = upstream + downstream;
   const parcels = Array.from({ length: n }, () => ({ x: -upstream + rng.next() * span, rho: Math.sqrt(rng.next()) * 0.96, th: rng.range(0, Math.PI * 2), s: rng.range(0.7, 1.25) }));
   const sm = (a: number, b: number, x: number): number => {
@@ -137,11 +139,13 @@ export function buildStreamTube(ctx: ChapterContext, R: number, upstream = 46, d
         const y = Math.cos(p.th) * r;
         const z = Math.sin(p.th) * r;
         const behind = p.x > 0 && b < 0.5; // air that slipped around a wall was never slowed
-        fast.setPosition(i, p.x, y, z, behind ? 0 : p.s * edge);
-        slow.setPosition(i, p.x, y, z, behind ? p.s * edge : 0);
+        air.setPosition(i, p.x, y, z, p.s * edge);
+        if (slowed[i] !== (behind ? 1 : 0)) {
+          slowed[i] = behind ? 1 : 0;
+          air.setInstanceColor(i, behind ? 'steel' : 'white');
+        }
       }
-      fast.commit();
-      slow.commit();
+      air.commit();
     },
   };
   return tube;

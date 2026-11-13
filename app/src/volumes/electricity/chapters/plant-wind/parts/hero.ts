@@ -1,10 +1,11 @@
 /**
  * The hero turbine: the kit's `windTurbine` on the west hill, facing the 270° wind. The kit model gives the
- * tower, the yawing nacelle group, the spinning rotor and the pitching blades; the chapter replaces the kit's
- * simple nacelle interior with its own cutaway machine room (`parts/nacelle.ts`).
+ * tower, the yawing nacelle group, the spinning rotor and the pitching blades; the chapter mounts its own cutaway
+ * machine room (`parts/nacelle.ts`) through `windTurbine({ interior })`.
  */
-import { Object3D, Vector3, type Group, type Mesh } from 'three';
+import { Vector3, type Group, type Mesh, type Object3D } from 'three';
 import { Builder, windTurbine, type WindTurbine } from '@/kit';
+import { PLANT_TYPE } from '@/style';
 import { HERO, WIND, yawInto } from '../layout';
 import { buildNacelle, type Nacelle } from './nacelle';
 import type { World } from './world';
@@ -22,8 +23,6 @@ export interface Hero {
   base: Vector3;
   /** The chapter's own machine room inside the kit's yawing nacelle group. */
   room: Nacelle;
-  /** Tip of blade 0 (turns with the rotor). */
-  bladeTip: Object3D;
   /** Nacelle scale of the kit model (1 for a 110 m rotor). */
   k: number;
   /** Rotor radius, toy metres. */
@@ -38,18 +37,20 @@ export interface Hero {
 }
 
 export function buildHero(world: World): Hero {
-  const turbine = windTurbine({ hubHeight: HERO.hubHeight, rotorDiameter: HERO.rotorDiameter, accent: 'teal' });
+  const k = HERO.rotorDiameter / 2 / 55;
+  // the chapter's machine room is mounted in the kit turbine's nacelle frame (drive-train anchors stay the kit's)
+  const room = buildNacelle(k, 0.014 * HERO.hubHeight * 1.5);
+  const turbine = windTurbine({ hubHeight: HERO.hubHeight, rotorDiameter: HERO.rotorDiameter, accent: PLANT_TYPE.wind, interior: room.group });
   const group = turbine.group;
   world.island.place(group, HERO.x, HERO.z);
   turbine.setYaw(yawInto(WIND.fromDeg));
   const nacelle = turbine.part('nacelle');
   const rotor = turbine.part('rotor');
-  const k = HERO.rotorDiameter / 2 / 55;
-  // swap the kit's simple nacelle (merged meshes + lift-off cover) for the chapter's machine room
+  // The room brings its own longer hull with two cover petals (three drive trains, converter and transformer
+  // need 12.8 units of length; the kit hull is 11 with a lift-off cover), and `interior` replaces the drive
+  // train only — so the kit's hull plates and cover are switched off (request: an option without the hull).
   for (const c of nacelle.children) if ((c as Mesh).isMesh) c.visible = false;
   turbine.part('cover').visible = false;
-  const room = buildNacelle(k, 0.014 * HERO.hubHeight * 1.5);
-  nacelle.add(room.group);
   // pitch drives at the three blade roots (they turn with the hub)
   const pb = new Builder('pitch-drives');
   for (let i = 0; i < 3; i++) {
@@ -64,10 +65,6 @@ export function buildHero(world: World): Hero {
   const base = group.position.clone();
   const hub = new Vector3();
   const tower: Object3D[] = group.children.filter((c) => (c as Mesh).isMesh);
-  // KIT_API lists anchors `bladeN.tip`, but the kit registers all three as `tip`: place our own marker
-  const bladeTip = new Object3D();
-  bladeTip.position.set(0, HERO.rotorDiameter / 2, 0);
-  turbine.part('blade0').add(bladeTip);
   const refresh = (): void => {
     group.updateMatrixWorld(true);
     turbine.anchorWorld('hub', hub);
@@ -81,7 +78,6 @@ export function buildHero(world: World): Hero {
     hub,
     base,
     room,
-    bladeTip,
     k,
     radius: HERO.rotorDiameter / 2,
     setRpm: (rpm) => void (turbine.rotorSpeed = (rpm * Math.PI) / 30),

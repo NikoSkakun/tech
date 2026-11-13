@@ -5,10 +5,8 @@
  */
 import { Group, Vector3 } from 'three';
 import type { ChapterContext } from '@/engine/api';
-import { Builder, G, type KitModel } from '@/kit';
+import { Builder, G, addFloater, addJackUp, addJacket, addScour, addTopside, windFleet, type KitModel, type WindFleet } from '@/kit';
 import { SEA } from '../layout';
-import { Fleet } from './fleet';
-import { addFloater, addJackUp, addJacket, addScour, addTopside } from './offshore-models';
 import { buildSea, seaDepth, type SeaBlock } from './sea';
 
 const MONO_X = [-96, -66, -38];
@@ -21,9 +19,12 @@ const FLOAT_TOP = 4.2;
 
 export interface Offshore {
   sea: SeaBlock;
-  monopiles: Fleet;
-  jackets: Fleet;
-  floaters: { group: Group; fleet: Fleet; phase: number }[];
+  monopiles: WindFleet;
+  jackets: WindFleet;
+  /** The two floating turbines (one group that heaves with the swell). */
+  floaters: { group: Group; fleet: WindFleet };
+  /** Nacelle tops of all 20 turbines, sea frame (aviation lights). */
+  tops: Vector3[];
   /** Topsides on the platform jacket: cross-faded by the «distance to shore» control. */
   ac: Group;
   dc: Group;
@@ -42,14 +43,25 @@ export function buildOffshore(ctx: ChapterContext): Offshore {
   const sea = buildSea();
   const rand = ctx.random.fork('offshore');
   const bed = (x: number): number => -seaDepth(x);
-  const common = { hubHeight: SEA.hubHeight + 11, rotorDiameter: SEA.rotorDiameter, chunk: 2.4, accent: 'amber' as const, castShadow: true, scale: 0.5 };
+  // Toy-sized 15 MW machines: the kit turbine is built at twice the size and placed at half scale, so its
+  // fixed-size details (transition piece, ladders, work platform) shrink with it.
+  const S = 0.5;
+  const HUB = SEA.hubHeight + 11;
+  const yaw = -Math.PI / 2; // facing the 270° wind
+  const common = { rotorDiameter: SEA.rotorDiameter / S, chunk: 2.4, accent: 'amber' as const };
+  const DECK = 0.45; // the kit's base collar doubles as the deck on top of a jacket / floater column
+  const onDeck = (deck: number) => ({ ...common, hubHeight: (HUB - deck) / S, foundation: 'onshore' as const });
 
-  // monopiles: the kit's monopile + transition piece come with the fleet template
-  const monopiles = new Fleet({ ...common, count: MONO_X.length * ROW_Z.length, foundation: 'monopile', depth: SEA.depthShallow });
-  let i = 0;
-  for (const x of MONO_X) for (const z of ROW_Z) monopiles.place(i++, x, 0, z, -Math.PI / 2);
-  const jackets = new Fleet({ ...common, hubHeight: SEA.hubHeight + 11, count: JACKETS.length, foundation: 'none', towerBase: JACKET_TOP + 0.5 });
-  JACKETS.forEach(([x, z], k) => jackets.place(k, x, 0, z, -Math.PI / 2));
+  // monopiles: the kit's monopile + transition piece come with the turbine
+  const monoSites = MONO_X.flatMap((x) => ROW_Z.map((z) => [x, z] as const));
+  const monopiles = windFleet(
+    monoSites.map(([x, z]) => ({ at: [x, 0, z] as [number, number, number], s: S, yaw })),
+    { ...common, hubHeight: HUB / S, foundation: 'offshore', depth: SEA.depthShallow / S },
+  );
+  const jackets = windFleet(
+    JACKETS.map(([x, z]) => ({ at: [x, JACKET_TOP + DECK, z] as [number, number, number], s: S, yaw })),
+    onDeck(JACKET_TOP + DECK),
+  );
   sea.group.add(monopiles.group, jackets.group);
 
   // everything static in one builder: jackets, platform jacket, scour rock, mooring lines, vessel
@@ -74,18 +86,20 @@ export function buildOffshore(ctx: ChapterContext): Offshore {
   const fixed = b.build();
   sea.group.add(fixed.group);
 
-  const floaters = FLOATERS.map(([x, z], k) => {
-    const group = new Group();
-    group.position.set(x, 0, z);
-    const fb = new Builder('floater');
-    addFloater(fb);
-    const fleet = new Fleet({ ...common, hubHeight: SEA.hubHeight + 11, count: 1, foundation: 'none', towerBase: FLOAT_TOP });
-    fleet.place(0, 0, 0, 0, -Math.PI / 2);
-    fleet.commit();
-    group.add(fb.build().group, fleet.group);
-    sea.group.add(group);
-    return { group, fleet, phase: k * 2.3 };
-  });
+  // the two floating turbines ride the same slow swell: one group (origin between them), one fleet of two
+  const FLOAT_AT = [90, 7] as const;
+  const afloat = new Group();
+  afloat.position.set(FLOAT_AT[0], 0, FLOAT_AT[1]);
+  const fb = new Builder('floaters');
+  for (const [x, z] of FLOATERS) fb.frame({ at: [x - FLOAT_AT[0], 0, z - FLOAT_AT[1]] }, () => addFloater(fb));
+  const floating = windFleet(
+    FLOATERS.map(([x, z]) => ({ at: [x - FLOAT_AT[0], FLOAT_TOP + DECK, z - FLOAT_AT[1]] as [number, number, number], s: S, yaw })),
+    onDeck(FLOAT_TOP + DECK),
+  );
+  afloat.add(fb.build().group, floating.group);
+  sea.group.add(afloat);
+  // forty turbine shadows on water nobody looks at for shadows: keep them out of the shadow pass
+  for (const f of [monopiles, jackets, floating]) for (const m of f.group.children) m.castShadow = false;
 
   const topside = (kind: 'ac' | 'hvdc'): { group: Group; model: ReturnType<Builder['build']> } => {
     const tb = new Builder(`topside-${kind}`);
@@ -113,7 +127,7 @@ export function buildOffshore(ctx: ChapterContext): Offshore {
     sea,
     monopiles,
     jackets,
-    floaters,
+    floaters: { group: afloat, fleet: floating },
     ac: ac.group,
     dc: dc.group,
     spots: {
@@ -129,24 +143,21 @@ export function buildOffshore(ctx: ChapterContext): Offshore {
       dcMinus: dc.model.anchorLocal('dcMinus').add(dc.group.position),
     },
     strings,
-    lit: [fixed, ac.model, dc.model, monopiles.model, jackets.model, ...floaters.map((f) => f.fleet.model)],
+    tops: [...monoSites, ...JACKETS, ...FLOATERS].map(([x, z]) => at(x, HUB + SEA.rotorDiameter * 0.05, z)),
+    lit: [fixed, ac.model, dc.model],
     speed: 0.8,
     update(dt, t) {
       for (const f of [monopiles, jackets]) {
-        for (let k = 0; k < f.count; k++) f.angle[k] = f.angle[k]! + state.speed * (0.92 + 0.16 * ((k * 7) % 5) * 0.25) * dt;
-        f.commit();
+        f.turbines.forEach((tb, k) => (tb.speed = state.speed * (0.92 + 0.04 * ((k * 7) % 5))));
+        f.update(dt);
       }
-      for (const f of floaters) {
-        // a floating turbine barely moves: slow heave and a degree of pitch / roll
-        f.group.position.y = Math.sin(t * 0.5 + f.phase) * 0.22;
-        f.group.rotation.x = Math.sin(t * 0.37 + f.phase) * 0.018;
-        f.group.rotation.z = Math.sin(t * 0.43 + f.phase * 1.7) * 0.022;
-        f.fleet.angle[0] = f.fleet.angle[0]! + state.speed * dt;
-        f.fleet.commit();
-      }
+      // a floating turbine barely moves: slow heave and a degree of pitch
+      afloat.position.y = Math.sin(t * 0.5) * 0.22;
+      afloat.rotation.z = Math.sin(t * 0.37) * 0.012;
+      afloat.rotation.x = Math.sin(t * 0.43 + 1.7) * 0.004;
+      for (const tb of floating.turbines) tb.speed = state.speed;
+      floating.update(dt);
     },
   };
-  monopiles.commit();
-  jackets.commit();
   return state;
 }

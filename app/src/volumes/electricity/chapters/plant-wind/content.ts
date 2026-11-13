@@ -1,129 +1,71 @@
 /**
  * All text of the chapter. Panel pages, terms, formulas, facts, hotspot cards, misconceptions, glossary and
- * quiz come from the generated runtime content (never retyped). `labels` holds what the generated file does
- * not carry: UI labels quoted «…» in the document's «Інтерактив» items (verbatim) and short scene labels
- * (tooltips, callouts, readout captions) in the house style «International term — український відповідник».
+ * quiz come from the generated runtime content (never retyped). Control captions the document quotes «…» in
+ * its «Інтерактив» items are read from `steps[].labels` (`DOC`, by position — `__tests__/labels.test.ts` pins
+ * every one of them to the document). `labels.ts` holds the short scene labels the document does not carry.
  */
 import { defineContent } from '@/content';
 import raw from '@electricity/content/generated/plant-wind.json';
+import { SCENE } from './labels';
 
-export const L = {
-  // step 1 — overview
-  dayNight: 'День / Ніч',
-  turbineTip: 'Вітрова турбіна · 6 MW',
-  chainWind: 'вітер',
-  chainRotor: 'ротор',
-  chainGrid: 'мережа',
-  // step 2 — wind-power
-  v: 'Швидкість вітру v',
-  d: 'Діаметр ротора D',
-  t: 'Температура T',
-  pWind: 'P_{wind}',
-  area: 'Площа ротора A',
-  rho: 'Густина повітря ρ',
-  double: '×2 швидкості',
-  airSecond: 'Повітря за 1 s',
-  // step 3 — betz
-  a: 'Осьова індукція a',
-  cp: 'C_{p}',
-  betzChip: 'Межа Беца 59,3 %',
-  aHint:
-    'Тут модель ідеального диска вже не працює: при a = 0,5 повітря за ротором мало б зупинитися, а при більших — текти назад',
-  presetFree: 'Не гальмує',
-  presetBlock: 'Стіна',
-  presetBetz: 'Оптимум',
-  vIn: 'v перед ротором',
-  vRotor: 'v у площині ротора',
-  vWake: 'v за ротором',
-  // step 4 — blade
-  alpha: 'Кут атаки α',
-  span: 'Позиція вздовж лопаті',
-  glide: 'Якість профілю C_{L}/C_{D}',
-  twist: 'Кут установлення θ',
-  windV: 'v — вітер',
-  windOmega: 'ω·r — зустрічний потік',
-  windRel: 'v_{rel} — уявний вітер',
-  lift: 'F_{L} — lift, підіймальна сила',
-  drag: 'F_{D} — drag, лобовий опір',
-  torque: 'Тягне лопать уперед',
-  stall: 'Stall — зрив потоку',
-  section: 'Airfoil — аеродинамічний профіль',
-  // step 5 — nacelle
-  energyPath: 'Шлях енергії',
-  cutaway: 'Розріз / Зовнішній вигляд',
-  total: 'разом ≈ 90–93 %',
-  technician: 'Технік — для масштабу',
-  // step 6 — drivetrain
-  rotorRpm: 'Оберти ротора',
-  genRpm: 'Оберти генератора',
-  rawHz: '«Сира» частота',
-  outHz: 'На виході',
-  nacelleMass: 'Маса гондоли (умовно)',
-  movingParts: 'Рухомих частин',
-  converterShare: 'Через перетворювач',
-  fieldB: 'Магнітне поле B',
-  scopeRaw: 'Генератор: частота «пливе»',
-  scopeGrid: 'Мережа: рівно 50 Hz',
-  // step 7 — power-curve
-  gust: 'Порив',
-  storm: 'Шторм',
-  stormControl: 'Пряме вимкнення / Storm control',
-  stormChip: 'Захист від шторму',
-  zone1: 'I · штиль',
-  zone2: 'II · ловимо максимум',
-  zone3: 'III · номінал, скидаємо зайве',
-  zone4: 'IV · шторм — стоп',
-  pitch: 'Pitch β',
-  power: 'Потужність P',
-  // step 8 — wind-farm
-  windDir: 'Напрямок вітру',
-  rowSpacing: 'Відстань між рядами',
-  steering: 'Wake steering',
-  farmEff: 'Ефективність ВЕС = ΣP / (N·P_одинокої)',
-  steeringHint: 'Керування слідом вмикають тільки для „поганих“ напрямків',
-  farmPower: 'Потужність ВЕС',
-  xray: 'Collector system — збірна мережа 33 kV',
-  // step 9 — capacity-factor
-  vMean: 'Середня швидкість v̄',
-  hubHeight: 'Висота маточини',
-  terrainSea: 'море α=0,10',
-  terrainSteppe: 'степ α=0,14',
-  terrainForest: 'ліс α=0,25',
-  cf: 'КВВП',
-  aep: 'AEP',
-  dayOfYear: 'День року',
-  histogram: 'Години за рік',
-  energyBars: 'Енергія за рік',
-  shearNote: 'На висоті 200 m вітер узято однаковим над будь-якою місцевістю',
-  // step 10 — offshore
-  depth: 'Глибина',
-  shoreDistance: 'Відстань до берега',
-  compare: 'Порівняти розміри',
-  eiffel: 'Ейфелева вежа · 330 m',
-  motherland: 'Батьківщина-Мати · 102 m',
-  a380: 'Airbus A380 · розмах 80 m',
-  person: 'Людина',
-  turbine15: 'Турбіна 15 MW · ≈ 260 m',
-  exportAc: 'Export cable — експортний кабель AC 220 kV',
-  exportDc: 'HVDC — постійний струм ±320 kV',
-  monopile: 'Monopile — монопаля',
-  jacket: 'Jacket — ґратчаста основа',
-  floating: 'Floating — плавуча платформа',
-  // step 11 — role
-  pros: 'Плюси',
-  cons: 'Мінуси/виклики',
-  gridMode: 'Grid-following (мережевідомий) / Grid-forming (мережоформувальний)',
-  simplifiedChip: 'спрощено',
-  trip: 'Вимкнути великий блок',
-  portalHub: 'Хаб: Електростанції',
-  portalSolar: 'Далі: Сонячна СЕС',
-  portalGrid: 'Енергосистема: як балансувати вітер',
-  frequency: 'Частота f',
+/** The n-th «…» label of a step's «Інтерактив», in document order. */
+function doc(stepId: string, n: number): string {
+  const text = raw.steps.find((s) => s.id === stepId)?.labels[n];
+  if (!text) throw new Error(`plant-wind: the document has no label ${n} in step "${stepId}"`);
+  return text;
+}
+
+/** «A / B» switch label of the document → its two halves. */
+function halves(text: string): [string, string] {
+  const [a = text, b = text] = text.split(' / ');
+  return [a, b];
+}
+
+/** First letter upper-cased (the document quotes some labels mid-sentence). */
+const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Captions taken verbatim from the document (see the test for the expected wording). */
+export const DOC = {
+  turbineTip: doc('overview', 0), // «Вітрова турбіна · 6 MW»
+  dayNight: doc('overview', 1), // «День / Ніч»
+  double: doc('wind-power', 1), // «×2 швидкості»
+  betzChip: doc('betz', 2), // «Межа Беца 59,3 %»
+  betzModel: doc('betz', 3), // «спрощена модель: ідеальний диск»
+  glide: cap(doc('blade', 1).replace(/`/g, '')), // «якість профілю C_L/C_D»
+  span: cap(doc('blade', 2)), // «позиція вздовж лопаті»
+  energyPath: doc('nacelle', 0), // «Шлях енергії»
+  total: doc('nacelle', 1), // «разом ≈ 90–93 %»
+  cutaway: doc('nacelle', 2), // «Розріз / Зовнішній вигляд»
+  movingParts: cap(doc('drivetrain', 1)), // «кількість рухомих частин»
+  converterShare: cap(doc('drivetrain', 2)), // «частка потужності через перетворювач»
+  gust: doc('power-curve', 0), // «Порив»
+  storm: doc('power-curve', 1), // «Шторм»
+  stormChip: doc('power-curve', 2), // «Захист від шторму»
+  stormModes: halves(doc('power-curve', 3)), // «Пряме вимкнення / Штормове регулювання»
+  farmEff: doc('wind-farm', 1), // «Ефективність ВЕС = ΣP / (N·P_одинокої)»
+  steering: doc('wind-farm', 2), // «Керування слідом»
+  steeringHint: cap(doc('wind-farm', 3)), // «керування слідом вмикають тільки для „поганих“ напрямків»
+  wakeModel: doc('wind-farm', 4), // «спрощена модель сліду»
+  cf: doc('capacity-factor', 0), // «КВВП, %»
+  aep: doc('capacity-factor', 1), // «Річний виробіток, GWh»
+  hubHeight: cap(doc('capacity-factor', 2)), // «висота маточини»
+  terrainSea: doc('capacity-factor', 3), // «море α=0,10»
+  terrainSteppe: doc('capacity-factor', 4), // «степ α=0,14»
+  terrainForest: doc('capacity-factor', 5), // «ліс α=0,25»
+  dayOfYear: cap(doc('capacity-factor', 8)), // «день року»
+  depth: doc('offshore', 0), // «Глибина»
+  shoreDistance: doc('offshore', 1), // «Відстань до берега»
+  compare: doc('offshore', 3), // «Порівняти розміри»
+  gridModes: halves(doc('role', 1)), // «Мережевідомий / Мережоформувальний»
+  simplifiedChip: doc('role', 2), // «спрощено»
 } as const;
 
-export default defineContent(raw, { labels: L });
+/** Everything the step modules print: document captions + the chapter's own scene labels. */
+export const L = { ...DOC, ...SCENE } as const;
 
-/** Display names of a step's hotspots in document order — `stepUi` looks the card text up by this name. */
-export function hotspotNames(stepId: string): string[] {
-  return raw.steps.find((s) => s.id === stepId)?.hotspots.map((h) => h.name) ?? [];
+export default defineContent(raw, { labels: Object.fromEntries(Object.entries(L).filter(([, v]) => typeof v === 'string')) as Record<string, string> });
+
+/** Addresses of the document's cross-reference whose `where` mentions `mark` (full `volume/chapter/step`). */
+export function crossTargets(mark: string): readonly string[] {
+  return raw.crossReferences.find((x) => x.where.includes(mark))?.targets ?? [];
 }

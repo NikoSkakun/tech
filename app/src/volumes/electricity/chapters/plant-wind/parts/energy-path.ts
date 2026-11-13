@@ -1,6 +1,7 @@
 /**
- * Step 5 «Шлях енергії»: energy motes run the drive train from the hub to the cable in the tower, and above
- * every unit its efficiency pops up; the last badge is the product («разом ≈ 90–93 %»).
+ * Step 5 «Шлях енергії»: energy motes run the drive train from the hub to the cable in the tower while the
+ * units are revealed one after another (`revealed` counts them — the step shows an efficiency callout per
+ * revealed unit and, after the last one, the product «разом ≈ 90–93 %»).
  * Efficiencies are the simulation's `DRIVETRAIN_EFFICIENCY` (η_dt = 0.93 of the power-curve model M4).
  */
 import { Group, Vector3 } from 'three';
@@ -8,19 +9,28 @@ import type { ChapterContext, TweenScope } from '@/engine/api';
 import { fmtPercent } from '@/content';
 import { createFlow, type Flow } from '@/fx';
 import { DRIVETRAIN_EFFICIENCY } from '@electricity/sim/plant-wind';
-import type { Text3D } from '@/text';
-import { createBadge } from './badge';
-import type { Nacelle } from './nacelle';
+
+/** Units on the path, in the order the energy passes them: anchor name in the machine room and its label. */
+export const PATH_UNITS: readonly { anchor: string; label: string }[] = (
+  [
+    ['gearboxA', DRIVETRAIN_EFFICIENCY.gearbox],
+    ['generatorA', DRIVETRAIN_EFFICIENCY.generator],
+    ['converter', DRIVETRAIN_EFFICIENCY.converter],
+    ['transformer', DRIVETRAIN_EFFICIENCY.transformer],
+  ] as const
+).map(([anchor, eta]) => ({ anchor, label: `η ≈ ${fmtPercent(eta)}` }));
 
 export interface EnergyPath {
   group: Group;
   flow: Flow;
-  /** Play the walk-through: motes appear, badges pop up unit by unit. `instant` shows the final picture. */
-  play(scope: TweenScope, instant?: boolean): void;
+  /** How many units of `PATH_UNITS` have been reached (`PATH_UNITS.length + 1` = the total is shown too). */
+  readonly revealed: number;
+  /** Play the walk-through on `scope` (the step's scope: leaving the step cancels what is still pending). */
+  play(scope: TweenScope): void;
   reset(): void;
 }
 
-export function buildEnergyPath(ctx: ChapterContext, room: Nacelle, k: number, total: string): EnergyPath {
+export function buildEnergyPath(ctx: ChapterContext, k: number): EnergyPath {
   const group = new Group();
   group.name = 'energy-path';
   const p = (x: number, y: number, z: number): Vector3 => new Vector3(x * k, y * k, z * k);
@@ -29,41 +39,30 @@ export function buildEnergyPath(ctx: ChapterContext, room: Nacelle, k: number, t
   const flow = createFlow(ctx, { kind: 'pulse', paths: path, count: 30, radius: 0.16 * k, speed: 2.2 * k, spread: 0, endFade: 0.06 });
   flow.density = 0;
   group.add(flow);
-  const eta = DRIVETRAIN_EFFICIENCY;
-  const spots: [string, string][] = [
-    ['gearboxA', `η ≈ ${fmtPercent(eta.gearbox)}`],
-    ['generatorA', `η ≈ ${fmtPercent(eta.generator)}`],
-    ['converter', `η ≈ ${fmtPercent(eta.converter)}`],
-    ['transformer', `η ≈ ${fmtPercent(eta.transformer)}`],
-  ];
-  const badges: Text3D[] = spots.map(([anchor, text]) => {
-    const badge = createBadge(text, 'yellow');
-    badge.position.y = 0.55;
-    room.at(anchor).add(badge);
-    return badge;
-  });
-  const sum = createBadge(total, 'green', 24);
-  sum.position.copy(p(0, 4.4, -3.4));
-  group.add(sum);
-  badges.push(sum);
-  const hide = (): void => {
-    flow.density = 0;
-    for (const b of badges) b.fade = 0;
-  };
-  hide();
+  let revealed = 0;
+  let run = 0; // a newer play / reset turns the callbacks of an older walk-through into no-ops
   return {
     group,
     flow,
-    reset: hide,
-    play(scope, instant = false) {
-      hide();
-      if (instant) {
-        flow.density = 1;
-        for (const b of badges) b.fade = 1;
-        return;
-      }
-      scope.to(flow, { density: 1 }, { duration: 0.8 });
-      badges.forEach((b, i) => scope.to(b, { fade: 1 }, { duration: 0.35, delay: 1.0 + i * 0.9, ease: 'back.out' }));
+    get revealed() {
+      return revealed;
+    },
+    reset() {
+      run++;
+      flow.density = 0;
+      revealed = 0;
+    },
+    play(scope) {
+      const mine = ++run;
+      flow.density = 0;
+      revealed = 0;
+      scope.value(0, 1, { duration: 0.8 }, (x) => {
+        if (mine === run) flow.density = x;
+      });
+      for (let i = 0; i <= PATH_UNITS.length; i++)
+        scope.delay(1.0 + i * 0.9, () => {
+          if (mine === run) revealed = i + 1;
+        });
     },
   };
 }
