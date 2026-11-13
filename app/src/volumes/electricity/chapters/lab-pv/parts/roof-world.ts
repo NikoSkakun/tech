@@ -38,7 +38,8 @@ export function createRoofWorld(ctx: ChapterContext): RoofWorld {
 
   const isl = island({ radius: 15, seed: 11, relief: 0.25, biome: 'meadow', underside: 'slab', depth: 1.6 });
   metres.add(shadows(isl.group, false));
-  const house = cutawayHouse({ lab: false });
+  // a dark slate roof (not the kit's coral): the blue modules read against it and the roof steps keep to four hue families
+  const house = cutawayHouse({ lab: false, roofColor: 'slate' });
   house.setOpen(false, false);
   isl.place(shadows(house.group), 0, -1);
   // trees only behind and beside the house: the south side stays open (no shade on the roof, a clear view)

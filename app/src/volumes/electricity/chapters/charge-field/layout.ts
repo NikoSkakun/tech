@@ -27,7 +27,17 @@ export const CHARGE_R = 0.3;
 export const CUBES = { x: 2.5, y: 1.75, size: 1.9, rulerZ: 3.6, rulerY: 0.5 } as const;
 
 /** Step 2: balls hover on the X axis; the log tower of the gravity comparison stands behind them. */
-export const COULOMB = { y: 1.15, arrowL0: 0.85, tower: new Vector3(-3.6, 0, -1.2), floor: 0.2 } as const;
+export const COULOMB = {
+  /** Hover height of the ball centres: room under the biggest ball for the lower force arrow. */
+  y: 1.5,
+  /** Radius of a 20 nC ball (drawn sizes are symbolic — chip). */
+  ball: 0.55,
+  arrowL0: 0.85,
+  /** Attraction: the two arrows run one above, one below the pair — this far from the ball surface. */
+  arrowGap: 0.3,
+  tower: new Vector3(-3.6, 0, -1.2),
+  floor: 0.2,
+} as const;
 
 /** Steps 3–4: the tray with spare charges, clamped to the left of the rim and turned along it. */
 export const TRAY = { x: -6.75, z: 1.9, turn: 1.85, pitch: 0.82 } as const;
@@ -51,9 +61,17 @@ export const STATIC = {
 /** Step 7: plates one above the other at the table centre. */
 export const CAPACITOR = {
   y: 1.2,
-  unitsPerMetre: 30,
-  pump: new Vector3(-4.3, 0, 1.6),
-  lamp: new Vector3(4.2, 0, 1.8),
+  unitsPerMetre: 36,
+  /**
+   * The props stand beside the plates and move out with them: distances (scene units) from the plate edge at
+   * ±x, counted from a half side of at least `propsFrom`; z on the table.
+   */
+  propsFrom: 1.8,
+  /** Plate side (scene units) from which the wide shot takes over. */
+  wideFrom: 4.7,
+  pump: { x: 1.45, z: -0.7 },
+  supercap: { x: 1.2, z: 1.3 },
+  lamp: { x: 1.15, z: -0.4 },
 } as const;
 
 /** Step 8: bench with the supercapacitor, the switch and the lamp; the look inside the wire floats above it. */

@@ -109,6 +109,9 @@ const steps = {
     check((await read('sun1')).nm === 350, 'the pipette should take the 350 nm band');
     await click3d('bar1-7');
     check((await read('sun1')).nm === 1050, 'the pipette should take the 1050 nm band');
+    check((await read('sun1')).focus === 'spectrum', 'a pick should bring the spectrum to the front');
+    await slide('sun1', 0.6, 30);
+    check((await read('sun1')).focus === 'air', 'moving the Sun should bring the air column back');
   },
   'pv-effect': async () => {
     check(near((await read('pv2')).usefulFraction, 0.5, 0.01), '550 nm → half of the photon energy is useful');
@@ -137,6 +140,17 @@ const steps = {
     check((await read('cell3')).micro === true, 'the texture microscope should open');
   },
   module: async () => {
+    // «Збери модуль» by hand: 6 in a row → drag bricks into a second row until it is 3 × 2
+    await drag3d('brick4-5', 0, height * 0.12, 40);
+    let c = (await read('module4')).circuit;
+    check(c.series === 5 && c.parallel === 1 && c.loose === 1, `a brick dragged off the chain → 5 in series + 1 loose (got ${JSON.stringify(c)})`);
+    check(near((await read('module4')).bricks.voltageV, 3.5, 1e-6), 'five bricks in series → 3,5 V');
+    await drag3d('brick4-4', 0, 0, 40, 'brick4-5');
+    await drag3d('brick4-3', 0, 0, 40, 'brick4-5');
+    c = (await read('module4')).circuit;
+    const b = (await read('module4')).bricks;
+    check(c.series === 3 && c.parallel === 2 && near(b.voltageV, 2.1, 1e-6) && near(b.currentA, 14, 1e-6), `dragged to 3 × 2 → 2,1 V, 14 A (got ${JSON.stringify(c)}, ${b.voltageV} V)`);
+    check((await value('bricks4')) === 's3p2', 'a hand-made 3 × 2 lights its preset button');
     await pick('bricks4', 'p6');
     const p = (await read('module4')).bricks;
     check(near(p.voltageV, 0.7, 1e-6) && near(p.currentA, 42, 1e-6), `6 in parallel → 0,7 V, 42 A (got ${p.voltageV}, ${p.currentA})`);

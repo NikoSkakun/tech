@@ -17,14 +17,16 @@ import { group } from '../world';
 
 const ID = 'sunlight';
 const SOLAR_CONSTANT = 1361; // W/m² (document, step 1)
+const SPECTRUM_SHOT = 'sunlight-spectrum';
 
 export const sunlight: StepFactory = (lab) => {
   const { ctx, ui } = lab;
   const sky = createSkyColumn(ctx);
-  sky.group.position.set(0.5, 0, -0.9);
+  sky.group.position.set(1.0, 0, -1.0);
+  // the spectrum is the frame's second subject: on the floor in front of the air column, below it on screen
   const spectrum = createSpectrum();
-  spectrum.group.position.set(0.1, 0, 3.0);
-  spectrum.group.scale.setScalar(0.8);
+  spectrum.group.position.set(-0.6, 0, 3.0);
+  spectrum.group.scale.setScalar(0.75);
   // the pipette's photon: one packet that rises from the chosen bar and hovers
   const pick = createPhotons({ count: 1, wavelength: 550, length: 0.9, amplitude: 0.13, width: 0.055, intensity: 1.7 });
   spectrum.group.add(pick);
@@ -34,8 +36,19 @@ export const sunlight: StepFactory = (lab) => {
   let selected = 2;
   let pickedAt = -10;
   let now = 0;
+  // one subject at a time: the air column (default, and whenever the Sun moves) or the spectrum (after a pick)
+  let focus: 'air' | 'spectrum' = 'air';
+  let lastSun = NaN;
+  const setFocus = (next: typeof focus): void => {
+    if (next === focus) return;
+    focus = next;
+    void ctx.camera.go(next === 'air' ? ID : SPECTRUM_SHOT, { duration: 1.4 });
+  };
+  const onAir = (): boolean => focus === 'air';
+  const onSpectrum = (): boolean => focus === 'spectrum';
   const air = () => atmosphere(ui.value<number>('sun1'));
   const pickAnchor = new Vector3();
+  const groundTag = new Vector3();
   AM15_BANDS.forEach((b, i) => {
     ctx.input.register(spectrum.bars[i]!, {
       tooltip: fill(L.pipetteTip, { a: b.from, b: b.to }),
@@ -45,22 +58,26 @@ export const sunlight: StepFactory = (lab) => {
         selected = i;
         pickedAt = now;
         pick.setWavelength(b.nm);
+        setFocus('spectrum');
       },
     });
     ctx.qa.probe(`bar1-${i}`, spectrum.bars[i]!);
   });
-  ctx.qa.expose('sun1', () => ({ ...air(), selected, nm: AM15_BANDS[selected]!.nm }));
+  ctx.qa.expose('sun1', () => ({ ...air(), selected, nm: AM15_BANDS[selected]!.nm, focus }));
   ctx.qa.probe('sun1', sky.lamp.ball);
 
   return {
     id: ID,
     shots: {
-      [ID]: { position: [1.4, 4.6, 13.2], target: [0.4, 3.3, 0.4], frameAspect: 0.86, fov: 34, fit: { center: [0.4, 3.3, 0.4], radius: 4.6 }, orbit: { azimuth: 0.5, polar: 0.22 } },
+      [ID]: { position: [-0.4, 7.0, 12.6], target: [-0.5, 1.7, 0.9], frameAspect: 1.05, fov: 30, fit: { center: [-0.5, 1.7, 0.9], radius: 4.0 }, orbit: { azimuth: 0.5, polar: 0.22 } },
+      [SPECTRUM_SHOT]: { position: [-0.7, 3.4, 8.9], target: [-0.7, 0.9, 2.9], frameAspect: 1.3, fov: 30, fit: { center: [-0.7, 0.9, 2.9], radius: 2.2 }, orbit: { azimuth: 0.5, polar: 0.22 } },
     },
     stage: {
       show: [set],
       enter() {
         pickedAt = -10;
+        focus = 'air';
+        lastSun = NaN;
       },
     },
     ui: {
@@ -85,19 +102,23 @@ export const sunlight: StepFactory = (lab) => {
       },
       controls: [{ type: 'slider', id: 'sun1', label: doc(ID, 0), min: 5, max: 90, step: 0.1, digits: 1, value: 41.8, unit: '°', snaps: [41.8, 90] }],
       callouts: [
-        { anchor: sky.anchors.slab, text: L.atmosphere, side: 'left', color: 'sky' },
-        { anchor: spectrum.anchors.uv, text: L.zoneUv, side: 'up', color: 'violet' },
-        { anchor: spectrum.anchors.visible, text: L.zoneVisible, side: 'up' },
-        { anchor: spectrum.anchors.ir, text: L.zoneIr, side: 'up', color: 'orange' },
+        { anchor: sky.anchors.slab, text: L.atmosphere, side: 'up', color: 'sky', visible: onAir },
+        { anchor: sky.anchors.top, text: L.solarConstant, side: 'right', color: 'yellow', visible: onAir },
+        { anchor: sky.anchors.path, text: () => fill(L.airPath, { am: fmtNumber(Math.round(air().airMass * 100) / 100) }), side: 'right', color: 'sky', visible: onAir },
+        { anchor: () => sky.group.localToWorld(groundTag.set(0.75, 0.05, 0.75)), text: () => `${fmtNumber(Math.round(air().beamHorizontalWm2))} W/m²`, side: 'down', color: 'cyan' },
+        { anchor: spectrum.anchors.uv, text: L.zoneUv, side: 'down', color: 'violet', visible: onSpectrum },
+        { anchor: spectrum.anchors.visible, text: L.zoneVisible, side: 'up', visible: onSpectrum },
+        { anchor: spectrum.anchors.ir, text: L.zoneIr, side: 'down', color: 'orange', visible: onSpectrum },
         {
           anchor: () => spectrum.group.localToWorld(pickAnchor.set(...spectrum.top(selected)).setY(spectrum.top(selected)[1] + 1.1)),
           text: () => fill(L.photonChip, { nm: fmtNumber(AM15_BANDS[selected]!.nm), ev: fmtNumber(Math.round(photon(AM15_BANDS[selected]!.nm).energyEv * 100) / 100) }),
-          side: 'left',
+          side: 'up',
           color: 'yellow',
+          visible: onSpectrum,
         },
       ],
       hotspots: [
-        { anchor: () => sky.group.localToWorld(pickAnchor.set(2.3, 3.2, 1.2)), content: 'atmosphere' },
+        { anchor: () => sky.group.localToWorld(pickAnchor.set(-2.6, 1.3, 1.2)), content: 'atmosphere' },
         { anchor: () => sky.group.localToWorld(pickAnchor.set(0.75, 0.05, 0.75)), content: '1-m-frame' },
       ],
     },
@@ -105,10 +126,11 @@ export const sunlight: StepFactory = (lab) => {
       if (!lab.isCurrent(ID)) return;
       now = t;
       const a = air();
+      if (a.elevationDeg !== lastSun) {
+        if (!Number.isNaN(lastSun)) setFocus('air');
+        lastSun = a.elevationDeg;
+      }
       sky.set(a.elevationDeg, a.dniWm2 / SOLAR_CONSTANT, t);
-      sky.counter.text = `${fmtNumber(Math.round(a.beamHorizontalWm2))} W/m²`;
-      sky.topCounter.text = L.solarConstant;
-      sky.pathLabel.text = fill(L.airPath, { am: fmtNumber(Math.round(a.airMass * 100) / 100) });
       spectrum.update(selected, t);
       // the picked photon rises out of its bar (0.6 s) and then hovers above it
       const [x, y, z] = spectrum.top(selected);

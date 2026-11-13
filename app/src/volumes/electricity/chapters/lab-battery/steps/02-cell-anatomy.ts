@@ -6,25 +6,28 @@ import { type Object3D, Vector3 } from 'three';
 import { audio } from '@/audio';
 import { fmtSI } from '@/content';
 import { createExplodedView } from '@/fx';
-import { cell as kitCell } from '@/kit';
-import { notices } from '../hud-bits';
+import { cell as kitCell, prismaticCellDetailed } from '@/kit';
 import type { StepFactory } from '../lab';
 import { L } from '../labels';
-import { CYLINDER_FORMATS, FORMATS, createHeroCell, createJellyRoll, type FormatId } from '../parts';
-import { group, nowhere } from '../world';
+import { note } from '../notes';
+import { CYLINDER_FORMATS, heroCell } from '../parts/cells';
+import { FORMATS, type FormatId } from '../parts/formats';
+import { createJellyRoll } from '../parts/jelly-roll';
+import { frame } from '../shots';
+import { group } from '../world';
 
 const ID = 'cell-anatomy';
 const HERO_AT = new Vector3(-1.45, 0, -1.3);
 
 export const cellAnatomy: StepFactory = (lab) => {
   const { ctx, ui, mats } = lab;
-  const hero = createHeroCell();
+  const hero = heroCell();
   const heroScale = group('hero-scale', HERO_AT.x, 0, HERO_AT.z, [hero.group]);
   hero.group.rotation.y = 0.5; // turn the window toward the camera
   const jelly = createJellyRoll(mats, new Vector3(HERO_AT.x, 1.08, HERO_AT.z), new Vector3(-3.0, 0, 1.6));
-  // big prismatic and pouch cells that replace the cylinder when their tab is chosen (kit cells, not to scale)
-  const prismatic = kitCell('prismatic');
-  prismatic.group.scale.setScalar(9.5);
+  // big prismatic and pouch cells that replace the cylinder when their tab is chosen (kit cells, not to scale);
+  // the prismatic one is cut open onto its electrode stack
+  const prismatic = prismaticCellDetailed({ scale: 9.6, cut: true });
   const pouch = kitCell('pouch');
   pouch.group.scale.setScalar(13);
   const bigs = {
@@ -43,19 +46,9 @@ export const cellAnatomy: StepFactory = (lab) => {
     gallery.add(model.group);
     return model.group;
   };
-  const g18650 = small(createHeroCell('blue'), -1.0, 0.1, 0.5);
-  g18650.scale.set(
-    0.5 * CYLINDER_FORMATS['18650'][0],
-    0.5 * CYLINDER_FORMATS['18650'][1],
-    0.5 * CYLINDER_FORMATS['18650'][0],
-  );
-  const g4680 = small(createHeroCell('violet'), -0.05, -0.25, 0.5);
-  g4680.scale.set(
-    0.5 * CYLINDER_FORMATS['4680'][0],
-    0.5 * CYLINDER_FORMATS['4680'][1],
-    0.5 * CYLINDER_FORMATS['4680'][0],
-  );
-  small(kitCell('prismatic'), 1.05, -0.1, 5.2);
+  small(heroCell('blue', '18650', 0.5), -1.0, 0.1, 1);
+  small(heroCell('violet', '4680', 0.5), -0.05, -0.25, 1);
+  small(prismaticCellDetailed({ scale: 5.2 }), 1.05, -0.1, 1);
   small(kitCell('pouch'), 1.95, 0.6, 7);
   const set = group(`set:${ID}`, 0, 0, 0, [heroScale, jelly.group, bigs.prismatic, bigs.pouch, gallery]);
   lab.stageRoot.add(set);
@@ -70,7 +63,6 @@ export const cellAnatomy: StepFactory = (lab) => {
     })),
   );
   const view = { cap: 0, sx: 1, sy: 1, prismatic: 0, pouch: 0 };
-  const notes = notices('notes2', { later: { text: L.capLater, tone: 'info' } });
   const sync = (): void => {
     header.amount = view.cap;
     heroScale.scale.set(Math.max(view.sx, 1e-3), Math.max(view.sy, 1e-3), Math.max(view.sx, 1e-3));
@@ -91,12 +83,11 @@ export const cellAnatomy: StepFactory = (lab) => {
       pouch: f === 'pouch' ? 1 : 0,
     };
     if (instant) Object.assign(view, to);
-    else ctx.tweens.to(view, to, { duration: 0.55, ease: 'back.out', onUpdate: sync });
+    else ctx.stage.scope.to(view, to, { duration: 0.55, ease: 'back.out', onUpdate: sync });
     sync();
   };
   const setCap = (open: boolean, instant = false): void => {
-    notes.show('later', open);
-    ctx.tweens.to(
+    ctx.stage.scope.to(
       view,
       { cap: open ? 1 : 0 },
       { duration: instant ? 0 : 0.9, ease: 'power2.inOut', onUpdate: sync },
@@ -104,7 +95,7 @@ export const cellAnatomy: StepFactory = (lab) => {
   };
   // camera follows the state: header close-up, wide view of the carpet, or the tight product shot
   let shot = ID;
-  const frame = (instant = false): void => {
+  const reframe = (instant = false): void => {
     const want = capOpen ? `${ID}:cap` : ui.value<number>('unroll') > 15 ? `${ID}:carpet` : ID;
     if (want === shot && !instant) return;
     shot = want;
@@ -127,48 +118,37 @@ export const cellAnatomy: StepFactory = (lab) => {
 
   /* ------------------------------------------------------------------------- anchors by state */
   const v = new Vector3();
-  const hide = (): Vector3 => nowhere(ctx, v);
   const unrolled = (): boolean => jelly.amount > 0.62;
-  /** The object while the carpet is out; otherwise a point of the hero's window (or nowhere). */
-  const layerOr = (layer: Object3D, dy: number | null) => (): Vector3 => {
-    if (unrolled()) return layer.getWorldPosition(v);
-    if (dy === null || format() !== '21700' || view.cap > 0.5) return hide();
-    return hero
-      .anchor('window')
-      .getWorldPosition(v)
-      .setY(v.y + dy);
-  };
-  const capPart = (name: string) => (): Vector3 =>
-    view.cap > 0.5
-      ? hero
-          .part(name)
+  /** The hero stands closed with its window toward the camera (nothing unrolled, header in place). */
+  const closed = (): boolean => format() === '21700' && view.cap <= 0.5;
+  /** A sheet of the carpet while it is out; before that the point of the hero's window `dy` above its middle. */
+  const layerOr = (layer: Object3D, dy: number) => (): Vector3 =>
+    unrolled()
+      ? layer.getWorldPosition(v)
+      : hero
+          .anchor('window')
           .getWorldPosition(v)
-          .setX(v.x + 0.3)
-      : hide();
+          .setY(v.y + dy);
+  const inWindowOrCarpet = (): boolean => unrolled() || closed();
+  const capOut = (): boolean => view.cap > 0.5;
+  const capPart = (name: string) => (): Vector3 =>
+    hero
+      .part(name)
+      .getWorldPosition(v)
+      .setX(v.x + 0.3);
   const f = (): { ah: number; wh: number; kg: number } => FORMATS[format()];
   let shown = 0;
 
   return {
     id: ID,
     shots: {
-      [ID]: {
-        position: [2.3, 3.0, 6.3],
-        target: [0.15, 1.45, -1.3],
-        fov: 28,
-        orbit: { azimuth: 0.9, polar: 0.3 },
-      },
-      [`${ID}:carpet`]: {
-        position: [2.9, 4.9, 9.1],
-        target: [-0.3, 0.9, 0.0],
-        fov: 28,
-        orbit: { azimuth: 0.9, polar: 0.3 },
-      },
-      [`${ID}:cap`]: {
-        position: [1.1, 4.7, 2.9],
-        target: [-1.2, 3.1, -1.3],
-        fov: 28,
+      [ID]: frame([1.0, 1.8, -1.5], 6.9, 4.1, { azimuth: 0.3, elevation: 0.2 }),
+      [`${ID}:carpet`]: frame([-0.3, 1.35, -0.1], 8.4, 5.3, { azimuth: 0.3, elevation: 0.36 }),
+      [`${ID}:cap`]: frame([-1.25, 3.1, -1.3], 3.3, 2.5, {
+        azimuth: 0.55,
+        elevation: 0.36,
         focus: hero.part('ptc'),
-      },
+      }),
     },
     stage: {
       show: [gallery, heroScale, jelly.group, bigs.prismatic, bigs.pouch],
@@ -179,7 +159,7 @@ export const cellAnatomy: StepFactory = (lab) => {
         shot = ID; // the stage is already heading to the default shot
         if (info.instant) {
           jelly.amount = shown = ui.value<number>('unroll') / 100;
-          frame(true);
+          reframe(true);
         }
       },
     },
@@ -203,7 +183,7 @@ export const cellAnatomy: StepFactory = (lab) => {
         { type: 'readout', id: 'ah2', label: L.capacityAh, unit: 'Ah', digits: 1, get: () => f().ah },
         { type: 'readout', id: 'wh2', label: L.energyWh, format: (x) => fmtSI(x, 'Wh'), get: () => f().wh },
         { type: 'readout', id: 'kg2', label: L.mass, format: (x) => fmtSI(x * 1000, 'g'), get: () => f().kg },
-        notes.spec,
+        note('later2', L.capLater, 'info', () => capOpen),
         {
           type: 'button',
           id: 'capCut',
@@ -220,29 +200,24 @@ export const cellAnatomy: StepFactory = (lab) => {
         },
       ],
       callouts: [
-        { anchor: layerOr(jelly.layers[3]!, null), text: L.anodeSheet, color: 'orange', side: 'up' },
-        { anchor: layerOr(jelly.layers[1]!, null), text: L.cathodeSheet, color: 'violet', side: 'up' },
+        { anchor: jelly.layers[3]!, text: L.anodeSheet, color: 'orange', side: 'up', visible: unrolled },
+        { anchor: jelly.layers[1]!, text: L.cathodeSheet, color: 'violet', side: 'up', visible: unrolled },
         {
-          anchor: () =>
-            jelly.amount < 0.1 && view.cap < 0.5 && format() === '21700'
-              ? hero.anchor('window').getWorldPosition(v)
-              : hide(),
+          anchor: hero.anchor('window'),
           text: L.jellyRoll,
           side: 'right',
+          visible: () => jelly.amount < 0.1 && closed(),
         },
-        { anchor: capPart('gasket'), text: L.partGasket, side: 'right' },
-        { anchor: capPart('cid'), text: L.partCid, side: 'right' },
-        { anchor: capPart('ptc'), text: L.partPtc, color: 'amber', side: 'right' },
-        { anchor: capPart('vent'), text: L.partVent, side: 'right' },
-        { anchor: capPart('cap'), text: L.partCap, color: 'coral', side: 'right' },
+        { anchor: capPart('gasket'), text: L.partGasket, side: 'right', visible: capOut },
+        { anchor: capPart('cid'), text: L.partCid, side: 'right', visible: capOut },
+        { anchor: capPart('ptc'), text: L.partPtc, color: 'amber', side: 'right', visible: capOut },
+        { anchor: capPart('vent'), text: L.partVent, side: 'right', visible: capOut },
+        { anchor: capPart('cap'), text: L.partCap, color: 'coral', side: 'right', visible: capOut },
       ],
       hotspots: [
-        { anchor: layerOr(jelly.layers[2]!, 0.55), title: 'Separator — сепаратор' },
-        { anchor: layerOr(jelly.layers[3]!, 0), title: 'Copper foil — мідна фольга' },
-        {
-          anchor: () => (unrolled() ? jelly.mist.getWorldPosition(v) : layerOr(jelly.mist, -0.55)()),
-          title: 'Electrolyte — електроліт',
-        },
+        { anchor: layerOr(jelly.layers[2]!, 0.55), content: 'separator', visible: inWindowOrCarpet },
+        { anchor: layerOr(jelly.layers[3]!, 0), content: 'copper-foil', visible: inWindowOrCarpet },
+        { anchor: layerOr(jelly.mist, -0.55), content: 'electrolyte', visible: inWindowOrCarpet },
       ],
     },
     probe: () => ({ unrolled: jelly.amount, cap: view.cap, format: format(), sx: view.sx, wh: f().wh }),
@@ -252,8 +227,10 @@ export const cellAnatomy: StepFactory = (lab) => {
       shown += (target - shown) * Math.min(1, dt * 5);
       if (Math.abs(target - shown) < 1e-4) shown = target;
       jelly.amount = shown;
-      if (lab.isCurrent(ID)) frame();
+      if (lab.isCurrent(ID)) reframe();
       gallery.children.forEach((c, i) => (c.rotation.y = 0.4 + Math.sin(ctx.clock.time * 0.5 + i) * 0.08));
+      // the cut prismatic cell turns slowly so its electrode stack catches the light
+      prismatic.group.rotation.y = Math.sin(ctx.clock.time * 0.45) * 0.22;
     },
   };
 };

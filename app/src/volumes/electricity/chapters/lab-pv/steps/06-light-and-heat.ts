@@ -6,6 +6,7 @@
 import { Group } from 'three';
 import { fmtNumber } from '@/content';
 import { createHalo } from '@/fx';
+import { heatRamp } from '@/style';
 import { LIGHT_HEAT_PRESETS, analyseString, cellTemperatureC, uniformString } from '@electricity/sim/lab-pv';
 import type { StepFactory } from '../chapter';
 import { doc, docPair } from '../content';
@@ -13,6 +14,7 @@ import { L, fill } from '../labels';
 import { EASEL_TILT, createRig } from '../parts/rig';
 import { createWeather } from '../parts/weather';
 import type { BenchSample } from '../sim-bindings/bench-model';
+import { sound } from '../sound';
 import { curveChart } from '../ui-bits/curve-chart';
 
 const ID = 'light-and-heat';
@@ -23,11 +25,12 @@ export const lightAndHeat: StepFactory = (lab) => {
   const weather = createWeather();
   weather.group.position.set(-1.55, 0, 2.3);
   weather.group.scale.setScalar(0.92);
-  weather.shimmer.position.copy(rig.centre).addScaledVector(rig.normal, 0.3);
-  weather.shimmer.position.y += 1.9 * Math.sin(EASEL_TILT) + 0.5;
+  // hot air rises off the whole face of the module (from its lower edge up past the top), not just the rim
+  weather.shimmer.position.copy(rig.centre).addScaledVector(rig.normal, 0.35);
+  weather.shimmer.position.y -= 0.9 * Math.sin(EASEL_TILT);
   // thermal aura of the hot module (STYLE_GUIDE: heat = orange → red)
-  const aura = createHalo({ color: 'orange', size: 5.2, intensity: 0, amount: 0.2 });
-  aura.position.copy(rig.centre).addScaledVector(rig.normal, 0.2);
+  const aura = createHalo({ color: 'orange', size: 5.6, intensity: 0, amount: 0.2 });
+  aura.position.copy(rig.centre).addScaledVector(rig.normal, -0.3); // behind the laminate: a warm rim, not a hot spot on the glass
   const set = weather.group;
   lab.stageRoot.add(set, weather.shimmer, aura);
   // the air gap behind the module (hotspot): a point under the lower half of the laminate, in the mount's frame
@@ -111,8 +114,10 @@ export const lightAndHeat: StepFactory = (lab) => {
       sample = rig.model.sample({ g: g(), tc: temperature, shade: null, bypass: true, modules: 1, load: { kind: 'mpp' } });
       const heat = temperature >= 25 ? (temperature - 25) / 60 : (temperature - 25) / 50;
       rig.show(sample, t, { heat });
+      sound.power = sample.op.pW / 440;
       weather.set(temperature, nmot() ? ui.value<number>('ta6') : temperature, t);
-      aura.intensity = Math.max(0, heat) * 0.55;
+      aura.intensity = Math.max(0, heat) * 0.75;
+      heatRamp(Math.min(1, Math.max(0, heat)), aura.color);
     },
   };
 };

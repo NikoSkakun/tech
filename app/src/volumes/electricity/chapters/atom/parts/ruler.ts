@@ -11,7 +11,7 @@ import { L } from '../labels';
 const TOP_EXP = -2;
 const BOTTOM_EXP = -18;
 const HEIGHT = 400;
-const TRACK_X = -30;
+const TRACK_X = -26;
 
 class RulerNode extends UiNode {
   /** Current scale as log₁₀(metres); may be fractional while flying. */
@@ -20,7 +20,7 @@ class RulerNode extends UiNode {
   private shown = '';
 
   constructor() {
-    super({ name: 'scale-ruler', width: 96, height: HEIGHT + 86, dir: 'stack' });
+    super({ name: 'scale-ruler', width: 84, height: HEIGHT + 86, dir: 'stack' });
     this.add(
       new Label(
         L.ruler.title,
@@ -68,7 +68,7 @@ class RulerNode extends UiNode {
     const y = (e: number): number => this.bh / 2 - this.offset(e);
     const accent = rgba('cyan');
     // dark backing so the scale stays readable over bright scenes (grain mosaic, lattice)
-    p.panel(0, 0, this.bw + 20, this.bh + 24, { fill: rgba('bg.void', 0.5), r: 20 });
+    p.panel(0, 0, this.bw + 12, this.bh + 20, { fill: rgba('bg.void', 0.42), r: 18 });
     p.line(TRACK_X, y(TOP_EXP), TRACK_X, y(BOTTOM_EXP), 2, { fill: rgba('slate', 0.7) });
     for (let e = TOP_EXP; e >= BOTTOM_EXP; e--) {
       const major = (TOP_EXP - e) % 4 === 0;
@@ -102,7 +102,7 @@ export function createScaleRuler(ctx: ChapterContext): ScaleRuler {
     const m = ctx.hud.metrics;
     node.visible = m.layout === 'wide';
     // right of the HUD's chapter spine, vertically centred in the free column under the chapter header
-    node.float = { ax: 0, ay: 0.5, px: 0, py: 0.5, dx: m.safeMargin + 78, dy: 24 };
+    node.float = { ax: 0, ay: 0.5, px: 0, py: 0.5, dx: m.safeMargin + 60, dy: 24 };
     holder.relayout();
   };
   holder.add(node);

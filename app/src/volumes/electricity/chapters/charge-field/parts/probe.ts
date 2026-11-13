@@ -78,8 +78,8 @@ export function createFieldProbe(): FieldProbe {
   const probe: FieldProbe = {
     group,
     handle,
-    x: 0.05,
-    z: 0.03,
+    x: 0,
+    z: 0.055,
     strength: 0,
     pins: 0,
     refresh(charges) {

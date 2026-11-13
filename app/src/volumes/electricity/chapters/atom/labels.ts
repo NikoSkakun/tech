@@ -1,27 +1,58 @@
 /**
  * Scene and control captions that the generated export does not carry (UI_API §2): control labels quoted «…»
  * in the document's «Інтерактив» items (verbatim), chip texts named in «Бачимо», and callouts
- * (international term first). Panel copy never lives here — see `content.ts`.
+ * (plain Ukrainian, DECISIONS §54 — no «English — українською» pairs). Panel copy never lives here — see
+ * `content.ts`.
+ *
+ * Captions the document quotes «…» in «Інтерактив» are exported per step (`steps[].labels`); they are read
+ * from there with `doc(step, wording)`, not retyped.
  */
+import raw from '@electricity/content/generated/atom.json';
+import type { StepId } from './chapter';
+
+/**
+ * A UI label of the document, from the export. The caller names it by its wording rather than by its index,
+ * so an edit of the document cannot silently shift another caption into the control: if the wording is gone
+ * the chapter fails to load (and `__tests__/manifest.test.ts` with it).
+ */
+function doc(step: StepId, wording: string): string {
+  const label = raw.steps.find((s) => s.id === step)?.labels?.find((l) => l === wording);
+  if (label === undefined) throw new Error(`atom: step '${step}' has no label «${wording}» in the document`);
+  return label;
+}
+/** The items of a label written «A | B | C» in the document (segmented controls). */
+const docItems = (step: StepId, wording: string): string[] => doc(step, wording).split(' | ');
+
+const [PROTON, NEUTRON] = docItems('quarks', 'Протон | Нейтрон');
+const [BOHR, QUANTUM] = docItems('models', 'Бор | Квантова');
+const [STRONG, ELECTROMAGNETIC, WEAK, GRAVITY] = docItems(
+  'standard-model',
+  'Сильна | Електромагнітна | Слабка | Гравітація',
+);
+
+/** A document phrase used as a caption of its own: first letter upper-cased. */
+const sentence = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
 export const L = {
   ruler: { title: 'Масштаб' },
   diveIn: {
     wheel: 'Колесо масштабу',
     hint: 'Покрутіть колесо масштабу — пірнайте в дріт',
-    wire: 'Copper wire — мідний дріт 1,5 mm²',
+    wire: 'Мідний дріт 1,5 mm²',
     face: 'Торець жили: ⌀ 1,38 mm',
-    grains: 'Grains — зерна: десятки μm',
-    lattice: 'Crystal lattice — ґратка: 0,256 nm між атомами',
-    atom: 'Atom — атом міді: ⌀ ≈ 0,26 nm',
+    grains: 'Зерна міді: десятки μm',
+    lattice: 'Кристалічна ґратка: 0,256 nm між атомами',
+    atom: 'Атом міді: ⌀ ≈ 0,26 nm',
     scale: 'Масштаб кадру',
   },
   anatomy: {
-    trueScale: 'Справжні пропорції',
-    pea: 'Горошина / стадіон',
-    ball: 'М’яч / місто',
-    enlarged: 'Nucleus — ядро ×1000',
-    marker: 'Nucleus — ядро: тут, у 27 000 разів менше за атом',
-    cloud: 'Electron cloud — електронна хмара',
+    trueScale: doc('anatomy', 'Справжні пропорції'),
+    pea: doc('anatomy', 'Горошина / стадіон'),
+    ball: doc('anatomy', 'М’яч / місто'),
+    enlarged: 'Ядро',
+    enlargedChip: 'ядро збільшено ×1000',
+    marker: 'Ядро тут: у 27 000 разів менше за атом',
+    cloud: 'Електронна хмара',
     massNucleus: 'Маса: ядро 99,97 %',
     massElectrons: 'електрони 0,025 %',
     peaCaption: 'Горошина 7 mm → атом ⌀ ≈ 190 m',
@@ -31,8 +62,8 @@ export const L = {
   nucleus: {
     hint: 'Витягни протон — потягніть підсвічений протон від ядра',
     drag: 'Витягни протон',
-    proton: 'Proton — протон p⁺',
-    neutron: 'Neutron — нейтрон n⁰',
+    proton: 'Протон p⁺',
+    neutron: 'Нейтрон n⁰',
     strong: 'Сильна F_s',
     coulomb: 'Кулонівська F_C',
     distance: 'Відстань r',
@@ -45,8 +76,8 @@ export const L = {
   },
   quarks: {
     hint: 'Спробуй вирвати кварк — потягніть будь-який кварк назовні',
-    proton: 'Протон',
-    neutron: 'Нейтрон',
+    proton: PROTON!,
+    neutron: NEUTRON!,
     sum: 'Сума зарядів',
     energy: 'Енергія струни E = σ·d',
     stretch: 'Розтяг d',
@@ -55,59 +86,62 @@ export const L = {
     massQuarks: 'кварки ≈ 1 %',
     massField: 'енергія поля ≈ 99 %',
     massBar: 'Маса протона',
-    colour: 'Color charge — кольоровий заряд: R / G / B',
-    glass: 'Proton — протон: uud',
-    glassN: 'Neutron — нейтрон: udd',
+    colour: 'Кольоровий заряд: R / G / B',
+    glass: 'Протон: uud',
+    glassN: 'Нейтрон: udd',
   },
   electron: {
     add1: '+1 e⁻',
     add100: '+100 e⁻',
     add1000: '+1000 e⁻',
-    reset: 'Скинути',
+    reset: doc('electron', 'Скинути'),
     count: 'Електронів на шальці',
-    balanced: '1836 електронів = 1 протон',
-    compare: 'Порівняти заряди',
+    balanced: doc('electron', '1836 електронів = 1 протон'),
+    compare: doc('electron', 'Порівняти заряди'),
     compareMass: 'Порівняти маси',
-    charges: '|q_p| = |q_e|',
+    charges: doc('electron', '|q_p| = |q_e|'),
     hint: 'Скільки електронів урівноважать один протон? Сипте їх на шальку',
-    spin: 'Spin — спін s = ½',
-    hero: 'Electron — електрон e⁻',
+    spin: 'Спін s = ½',
+    hero: 'Електрон e⁻',
     scales: 'Терези мас',
     scalesCharge: 'Заряд-ваги',
   },
   models: {
     model: 'Модель',
-    bohr: 'Бор',
-    quantum: 'Квантова',
+    bohr: BOHR!,
+    quantum: QUANTUM!,
     orbital: 'Орбіталь',
-    orientation: 'Орієнтація',
-    samples: 'Вимірювань',
+    orientP: 'Гантель уздовж осі',
+    along: { x: 'x', y: 'y', z: 'z' },
+    orientD: 'Орієнтація 3d-орбіталі',
+    clover: { z2: 'z²', xz: 'xz', xy: 'xy' },
+    samples: doc('models', 'Вимірювань'),
     level: 'Рівень n',
     energy: 'Енергія E_n',
     radius: 'Радіус орбіти r_n',
     hint: 'Перемкніть модель: орбіта Бора чи хмара ймовірності',
-    orbit: 'Orbit — орбіта n = ',
-    a0: 'a₀ = 52,9 pm',
-    nucleus: 'Proton — протон (ядро водню)',
+    orbit: 'Орбіта n = ',
+    nucleus: 'Протон (ядро водню)',
   },
   shells: {
-    group11: 'Група 11',
-    filling: 'Показати порядок заповнення',
+    group11: doc('shells', 'Група 11'),
+    filling: doc('shells', 'Показати порядок заповнення'),
     hint: 'Наведіть на плитку таблиці — атом перебудується',
     shellsLabel: 'Оболонки',
     valence: 'Валентних електронів',
-    outerS: 's-електрони зовнішньої оболонки',
+    outerS: doc('shells', 's-електрони зовнішньої оболонки'),
     config: 'Конфігурація',
-    valenceE: '4s¹ — valence electron — валентний електрон',
+    valenceE: '4s¹ — валентний електрон',
     exception: 'Виняток: 4s заповнюється раніше за 3d',
     back: 'До міді',
+    element: 'Елемент',
   },
   photons: {
     energy: 'Енергія фотона E',
-    fire: 'Вогонь!',
+    fire: doc('ions-photons', 'Вогонь!'),
     volley: 'Залп ×10',
-    clear: 'Очистити спектр',
-    passed: 'Не поглинуто: енергія не збігається з жодним переходом',
+    clear: doc('ions-photons', 'Очистити спектр'),
+    passed: sentence(doc('ions-photons', 'не поглинуто: енергія не збігається з жодним переходом')),
     ion: 'H⁺ (іон)',
     uv: 'UV',
     ir: 'IR',
@@ -115,21 +149,23 @@ export const L = {
     wavelength: 'Довжина хвилі λ',
     level: 'Рівень n',
     kinetic: 'E_k електрона',
-    gun: 'Photon emitter — фотонна гармата',
+    gun: 'Фотонна гармата',
     limit: '0 eV — межа іонізації',
     spectrum: 'Спектр 380–750 nm',
     slowed: 'сповільнено ≈ у мільярд разів',
   },
   builder: {
+    plus: doc('atom-builder', '+'),
+    minus: doc('atom-builder', '−'),
     protons: 'Протони p⁺',
     neutrons: 'Нейтрони n⁰',
     electrons: 'Електрони e⁻',
-    hydrogen: 'Водень',
-    helium4: 'Гелій-4',
-    carbon12: 'Карбон-12',
-    iron56: 'Залізо-56',
-    copper63: 'Мідь-63',
-    copperIon: 'Cu⁺',
+    hydrogen: doc('atom-builder', 'Водень'),
+    helium4: doc('atom-builder', 'Гелій-4'),
+    carbon12: doc('atom-builder', 'Карбон-12'),
+    iron56: doc('atom-builder', 'Залізо-56'),
+    copper63: doc('atom-builder', 'Мідь-63'),
+    copperIon: doc('atom-builder', 'Cu⁺'),
     noAtom: 'Лише нейтрони — це не атом',
     stable: 'стабільний',
     practicallyStable: 'стабільний (практично)',
@@ -142,9 +178,9 @@ export const L = {
     cation: 'катіон',
     anion: 'аніон',
     anionUnstable: 'такий аніон нестійкий: зайвий електрон одразу відлітає',
-    firstIsotope: 'Перший ізотоп',
-    firstIon: 'Перший іон',
-    copperDone: 'Мідь зібрано!',
+    firstIsotope: doc('atom-builder', 'Перший ізотоп'),
+    firstIon: doc('atom-builder', 'Перший іон'),
+    copperDone: doc('atom-builder', 'Мідь зібрано!'),
     hint: 'Додавайте частинки — спробуйте зібрати мідь',
     charge: 'Заряд',
     years: 'р.',
@@ -155,15 +191,18 @@ export const L = {
     basket: 'Натисніть кошик, щоб додати частинку',
     status: 'Ядро',
     isotope: 'Ізотоп',
-    presets: 'Пресети',
+    presets: 'Готові атоми',
+    composition: 'Склад',
+    nucleus: 'Ядро',
+    config: 'Конфігурація',
+    element: 'Атом',
   },
   sm: {
-    ordinary: 'Звичайна речовина',
-    strong: 'Сильна',
-    electromagnetic: 'Електромагнітна',
-    emShort: 'Ел.-магн.',
-    weak: 'Слабка',
-    gravity: 'Гравітація',
+    ordinary: doc('standard-model', 'Звичайна речовина'),
+    strong: STRONG!,
+    electromagnetic: ELECTROMAGNETIC!,
+    weak: WEAK!,
+    gravity: GRAVITY!,
     interaction: 'Взаємодія',
     next: 'Далі: Заряд і поле →',
     hint: 'Натисніть на жетон частинки — відкриється її картка',
@@ -171,10 +210,10 @@ export const L = {
     spin: 'Спін',
     mass: 'Маса',
     discovered: 'Відкрито',
-    where: 'Де трапляється',
-    quarks: 'Quarks — кварки',
-    leptons: 'Leptons — лептони',
-    bosons: 'Bosons — бозони',
+    where: sentence(doc('standard-model', 'де трапляється')),
+    quarks: 'Кварки',
+    leptons: 'Лептони',
+    bosons: 'Бозони',
     beta: 'β-розпад: n → p + e⁻ + ν̄_e',
     noCarrier: 'Гравітація не входить у Стандартну модель',
   },
@@ -183,6 +222,10 @@ export const L = {
 /** `diveIn.wheel` → text: the flat map handed to `defineContent` (the HUD exposes it as `content.labels`). */
 export const FLAT_LABELS: Record<string, string> = Object.fromEntries(
   Object.entries(L).flatMap(([group, items]) =>
-    Object.entries(items).map(([key, text]) => [`${group}.${key}`, text]),
+    Object.entries(items).flatMap(([key, text]) =>
+      typeof text === 'string'
+        ? [[`${group}.${key}`, text]]
+        : Object.entries(text).map(([sub, t]) => [`${group}.${key}.${sub}`, t]),
+    ),
   ),
 );

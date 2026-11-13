@@ -22,14 +22,23 @@ import { group } from '../world';
 import { sharedBench } from './shared-bench';
 
 const ID = 'mppt-controller';
-/** Height of the holograms' base line above the bench. */
-const HILL_Y = 1.8;
-/** Poses of the two holograms (set space): alone in the middle, or side by side in the morning scene. */
+/**
+ * The holograms stand above and behind the inverter's back wall, so the frame stacks them: the hill (what the
+ * controller finds) on top, the boost stage (the hand that turns the rheostat) underneath — never one over the
+ * other. Height of their base line above the bench, and their depth (set space).
+ */
+const HILL_Y = 2.0;
+const HILL_Z = -1.45;
+/**
+ * Poses of the two holograms (set space): alone, or — in the morning scene — one above the other (input A on
+ * top), which suits the tall free column between the board and the panel far better than side by side.
+ */
 const POSE = {
-  solo: { x: -1.2, s: 0.88 },
-  left: { x: -2.85, s: 0.58 },
-  right: { x: -0.1, s: 0.58 },
+  solo: { x: -1.3, y: HILL_Y, s: 0.88 },
+  left: { x: -1.3, y: HILL_Y + 2.35, s: 0.6 },
+  right: { x: -1.3, y: HILL_Y, s: 0.6 },
 } as const;
+const TWO = `${ID}-two`;
 
 export const mpptController: StepFactory = (lab) => {
   const { ui } = lab;
@@ -45,7 +54,7 @@ export const mpptController: StepFactory = (lab) => {
       accent: 'violet',
     });
     screen.position.set(0, MOUNTAIN.h / 2 + 0.05, -0.05);
-    return group(`hill-${i}`, POSE.solo.x, HILL_Y, -0.45, [screen, m.group]);
+    return group(`hill-${i}`, POSE.solo.x, HILL_Y, HILL_Z, [screen, m.group]);
   });
   const set = group(`set:${ID}`, 0, 0, 0, holders);
   lab.stageRoot.add(set);
@@ -80,24 +89,46 @@ export const mpptController: StepFactory = (lab) => {
     return () => hills[i]!.group.localToWorld(hills[i]!.point(v(), p(), out).setY(out.y + dy));
   };
 
+  /** Base heights of the two holograms (eased between the poses; the idle bob rides on top). */
+  const baseY = [HILL_Y, HILL_Y];
+  let framedTwo: boolean | null = null;
+  function frame(instant: boolean): void {
+    const two = mode() === 'two';
+    if (two === framedTwo) return;
+    framedTwo = two;
+    void lab.ctx.camera.go(two ? TWO : ID, { instant, duration: 1.5 });
+  }
+
   return {
     id: ID,
     shots: {
+      // one hill on top, the boost stage below it: a tall frame that fills the column between board and panel
       [ID]: {
-        position: [-0.4, 5.3, 11.4],
-        target: [-1.45, 2.3, 0.2],
+        position: [-0.7, 4.3, 9.6],
+        target: [-1.35, 2.55, -0.5],
         fov: 30,
-        frameAspect: 1.2,
+        frameAspect: 0.95,
         orbit: { azimuth: 0.45, polar: 0.25 },
-        fit: { center: [-1.5, 2, 0], radius: 3.6 },
+        fit: { center: [-1.35, 2.6, -0.6], radius: 2.8 },
+      },
+      // the morning scene: the two hills stacked need a little more height
+      [TWO]: {
+        position: [-0.7, 5.7, 12.0],
+        target: [-1.35, 3.8, -0.5],
+        fov: 30,
+        frameAspect: 0.95,
+        orbit: { azimuth: 0.45, polar: 0.25 },
+        fit: { center: [-1.35, 3.8, -0.6], radius: 3.6 },
       },
     },
     stage: {
       show: [bench.actor, set],
       params: { coverOpen: 1, coverAway: 1 },
-      enter: () => {
+      enter: (info) => {
         drawn = '';
         configure();
+        framedTwo = null;
+        frame(info.instant);
       },
       post: { bloomIntensity: 1.1 },
     },
@@ -193,7 +224,7 @@ export const mpptController: StepFactory = (lab) => {
       },
       callouts: [
         {
-          anchor: () => holders[0]!.localToWorld(tmp.set(-MOUNTAIN.w / 2 + 0.2, MOUNTAIN.h + 0.75, 0)),
+          anchor: () => holders[0]!.localToWorld(tmp.set(-0.6, MOUNTAIN.h + 0.75, 0)),
           text: () =>
             mode() === 'shared'
               ? OWN.sumCurve
@@ -204,7 +235,7 @@ export const mpptController: StepFactory = (lab) => {
           side: 'up',
         },
         {
-          anchor: () => holders[1]!.localToWorld(tmp.set(-MOUNTAIN.w / 2 + 0.2, MOUNTAIN.h + 0.75, 0)),
+          anchor: () => holders[1]!.localToWorld(tmp.set(-0.6, MOUNTAIN.h + 0.75, 0)),
           text: `${OWN.west} · ${OWN.inputB}`,
           color: 'amber',
           side: 'up',
@@ -237,6 +268,8 @@ export const mpptController: StepFactory = (lab) => {
       mpp: first().mppW,
       loss: session.mismatch.lossW,
       climbers: session.climbers.length,
+      /** Height of hill A over hill B (the morning scene stacks them). */
+      stack: holders[0]!.position.y - holders[1]!.position.y,
     }),
     update(dt, t) {
       if (!lab.isCurrent(ID)) return;
@@ -261,16 +294,19 @@ export const mpptController: StepFactory = (lab) => {
       });
       // one hologram in the middle, or two side by side
       const two = m === 'two';
+      frame(false);
       const want = [two ? POSE.left : POSE.solo, POSE.right];
       holders.forEach((h, i) => {
         h.position.x = damp(h.position.x, want[i]!.x, 6, dt);
         h.scale.setScalar(damp(h.scale.x, i === 1 && !two ? 0.001 : want[i]!.s, 7, dt));
         h.visible = h.scale.x > 0.02;
-        h.position.y = HILL_Y + Math.sin(t * 0.8 + i) * 0.03;
+        baseY[i] = damp(baseY[i]!, want[i]!.y, 6, dt);
+        h.position.y = baseY[i]! + Math.sin(t * 0.8 + i) * 0.03;
       });
       // the inverter underneath: the boost switch chops with the present duty, PV power sets the flow
       const k = Math.min(1, total() / 3000);
       bench.idle(t, 0.3 + 0.7 * k);
+      bench.showScopes(false);
       const ph = (t % 0.9) / 0.9;
       inv.boost.intensity = ph < first().duty ? 1.8 : 0.15;
       inv.wires.bat.material.power = 0.05;

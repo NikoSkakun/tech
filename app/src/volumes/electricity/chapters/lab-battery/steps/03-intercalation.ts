@@ -6,10 +6,12 @@
 import { Vector3 } from 'three';
 import { audio } from '@/audio';
 import { platingRisk, socRatePctPerS } from '@electricity/sim/lab-battery';
-import { notices } from '../hud-bits';
 import type { StepFactory } from '../lab';
 import { L } from '../labels';
-import { createRingGauge, createRockingChair } from '../parts';
+import { note } from '../notes';
+import { createRingGauge } from '../parts/rings';
+import { createRockingChair } from '../parts/rocking-chair';
+import { frame } from '../shots';
 import { group } from '../world';
 
 const ID = 'intercalation';
@@ -26,7 +28,6 @@ export const intercalation: StepFactory = (lab) => {
   const set = group(`set:${ID}`, 0, -0.3, 0, [chair.group, ring.surface]);
   lab.stageRoot.add(set);
 
-  const notes = notices('notes3', { plating: { text: L.platingSee7, tone: 'alarm' } });
   let soc = 0.3;
   const cold = (): boolean => ui.value<boolean>('cold3');
   const cRate = (): number => (cold() ? COLD.cRate : ui.value<number>('current3'));
@@ -36,7 +37,6 @@ export const intercalation: StepFactory = (lab) => {
   };
   ui.onChange('cold3', (on) => {
     if (on) ui.set('current3', COLD.cRate);
-    notes.show('plating', on === true);
     audio.play(on ? 'error' : 'toggle', { gain: 0.5 });
   });
   ctx.input.register(chair.ions, { tooltip: L.ionTip, cursor: 'help' });
@@ -45,19 +45,18 @@ export const intercalation: StepFactory = (lab) => {
   return {
     id: ID,
     noPodium: true,
-    env: { top: 'bg.void', mid: 'bg.deep', bottom: 'bg.void', floor: 0, bokeh: 0.9, motes: 0.8 },
     shots: {
-      [ID]: {
-        position: [5.2, 4.6, 13.2],
-        target: [0, 2.45, 0],
-        fov: 28,
+      [ID]: frame([0, 2.45, 0], 11.2, 7.3, {
+        azimuth: 0.38,
+        elevation: 0.15,
         orbit: { azimuth: 0.8, polar: 0.35 },
-      },
+      }),
     },
     stage: {
       show: [chair.group, ring.surface],
+      // the micro-world: the studio backdrop goes deep and the floor disappears
+      envTune: { top: 'bg.void', mid: 'bg.deep', bottom: 'bg.void', floor: 0, bokeh: 0.9, motes: 0.8 },
       post: { bloomIntensity: 1.15 },
-      enter: () => notes.show('plating', cold()),
     },
     ui: {
       hint: L.hint3,
@@ -93,7 +92,7 @@ export const intercalation: StepFactory = (lab) => {
           format: (n) => `${Math.round(n)} / ${chair.ionCount}`,
           get: () => chair.inAnode(),
         },
-        notes.spec,
+        note('plating3', L.platingSee7, 'alarm', cold),
       ],
       callouts: [
         {
@@ -112,7 +111,8 @@ export const intercalation: StepFactory = (lab) => {
           text: L.separator,
           side: 'down',
         },
-        { anchor: () => chair.crossing(v), text: L.liIon, color: 'lime', side: 'right' },
+        // the document's hover hint, always on screen (touch screens have no hover — DECISIONS §57 b)
+        { anchor: () => chair.crossing(v), text: L.ionTip, color: 'lime', side: 'right' },
         {
           anchor: () => chair.lamp.getWorldPosition(v).setX(v.x - 2.4),
           text: L.electrons,
@@ -134,11 +134,11 @@ export const intercalation: StepFactory = (lab) => {
       hotspots: [
         {
           anchor: () => chair.graphite.getWorldPosition(v).set(v.x - 2.9, v.y + 1.4, v.z + 1.15),
-          title: 'Graphite layers — шари графіту',
+          content: 'graphite-layers',
         },
         {
           anchor: () => chair.oxide.getWorldPosition(v).set(v.x + 2.9, v.y + 1.3, v.z + 1.15),
-          title: 'Cathode crystal — кристал катода',
+          content: 'cathode-crystal',
         },
       ],
     },

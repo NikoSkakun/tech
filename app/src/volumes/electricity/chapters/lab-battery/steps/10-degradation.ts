@@ -8,11 +8,11 @@ import { Vector3 } from 'three';
 import { audio } from '@/audio';
 import { fmtNumber } from '@/content';
 import type { Chemistry } from '@electricity/sim/lab-battery';
-import { Button, Chart, Tabs, row } from '@/ui3d';
-import { notices, statGrid } from '../hud-bits';
+import type { Chart } from '@/ui3d';
 import type { StepFactory } from '../lab';
 import { L } from '../labels';
-import { createAgingStation } from '../parts';
+import { note } from '../notes';
+import { LENS_SCALE, createAgingStation } from '../parts/time-machine';
 import {
   AGEING_CHART_MIN,
   AGEING_YEARS,
@@ -20,7 +20,8 @@ import {
   ageingCurve,
   yearsTo80,
   type AgeingScenario,
-} from '../sim';
+} from '../sim-bindings/ageing';
+import { frame } from '../shots';
 import { group, tag } from '../world';
 
 const ID = 'degradation';
@@ -40,79 +41,19 @@ export const degradation: StepFactory = (lab) => {
   const set = group(`set:${ID}`, 1.0, 0, 0, [left.group, right.group, calendar]);
   lab.stageRoot.add(set);
 
-  /* --------------------------------------------------------------------------------------- board */
-  const chart = new Chart({
-    height: 180,
-    x: { min: 0, max: AGEING_YEARS, label: L.axisYears },
-    y: { min: AGEING_CHART_MIN, max: 100, label: L.axisSoh },
-    series: [
-      { id: 'eol', label: L.eol, color: 'amber', width: 1.3 },
-      { id: 'ref', label: L.refScenario, color: 'teal' },
-      { id: 'yoursOut', color: 'violet.dark', width: 1.3 },
-      { id: 'yours', label: L.yourScenario, color: 'violet' },
-    ],
-    onScrub: (x) => {
-      year = Math.min(Math.max(x, 0), AGEING_YEARS);
-      hold = 6; // the sweep resumes a few seconds after the user lets go
-    },
-  });
-  chart.setData('eol', [0, AGEING_YEARS], [80, 80]);
-  const stats = statGrid(
-    [
-      { name: L.refScenario, color: 'teal' },
-      { name: L.yourScenario, color: 'violet' },
-    ],
-    [L.statSohNow, L.statT80],
-    150,
-  );
-  const chemTabs = new Tabs<Chemistry>({
-    items: [
-      { id: 'LFP', label: 'LFP' },
-      { id: 'NMC', label: 'NMC' },
-    ],
-    value: 'LFP',
-    onChange: (id) => chemPick.set(id),
-  });
-  const chemPick = ui.external('chem10', 'LFP', (id) => (chemTabs.value = id as Chemistry));
-  // the two «звички» of the document: T = 35, mean SOC 95 · T = 20, mean SOC 50, DoD 60
-  const habit = (to: Partial<Record<'temp10' | 'soc10' | 'dod10', number>>) => (): void => {
-    for (const [k, v] of Object.entries(to)) ui.set(k, v);
-    audio.play('click');
-  };
-  const habits = [
-    new Button({
-      label: L.habitHot,
-      icon: 'warning',
-      onClick: ui.action('habitHot10', habit({ temp10: 35, soc10: 95 })),
-    }),
-    new Button({
-      label: L.habitCare,
-      icon: 'check',
-      onClick: ui.action('habitCare10', habit({ temp10: 20, soc10: 50, dod10: 60 })),
-    }),
-  ];
-  const notes = notices(
-    'notes10',
-    { toy: { text: L.toyModel, tone: 'honesty' }, out: { text: L.outOfModel, tone: 'warning' } },
-    ['toy'],
-  );
-  lab.holo.add(ID, {
-    title: L.boardSoh,
-    width: 540,
-    children: [
-      chemTabs,
-      chart,
-      stats.node,
-      row({ gap: 10, wrap: true, width: 'fill', children: habits }),
-      notes.spec.node,
-    ],
-  });
-
   /* --------------------------------------------------------------------------------------- state */
   let year = 0;
   let hold = 0;
-  let drawn = '';
+  let scenario = '';
+  let painted = '';
+  let outOfModel = false;
+  let statRows: string[][] = [];
   let yearText = '';
+  // the two «звички» of the document: T = 35, mean SOC 95 · T = 20, mean SOC 50, DoD 60
+  const habit = (to: Partial<Record<'temp10' | 'soc10' | 'dod10', number>>) => (): void => {
+    for (const [k, value] of Object.entries(to)) ui.set(k, value);
+    audio.play('click');
+  };
   const chem = (): Chemistry => ui.value<Chemistry>('chem10');
   const yours = (): AgeingScenario => ({
     chem: chem(),
@@ -128,16 +69,32 @@ export const degradation: StepFactory = (lab) => {
     return y === null ? '> 60' : fmtNumber(y, { digits: 1 });
   };
   const v = new Vector3();
+  /** Chart side: both curves when the scenario changed (or the chart is new), the two markers every frame. */
+  const paint = (chart: Chart): void => {
+    const mine = yours();
+    const ref = reference();
+    if (painted !== scenario) {
+      painted = scenario;
+      const a = ageingCurve(ref);
+      const b = ageingCurve(mine);
+      chart.setData('eol', [0, AGEING_YEARS], [80, 80]);
+      chart.setData('ref', a.solid.xs, a.solid.ys);
+      chart.setData('yours', b.solid.xs, b.solid.ys);
+      chart.setData('yoursOut', b.beyond.xs, b.beyond.ys);
+    }
+    const y = Math.min(year, AGEING_YEARS);
+    const mineNow = ageingAt(mine, y).soh * 100;
+    chart.setMarker('ref', { x: y, y: ageingAt(ref, y).soh * 100, color: 'teal', guides: false });
+    chart.setMarker(
+      'yours',
+      mineNow >= AGEING_CHART_MIN ? { x: y, y: mineNow, color: 'violet', guides: false } : null,
+    );
+  };
 
   return {
     id: ID,
     shots: {
-      [ID]: {
-        position: [2.0, 4.6, 13.2],
-        target: [-1.6, 2.5, 0],
-        fov: 28,
-        orbit: { azimuth: 0.8, polar: 0.3 },
-      },
+      [ID]: frame([1.0, 2.2, 0.5], 6.0, 4.7, { azimuth: 0.12, elevation: 0.17 }),
     },
     stage: { show: [left.group, right.group, calendar], enter: () => ((year = 0), (hold = 0)) },
     ui: {
@@ -153,27 +110,72 @@ export const degradation: StepFactory = (lab) => {
           step: 1,
           unit: '°C',
           value: 25,
-          hint: L.tempHint,
         },
         { type: 'slider', id: 'cycles10', label: L.cyclesPerYear, min: 0, max: 730, step: 10, value: 300 },
         { type: 'slider', id: 'dod10', label: L.dod, min: 10, max: 100, step: 5, unit: '%', value: 80 },
         { type: 'slider', id: 'soc10', label: L.avgSoc, min: 20, max: 100, step: 5, unit: '%', value: 60 },
       ],
+      board: {
+        title: L.boardSoh,
+        size: 'md',
+        children: [
+          {
+            type: 'segmented',
+            id: 'chem10',
+            items: [
+              { id: 'LFP', label: 'LFP' },
+              { id: 'NMC', label: 'NMC' },
+            ],
+            value: 'LFP',
+          },
+          {
+            type: 'chart',
+            id: 'chart10',
+            chart: {
+              height: 180,
+              x: { min: 0, max: AGEING_YEARS, label: L.axisYears },
+              y: { min: AGEING_CHART_MIN, max: 100, label: L.axisSoh },
+              series: [
+                { id: 'eol', label: L.eol, color: 'amber', dash: true },
+                { id: 'ref', label: L.refScenario, color: 'teal' },
+                // below SOH 60 % the model is out of its range: the curve goes on dashed
+                { id: 'yoursOut', color: 'violet', dash: true, opacity: 0.7 },
+                { id: 'yours', label: L.yourScenario, color: 'violet' },
+              ],
+              onScrub: (x) => {
+                year = Math.min(Math.max(x, 0), AGEING_YEARS);
+                hold = 6; // the sweep resumes a few seconds after the user lets go
+              },
+            },
+            init: () => (painted = ''),
+            update: paint,
+          },
+          { type: 'table', id: 'stats10', head: ['', L.statSohNow, L.statT80], rows: () => statRows },
+          note('toy10', L.toyModel, 'honesty'),
+          note('out10', L.outOfModel, 'warning', () => outOfModel),
+          // the model has no plating term: say so where the temperature is chosen (the lenses show no needles)
+          note('plating10', L.noPlating, 'info'),
+          { type: 'button', id: 'habitHot10', label: L.habitHot, icon: 'warning', onClick: habit({ temp10: 35, soc10: 95 }) }, // prettier-ignore
+          { type: 'button', id: 'habitCare10', label: L.habitCare, icon: 'check', onClick: habit({ temp10: 20, soc10: 50, dod10: 60 }) }, // prettier-ignore
+        ],
+      },
       callouts: [
         {
-          anchor: () => left.lens.getWorldPosition(v).set(v.x - 0.3, v.y - 0.45, v.z),
+          anchor: () =>
+            left.lens.getWorldPosition(v).set(v.x - 0.3 * LENS_SCALE, v.y + 0.42 * LENS_SCALE, v.z),
           text: L.seiLens,
-          side: 'down',
+          // above the lens, between it and the ring caption: below it the board inset leaves no room at 720p
+          side: 'up',
         },
       ],
       hotspots: [
         {
-          anchor: () => left.lens.getWorldPosition(v).set(v.x - 0.3, v.y + 0.1, v.z + 0.1),
-          title: 'SEI growth — ріст SEI',
+          anchor: () => left.lens.getWorldPosition(v).set(v.x - 0.3 * LENS_SCALE, v.y + 0.1, v.z + 0.1),
+          content: 'sei-growth',
         },
         {
-          anchor: () => right.lens.getWorldPosition(v).set(v.x + 0.24, v.y + 0.1, v.z + 0.1),
-          title: 'Cracked particle — тріснута частинка',
+          anchor: () => right.lens.getWorldPosition(v).set(v.x + 0.24 * LENS_SCALE, v.y + 0.1, v.z + 0.1),
+          content: 'cracked-particle',
         },
       ],
     },
@@ -181,7 +183,7 @@ export const degradation: StepFactory = (lab) => {
       year,
       yours: ageingAt(yours(), 10).soh,
       reference: ageingAt(reference(), 10).soh,
-      out: notes.isShown('out'),
+      out: outOfModel,
     }),
     update(dt, t) {
       // years sweep by on their own; scrubbing the chart takes over for a moment
@@ -197,26 +199,16 @@ export const degradation: StepFactory = (lab) => {
       const mine = yours();
       const ref = reference();
       const key = JSON.stringify(mine);
-      if (key !== drawn) {
-        drawn = key;
-        const a = ageingCurve(ref);
-        const b = ageingCurve(mine);
-        chart.setData('ref', a.solid.xs, a.solid.ys);
-        chart.setData('yours', b.solid.xs, b.solid.ys);
-        chart.setData('yoursOut', b.beyond.xs, b.beyond.ys);
-        notes.show('out', b.outOfModel);
-        stats.set(0, 1, t80(ref));
-        stats.set(1, 1, t80(mine));
+      if (key !== scenario) {
+        scenario = key;
+        outOfModel = ageingCurve(mine).outOfModel;
       }
       const a = ageingAt(ref, y);
       const b = ageingAt(mine, y);
-      chart.setMarker('ref', { x: y, y: a.soh * 100, color: 'teal', guides: false });
-      chart.setMarker(
-        'yours',
-        b.soh * 100 >= AGEING_CHART_MIN ? { x: y, y: b.soh * 100, color: 'violet', guides: false } : null,
-      );
-      stats.set(0, 0, fmtNumber(a.soh * 100, { digits: 1 }));
-      stats.set(1, 0, fmtNumber(b.soh * 100, { digits: 1 }));
+      statRows = [
+        [L.refScenario, fmtNumber(a.soh * 100, { digits: 1 }), t80(ref)],
+        [L.yourScenario, fmtNumber(b.soh * 100, { digits: 1 }), t80(mine)],
+      ];
       // lens scale: a loss of 20 % of the capacity fills the picture (thick SEI / wide cracks)
       left.apply({ soh: a.soh, sei: a.calendar / 0.2, cracks: a.cycle / 0.2, heat: heat(ref.tempC) }, t);
       right.apply({ soh: b.soh, sei: b.calendar / 0.2, cracks: b.cycle / 0.2, heat: heat(mine.tempC) }, t);

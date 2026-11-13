@@ -8,10 +8,12 @@ import { createLightShaft } from '@/fx';
 import { K, MOTION } from '@/style';
 import { RadarChart } from '@/ui3d';
 import { CHEMS, CHEM_TABLE, RADAR, chemName, taskVerdict, type TaskId } from '../chem-data';
-import { factTable, notices } from '../hud-bits';
 import type { StepFactory } from '../lab';
 import { L } from '../labels';
-import { CHEM_COLOR, createCrystal, createHeroCell, type ChemId, type ExhibitId } from '../parts';
+import { note, type Tone } from '../notes';
+import { heroCell } from '../parts/cells';
+import { CHEM_COLOR, createCrystal, type ChemId, type ExhibitId } from '../parts/crystals';
+import { frame } from '../shots';
 import { group, mesh } from '../world';
 
 const ID = 'chemistries';
@@ -26,7 +28,10 @@ const SPOTS: Record<ExhibitId, readonly [number, number]> = {
   'Na-ion': [-1.3, 1.75],
   solid: [1.3, 1.75],
 };
-/** `tab` is the short caption on the segmented control; the verdict spells the task out. */
+/**
+ * The task cards of the document and the reason it gives for the right answers. `tab` is the caption on the
+ * selector — short, so the five fit one row and the step column keeps its natural height (UI_API §3.1).
+ */
 const TASKS: readonly { id: TaskId; tab: string; label: string; why: string }[] = [
   { id: 'phone', tab: L.taskPhone, label: L.taskPhone, why: L.whyPhone },
   { id: 'home', tab: L.tabHome, label: L.taskHome, why: L.whyHome },
@@ -34,6 +39,8 @@ const TASKS: readonly { id: TaskId; tab: string; label: string; why: string }[] 
   { id: 'drone', tab: L.taskDrone, label: L.taskDrone, why: L.whyDrone },
   { id: 'polar', tab: L.tabPolar, label: L.taskPolar, why: L.whyPolar },
 ];
+const VERDICT_TONE = { good: 'ok', ok: 'warning', bad: 'alarm' } as const satisfies Record<string, Tone>;
+const ZERO = [0, 0, 0, 0, 0] as const;
 
 export const chemistries: StepFactory = (lab) => {
   const { ctx, ui, mats } = lab;
@@ -69,8 +76,9 @@ export const chemistries: StepFactory = (lab) => {
         cursor: 'pointer',
         hover: (over) =>
           ctx.tweens.to(state, { hover: over ? 1 : 0 }, { duration: MOTION.hover.duration, onUpdate: sync }),
-        click: () => ui.drive('chem5', id),
+        click: () => ui.set('chem5', id, { notify: true }),
       });
+    ctx.qa.probe(`pedestal:${id}`, g);
     return { id, g, crystal, state, sync };
   });
   // the newcomers stand «у світлі прожектора майбутнього»
@@ -86,8 +94,7 @@ export const chemistries: StepFactory = (lab) => {
     exhibits.find((e) => e.id === id)!.g.add(shaft);
   }
   // hero cell in the middle: its sleeve takes the colour of the chosen chemistry
-  const hero = createHeroCell('white');
-  hero.group.scale.setScalar(0.62);
+  const hero = heroCell('white', '21700', 0.62);
   hero.group.rotation.y = 0.5;
   const sleeveMat = K.toon({ color: 'teal', gloss: 0.5 });
   const sleeve = mesh(
@@ -98,27 +105,23 @@ export const chemistries: StepFactory = (lab) => {
     0,
     false,
   );
-  hero.group.add(sleeve);
+  const sleeveAt = group('sleeve', 0, 0, 0, [sleeve]);
+  sleeveAt.scale.setScalar(0.62);
+  hero.group.add(sleeveAt);
   const heroAt = group('hero5', 0, 0, 0.2, [hero.group]);
   set.add(heroAt);
 
   /* ------------------------------------------------------------------------------ radar hologram */
   const radar = new RadarChart({
-    size: 196,
+    size: 200,
     axes: [L.axisEnergy, L.axisPower, L.axisLife, L.axisSafety, L.axisPrice],
-    series: CHEMS.map((id) => ({ id, label: chemName(id), color: CHEM_COLOR[id], values: [0, 0, 0, 0, 0] })),
+    series: [],
   });
-  const shownAmount = Object.fromEntries(CHEMS.map((id) => [id, 0])) as Record<ChemId, number>;
+  let onRadar: readonly ChemId[] = [];
 
   /* ----------------------------------------------------------------------------------- selection */
   const picked: ChemId[] = ['NMC', 'LFP']; // newest last; «Порівняти дві» shows both
-  const table = factTable('facts5', CHEM_TABLE.headers.slice(1));
-  lab.holo.add(ID, { width: 372, children: [radar, table.spec.node] });
-  const verdict = notices('verdict5', {
-    good: { text: L.verdictGood, tone: 'ok' },
-    ok: { text: L.verdictOk, tone: 'warning' },
-    bad: { text: L.verdictBad, tone: 'alarm' },
-  });
+  const verdict = { kind: 'good' as 'good' | 'ok' | 'bad', text: '' };
   const current = (): ChemId => picked[picked.length - 1]!;
   const shown = (): ChemId[] => (ui.value<boolean>('compare5') ? picked.slice(-2) : picked.slice(-1));
   const refresh = (instant = false): void => {
@@ -126,17 +129,28 @@ export const chemistries: StepFactory = (lab) => {
     for (const e of exhibits) {
       const to = { on: on.includes(e.id as ChemId) ? 1 : 0 };
       if (instant) Object.assign(e.state, to);
-      else ctx.tweens.to(e.state, to, { duration: 0.35, ease: 'back.out', onUpdate: e.sync });
+      else ctx.stage.scope.to(e.state, to, { duration: 0.35, ease: 'back.out', onUpdate: e.sync });
       e.sync();
     }
-    CHEM_TABLE.rows[current()]!.slice(1).forEach((cell, i) => table.set(i, cell));
+    // radar: a newly shown chemistry grows from the centre of the web, the others stay as they are
+    const fresh = on.filter((id) => !onRadar.includes(id));
+    radar.setSeries(
+      on.map((id) => ({
+        id,
+        label: chemName(id),
+        color: CHEM_COLOR[id],
+        values: fresh.includes(id) ? ZERO : RADAR[id],
+      })),
+    );
+    for (const id of fresh) radar.setValues(id, RADAR[id], { duration: instant ? 0 : 0.6 });
+    onRadar = on;
     const c = K.toon({ color: CHEM_COLOR[current()] }).color; // resolve the token once
-    ctx.tweens.to(sleeveMat.color, { r: c.r, g: c.g, b: c.b }, { duration: instant ? 0 : 0.5 });
+    ctx.stage.scope.to(sleeveMat.color, { r: c.r, g: c.g, b: c.b }, { duration: instant ? 0 : 0.5 });
     const task = TASKS.find((t) => t.id === ui.value<string>('task5'))!;
     const v = taskVerdict(task.id, current());
     const word = v === 'good' ? L.verdictGood : v === 'ok' ? L.verdictOk : L.verdictBad;
-    verdict.setText(v, `${chemName(current())} → ${task.label}: ${word} (${task.why})`);
-    verdict.only(v);
+    verdict.kind = v;
+    verdict.text = `${chemName(current())} → ${task.label}: ${word} (${task.why})`;
   };
   ui.onChange('chem5', (id) => {
     if (current() !== id) {
@@ -157,12 +171,11 @@ export const chemistries: StepFactory = (lab) => {
   return {
     id: ID,
     shots: {
-      [ID]: {
-        position: [-0.6, 5.5, 12.9],
-        target: [-1.75, 2.5, -0.2],
-        fov: 28,
+      [ID]: frame([0, 1.75, 0], 8.0, 4.5, {
+        azimuth: 0.1,
+        elevation: 0.3,
         orbit: { azimuth: 0.9, polar: 0.3 },
-      },
+      }),
     },
     stage: {
       show: [...exhibits.map((e) => e.g as Group), heroAt],
@@ -175,7 +188,7 @@ export const chemistries: StepFactory = (lab) => {
         {
           type: 'segmented',
           id: 'chem5',
-          items: CHEMS.map((id) => ({ id, label: id === 'Na-ion' ? L.naTab : chemName(id) })),
+          items: CHEMS.map((id) => ({ id, label: chemName(id) })),
           value: 'LFP',
         },
         { type: 'toggle', id: 'compare5', label: L.compareTwo, value: false },
@@ -186,8 +199,25 @@ export const chemistries: StepFactory = (lab) => {
           items: TASKS.map((t) => ({ id: t.id, label: t.tab })),
           value: 'home',
         },
-        verdict.spec,
+        note(
+          'verdict5',
+          () => verdict.text,
+          () => VERDICT_TONE[verdict.kind],
+        ),
       ],
+      board: {
+        size: 'md',
+        children: [
+          { type: 'custom', id: 'radar5', node: radar },
+          {
+            // the document's table, turned: one row per column, one column per chemistry on the radar
+            type: 'table',
+            id: 'facts5',
+            rows: () =>
+              CHEM_TABLE.headers.map((h, i) => [h, ...shown().map((id) => CHEM_TABLE.rows[id]![i]!)]),
+          },
+        ],
+      },
       callouts: [
         ...CHEMS.filter((id) => id !== 'Na-ion').map((id) => ({
           anchor: top(id),
@@ -199,34 +229,17 @@ export const chemistries: StepFactory = (lab) => {
         { anchor: top('solid'), text: L.solidState, side: 'up' },
       ],
       hotspots: [
-        { anchor: () => top('LCO')().setY(v3.y - 0.75), title: 'Cobalt — кобальт' },
-        { anchor: () => top('LFP')().setY(v3.y - 0.75), title: 'LMFP — LiMnₓFe₁₋ₓPO₄' },
+        { anchor: () => top('LCO')().setY(v3.y - 0.75), content: 'cobalt' },
+        { anchor: () => top('LFP')().setY(v3.y - 0.75), content: 'lmfp' },
       ],
     },
     probe: () => ({
       current: current(),
       shown: shown().join('+'),
-      verdict: (['good', 'ok', 'bad'] as const).find((k) => verdict.isShown(k)),
-      pedestalLTO: top('LTO')()
-        .clone()
-        .setY(v3.y - 1.2)
-        .toArray(),
+      verdict: verdict.kind,
+      radar: onRadar.join('+'),
     }),
-    update(dt, t) {
-      const on = shown();
-      for (const id of CHEMS) {
-        const target = on.includes(id) ? 1 : 0;
-        const before = shownAmount[id];
-        if (before === target) continue;
-        // polygons grow from / shrink to the centre of the web
-        const next =
-          Math.abs(target - before) < 0.01 ? target : before + (target - before) * Math.min(1, dt * 7);
-        shownAmount[id] = next;
-        radar.setValues(
-          id,
-          RADAR[id].map((x) => x * next),
-        );
-      }
+    update(_dt, t) {
       exhibits.forEach((e, i) => (e.crystal.rotation.y = t * (0.25 + 0.5 * e.state.on) + i));
       heroAt.rotation.y = Math.sin(t * 0.4) * 0.25;
     },

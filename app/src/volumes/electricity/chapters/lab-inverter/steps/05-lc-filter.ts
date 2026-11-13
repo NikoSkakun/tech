@@ -15,7 +15,7 @@ import { OWN } from '../labels-own';
 import { binOf } from '../parts/bench-scope';
 import { createLcRig } from '../parts/lc-rig';
 import { isPwm, type LabWave } from '../sim-bindings/wave-lab';
-import { group } from '../world';
+import { group, roomy } from '../world';
 import { SLOWED, scopeStation } from './shared-scope';
 
 const ID = 'lc-filter';
@@ -249,7 +249,7 @@ export const lcFilter: StepFactory = (lab) => {
           text: OWN.spectrumAfter,
           color: 'yellow',
           side: 'right',
-          visible: () => isPwm(waves.settings.kind) && waves.filtered.thd < 0.05,
+          visible: () => isPwm(waves.settings.kind) && waves.filtered.thd < 0.05 && roomy(lab),
         },
       ],
       hotspots: [

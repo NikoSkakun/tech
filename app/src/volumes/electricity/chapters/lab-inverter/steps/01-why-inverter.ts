@@ -79,8 +79,10 @@ export const whyInverter: StepFactory = (lab) => {
     id: ID,
     shots: {
       [ID]: {
-        position: [0.7, 7.0, 14.8],
-        target: [0, 1.7, 0.1],
+        // the opened «ЛІ-6» is the subject: the cover lifts and flies off, sources left, socket right, scopes above
+        position: [0.5, 7.75, 12.1],
+        target: [0, 1.45, 0.3],
+        frameAspect: 1.6,
         fov: 30,
         orbit: { azimuth: 1.05, polar: 0.4, zoom: [0.55, 1.4] },
         fit: { center: [0, 1.6, 0], radius: 6.4 },
@@ -88,7 +90,7 @@ export const whyInverter: StepFactory = (lab) => {
     },
     stage: {
       show: [bench.actor],
-      params: { coverOpen: 1 },
+      params: { coverOpen: 1, coverAway: 1 },
       post: { bloomIntensity: 1.1 },
     },
     ui: {
@@ -108,7 +110,7 @@ export const whyInverter: StepFactory = (lab) => {
         { anchor: point(bench.points.module), text: OWN.pvModule, side: 'left' },
         { anchor: point(bench.points.battery), text: OWN.battery, side: 'left' },
         { anchor: point(bench.points.socket), text: OWN.socket, side: 'up' },
-        { anchor: point(bench.points.charger), text: OWN.charger, side: 'right', color: 'sky' },
+        { anchor: point(bench.points.charger), text: OWN.charger, side: 'down', color: 'sky' },
         { anchor: at('control'), text: OWN.controlBoard, color: 'cyan', visible: () => !xrayOn() },
         { anchor: at('filterL'), text: OWN.lcFilter, side: 'up', visible: () => !xrayOn() },
         { anchor: at('transformer'), text: OWN.hfTransformer, side: 'down', visible: () => !xrayOn() },
@@ -126,6 +128,7 @@ export const whyInverter: StepFactory = (lab) => {
       if (!lab.isCurrent(ID)) return;
       const x = bench.xray.value;
       bench.idle(t, 0.75 + 0.25 * x);
+      bench.showScopes(true);
       // the battery charges from the link here: its pulses run backwards (toward the port)
       inv.wires.bat.material.speed = -Math.abs(inv.wires.bat.material.speed);
       bench.feeds.bat.material.speed = -Math.abs(bench.feeds.bat.material.speed);

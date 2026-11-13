@@ -1,69 +1,71 @@
 /**
- * Element card — a stylised periodic-table tile as a world console: big symbol, name, and a few lines of
- * facts (Z / A, configuration, shells, charge, stability…). Used by `shells` and `atom-builder`; the caller
- * supplies ready text (element names come from the sim's data table, captions from `labels.ts`).
+ * ElementCard — the "tile of the periodic table" beside the atom builder and the particle card of the
+ * Standard Model wall: a big symbol, a title and a few short lines. A world console (`console.ts`), so its
+ * text stays legible at any window size and camera distance.
  */
 import type { ChapterContext } from '@/engine/api';
-import type { ColorLike } from '@/style';
-import { Label, Panel, UiNode, worldSurface, type UiSurface } from '@/ui3d';
+import { Label, UiNode } from '@/ui3d';
+import { createConsole, type PinnedConsole } from './console';
 
 export interface ElementCardData {
   symbol: string;
   title: string;
-  /** Up to `LINES` lines; `**…**` and formula markup allowed. */
+  /** Up to `lines` lines; `**…**` and formula markup allowed. */
   lines: readonly string[];
-  /** Colour of the symbol (status colour in the builder). */
-  tone?: ColorLike;
 }
 
-const LINES = 5;
-const WIDTH = 380;
+export interface ElementCardOptions {
+  name: string;
+  /** Panel width, px-eq, and the number of text lines under the heading. */
+  width: number;
+  lines: number;
+  /** World units per px-eq; top-centre of the card in the world. */
+  unit: number;
+  top: readonly [number, number, number];
+}
 
 export interface ElementCard {
-  surface: UiSurface;
+  console: PinnedConsole;
   set(data: ElementCardData): void;
 }
 
-export function createElementCard(ctx: ChapterContext, unit = 0.0155, extraHeight = 0): ElementCard {
-  const height = 96 + LINES * 27 + extraHeight; // extra room for lines that wrap (particle cards)
-  const surface = worldSurface(ctx, { width: WIDTH, height, unit, name: 'element-card' });
-  const symbol = new Label('', { font: 'display', size: 60, color: 'white', nowrap: true, reserve: 6 });
+export function createElementCard(ctx: ChapterContext, opts: ElementCardOptions): ElementCard {
+  const inner = opts.width - 44; // the console panel's side padding
+  const symbol = new Label('', { font: 'display', size: 56, color: 'white', nowrap: true, reserve: 6 });
   const title = new Label('', {
     font: 'bodyBold',
-    size: 20,
+    size: 21,
     color: 'white',
-    maxWidth: WIDTH - 150,
+    maxWidth: inner - 120,
     reserve: 40,
   });
   const lines = Array.from(
-    { length: LINES },
-    () => new Label('', { size: 17, color: 'mist', maxWidth: WIDTH - 36, reserve: 90 }),
+    { length: opts.lines },
+    () => new Label('', { size: 17, color: 'mist', maxWidth: inner, reserve: 90 }),
   );
-  surface.root.add(
-    new Panel({
-      variant: 'card',
-      width: WIDTH,
-      height,
-      dir: 'col',
-      align: 'start',
-      gap: 5,
-      pad: [14, 18, 14, 18],
-      children: [
-        new UiNode({ dir: 'row', align: 'center', gap: 14, height: 70, children: [symbol, title] }),
-        ...lines,
-      ],
-    }),
-  );
+  const console3d = createConsole(ctx, {
+    name: opts.name,
+    width: opts.width,
+    unit: opts.unit,
+    top: opts.top,
+    children: [
+      new UiNode({ dir: 'row', align: 'center', gap: 14, width: 'fill', children: [symbol, title] }),
+      new UiNode({ dir: 'col', align: 'start', gap: 5, width: 'fill', children: lines }),
+    ],
+  });
   let last = '';
   return {
-    surface,
+    console: console3d,
     set(data) {
       const key = JSON.stringify(data);
       if (key === last) return;
       last = key;
       symbol.text = data.symbol;
       title.text = data.title;
-      lines.forEach((line, i) => (line.text = data.lines[i] ?? ''));
+      lines.forEach((line, i) => {
+        line.text = data.lines[i] ?? '';
+        line.visible = i < data.lines.length;
+      });
     },
   };
 }

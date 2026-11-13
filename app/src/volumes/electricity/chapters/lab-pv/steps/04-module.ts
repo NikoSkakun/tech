@@ -8,17 +8,20 @@ import { Group, Mesh, PlaneGeometry, Vector3 } from 'three';
 import { fmtNumber } from '@/content';
 import { damp } from '@/engine/api';
 import { LM440, LM440_MODEL_MPP, MODULE_SIZE_MM, cellAssembly } from '@electricity/sim/lab-pv';
+import { Builder } from '@/kit';
 import { K } from '@/style';
 import type { StepFactory } from '../chapter';
+import { playTransition } from '../transitions';
 import { doc } from '../content';
 import { L, fill } from '../labels';
-import { BRICK_LAYOUTS, createBrickBoard, type BrickLayout } from '../parts/brick-board';
+import { createBrickBoard, type BrickLayout } from '../parts/brick-board';
 import { createLiveModule } from '../parts/lm440-live';
 import { M, diodeSpot } from '../parts/lm440-layout';
 import { createBenchModel } from '../sim-bindings/bench-model';
-import { MODULE_SCALE, group } from '../world';
+import { MODULE_SCALE, group, shadows } from '../world';
 
 const ID = 'module';
+const DESK_SCALE = 0.8;
 const AREA_M2 = (MODULE_SIZE_MM.width * MODULE_SIZE_MM.height) / 1e6;
 
 export const moduleStep: StepFactory = (lab) => {
@@ -30,28 +33,35 @@ export const moduleStep: StepFactory = (lab) => {
   const tilt = new Group();
   tilt.rotation.x = 0.95;
   tilt.add(module.group);
-  const turn = group('module-turntable', -0.5, 2.55, -0.5, [tilt]);
+  const turn = group('module-turntable', -1.35, 2.55, -0.8, [tilt]);
   // generous drag proxy around the laminate (both faces)
   const grip = new Mesh(new PlaneGeometry(M.W, M.L).rotateX(-Math.PI / 2), K.flat('cyan'));
   grip.material.colorWrite = false;
   grip.material.depthWrite = false;
   grip.material.side = 2;
   module.group.add(grip);
+  // the breadboard stands on a lectern beside the module, tipped toward the viewer so the rows read
   const board = createBrickBoard();
-  board.group.position.set(0.8, 0, 2.35);
-  board.group.scale.setScalar(0.74);
-  board.group.rotation.set(0.1, -0.2, 0);
-  const set = group('set:module', 0, 0, 0, [turn, board.group]);
+  board.group.position.set(0, 0.95, 0);
+  board.group.rotation.x = 0.7;
+  const lectern = new Builder('lectern');
+  lectern.box(0.45, 0.72, 0.45, { r: 0.08, slot: 'gloss', c: ['bg.indigo', 'slate'] }); // Builder boxes stand on `at`
+  lectern.box(1.6, 0.06, 1.1, { r: 0.03, slot: 'gloss', c: ['bg.indigo', 'slate'] });
+  const desk = group('brick-desk', 1.05, 0, 1.75, [shadows(lectern.build().group), board.group]);
+  desk.scale.setScalar(DESK_SCALE);
+  desk.rotation.y = -0.25;
+  const set = group('set:module', 0, 0, 0, [turn, desk]);
   lab.stageRoot.add(set);
 
   const build = ctx.stage.param('build4', 0, { duration: 3.4, ease: 'power2.inOut' });
   let yaw = 0;
   let yawTarget = 0;
   let backApplied = false;
+  let layersApplied = false;
   let layoutApplied: BrickLayout | '' = '';
   const exploded = (): number => Math.max(build.value, ui.value<number>('explode4') / 100);
   const layout = (): BrickLayout => ui.value<string>('bricks4') as BrickLayout;
-  const assembly = (): ReturnType<typeof cellAssembly> => cellAssembly(BRICK_LAYOUTS[layout()].series, BRICK_LAYOUTS[layout()].parallel);
+  const assembly = (): ReturnType<typeof cellAssembly> => cellAssembly(board.circuit().series, board.circuit().parallel);
   const sectionsOn = (): boolean => ui.value<boolean>('sections4');
   ctx.input.register(grip, {
     tooltip: L.rotateTip,
@@ -59,23 +69,54 @@ export const moduleStep: StepFactory = (lab) => {
     enabled: () => lab.isCurrent(ID),
     drag: (e) => (yawTarget = Math.min(Math.PI, Math.max(-Math.PI, yawTarget + e.dx * 0.01))),
   });
+  // «Збери модуль»: drag a brick to another row (or past the last row) — the rows are re-read on drop
+  const normal = new Vector3();
+  const origin = new Vector3();
+  const hit = new Vector3();
+  board.grips.forEach((g, i) => {
+    ctx.input.register(g, {
+      tooltip: L.bricksTitle,
+      cursor: 'grab',
+      enabled: () => lab.isCurrent(ID),
+      hover: (over) => board.hover(i, over),
+      drag: (e) => {
+        // the drag plane runs through the bricks' middles, so the brick stays under the finger
+        board.group.localToWorld(origin.set(0, 0.2, 0));
+        normal.set(0, 1, 0).transformDirection(board.group.matrixWorld);
+        if (e.planePoint(normal, origin, hit)) board.drag(i, board.group.worldToLocal(hit));
+      },
+      dragEnd: () => {
+        board.drop(i);
+        // a hand-made preset lights its button; any other assembly leaves the last one lit
+        const p = board.preset();
+        if (p) ui.set('bricks4', (layoutApplied = p));
+      },
+    });
+    ctx.qa.probe(`brick4-${i}`, g);
+  });
   const v = new Vector3();
   const edge = (layer: keyof typeof module.layers, z: number) => (): Vector3 => module.layers[layer].localToWorld(v.set(M.W / 2 - 0.05, 0, z));
   const apart = (): boolean => exploded() > 0.35;
   ctx.qa.probe('module4', grip);
-  ctx.qa.expose('module4', () => ({ yaw, explode: exploded(), sections: module.sections.visible, bricks: assembly(), layout: layout() }));
+  ctx.qa.expose('module4', () => ({ yaw, explode: exploded(), sections: module.sections.visible, bricks: assembly(), layout: layout(), circuit: board.circuit() }));
 
   return {
     id: ID,
     shots: {
-      [ID]: { position: [0.9, 4.6, 9.8], target: [-0.1, 2.3, 0.6], frameAspect: 0.85, fov: 34, fit: { center: [-0.1, 2.3, 0.6], radius: 3.5 }, orbit: { azimuth: 0.5, polar: 0.25 } },
-      'module-back': { position: [0.2, 3.2, 6.4], target: [-0.5, 2.5, -0.5], frameAspect: 1, fov: 30, fit: { center: [-0.5, 2.5, -0.5], radius: 2.2 } },
+      [ID]: { position: [-0.1, 3.8, 9.8], target: [-0.05, 1.9, 0.3], frameAspect: 1.15, fov: 30, fit: { center: [-0.05, 1.9, 0.3], radius: 3.2 }, orbit: { azimuth: 0.5, polar: 0.25 } },
+      // the opened sandwich, close and from the front-right: every layer shows its face and its gap
+      'module-layers': { position: [1.7, 3.5, 7.2], target: [-0.9, 2.7, -0.7], frameAspect: 1.2, fov: 30, fit: { center: [-0.9, 2.7, -0.7], radius: 2.4 } },
+      // transition from step 3: close on one cell of the module, then pull away
+      'module-pull': { position: [-1.2, 2.9, 1.2], target: [-1.35, 2.55, -0.8], fov: 30, fit: { center: [-1.35, 2.55, -0.8], radius: 0.6 } },
+      'module-back': { position: [-0.7, 3.2, 5.6], target: [-1.35, 2.5, -0.8], frameAspect: 1, fov: 30, fit: { center: [-1.35, 2.5, -0.8], radius: 2.2 } },
     },
     stage: {
       show: [set],
       enter(info) {
+        playTransition(lab, info, ID, { from: 'cell', kind: 'pull', via: 'module-pull', last: 2.6 });
         yaw = yawTarget = 0;
         backApplied = false;
+        layersApplied = false;
         layoutApplied = '';
         // the assembly "conveyor": start apart and close the sandwich (skipped for deep links)
         if (!info.instant) {
@@ -139,10 +180,12 @@ export const moduleStep: StepFactory = (lab) => {
     update(dt, t) {
       if (!lab.isCurrent(ID)) return;
       const back = ui.value<boolean>('back4');
-      if (back !== backApplied) {
+      const layers = ui.value<number>('explode4') > 35;
+      if (back !== backApplied || layers !== layersApplied) {
+        if (back !== backApplied) yawTarget = back ? Math.PI : 0;
         backApplied = back;
-        yawTarget = back ? Math.PI : 0;
-        void ctx.camera.go(back ? 'module-back' : ID, { duration: 1.5 });
+        layersApplied = layers;
+        void ctx.camera.go(back ? 'module-back' : layers ? 'module-layers' : ID, { duration: 1.5 });
       }
       if (layout() !== layoutApplied) board.setLayout((layoutApplied = layout()));
       yaw = damp(yaw, yawTarget, 5, dt);
@@ -154,6 +197,10 @@ export const moduleStep: StepFactory = (lab) => {
       module.sections.visible = module.diodes.group.visible = sectionsOn();
       module.apply(sample, t, { tint: sectionsOn() ? 0.55 : 0, electrons: exploded() > 0.6 ? 0 : 1 });
       board.update(dt, t);
+      // the layer close-up belongs to the sandwich alone: the brick desk ducks out of it
+      const s = damp(desk.scale.x, layersApplied ? 0.001 : DESK_SCALE, 6, dt);
+      desk.scale.setScalar(s);
+      desk.visible = s > 0.02;
     },
   };
 };

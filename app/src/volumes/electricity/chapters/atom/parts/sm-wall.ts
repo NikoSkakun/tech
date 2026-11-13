@@ -3,7 +3,8 @@
  * quarks, d-type quarks, charged leptons, neutrinos), the gauge bosons g, γ, Z, W and, apart, the Higgs boson.
  * Tokens are character orbs in family colours (quarks amber / violet, leptons cyan, neutrinos a pale ring,
  * gluon lime, photon yellow, W / Z steel with a pink rim, Higgs white with a violet halo) with their symbols;
- * thin frames group quarks, leptons and bosons. Data: `STANDARD_MODEL` from the sim.
+ * crisp painted frames group quarks, leptons and bosons. Data: `STANDARD_MODEL`
+ * from the sim.
  */
 import { Group, Mesh, TorusGeometry, Vector3 } from 'three';
 import { toOverlay } from '@/engine/api';
@@ -13,9 +14,12 @@ import { K, type ColorLike } from '@/style';
 import { Text3D } from '@/text';
 import { mathMarkup } from '@/ui3d';
 
-export const TOKEN_RADIUS = 0.6;
-const COL = 1.75;
-const ROW = 1.72;
+export const TOKEN_RADIUS = 0.8;
+const COL = 2.12;
+const ROW = 2.06;
+/** Half-size of a family frame around its outermost token centres, and its corner radius. */
+const FRAME_PAD = 0.97;
+const FRAME_CORNER = 0.5;
 
 export interface Token {
   card: ParticleCard;
@@ -52,19 +56,19 @@ export interface SmWall {
   group: Group;
   tokens: Token[];
   token(id: string): Token;
-  /** Top-left corners of the family frames, for captions. */
-  corners: { quarks: Vector3; leptons: Vector3; bosons: Vector3 };
+  /** Caption points of the family frames: above their top-left corner; below the lepton frame. */
+  corners: { quarks: Vector3; leptonsBelow: Vector3; bosons: Vector3 };
 }
 
 export function createSmWall(): SmWall {
   const group = new Group();
   group.name = 'sm-wall';
   const rim = K.glow({ color: 'pink', intensity: 1.3, keepHue: true, whiten: 0 });
-  const rimGeometry = new TorusGeometry(TOKEN_RADIUS * 1.08, 0.045, 8, 48);
+  const rimGeometry = new TorusGeometry(TOKEN_RADIUS * 1.08, 0.055, 8, 56);
   // curved wall: the columns bend toward the viewer at the sides
   const position = (col: number, row: number, out = new Vector3()): Vector3 => {
     const x = (col - 2.1) * COL;
-    return out.set(x, (1.5 - row) * ROW, 0.05 * x * x);
+    return out.set(x, (1.5 - row) * ROW, 0.03 * x * x);
   };
   const tokens = STANDARD_MODEL.map((card): Token => {
     const [col, row] = place(card);
@@ -80,7 +84,7 @@ export function createSmWall(): SmWall {
       : createOrbs({ kind: 'blob', color: colorOf(card), radius: TOKEN_RADIUS });
     token.add(orb);
     if (card.id === 'w' || card.id === 'z') token.add(new Mesh(rimGeometry, rim));
-    if (card.id === 'higgs') token.add(createHalo({ color: 'violet', size: 3.4, intensity: 0.9 }));
+    if (card.id === 'higgs') token.add(createHalo({ color: 'violet', size: 4.4, intensity: 0.9 }));
     const dark =
       card.id === 'photon' ||
       card.id === 'higgs' ||
@@ -88,7 +92,7 @@ export function createSmWall(): SmWall {
       (card.category !== 'gauge' && card.generation === 2);
     const label = new Text3D(mathMarkup(card.symbol), {
       font: 'display',
-      size: 0.56,
+      size: 0.76,
       color: neutrino ? 'mist' : dark ? 'bg.void' : 'white',
       anchorX: 'center',
       anchorY: 'middle',
@@ -105,13 +109,13 @@ export function createSmWall(): SmWall {
   // family frames: rounded rectangles around the quarks, the leptons and the gauge bosons
   const frame = (c0: number, c1: number, r0: number, r1: number): Vector3[] => {
     const pts: Vector3[] = [];
-    const pad = 0.86;
+    const inset = FRAME_PAD - FRAME_CORNER;
     const corner = (cc: number, rr: number, sx: number, sy: number, a0: number): void => {
-      for (let i = 0; i <= 6; i++) {
-        const a = a0 + (i / 6) * (Math.PI / 2);
+      for (let i = 0; i <= 8; i++) {
+        const a = a0 + (i / 8) * (Math.PI / 2);
         const p = position(cc, rr);
-        const x = p.x + sx * (pad - 0.4) + Math.cos(a) * 0.4;
-        pts.push(new Vector3(x, p.y + sy * (pad - 0.4) + Math.sin(a) * 0.4, 0.05 * x * x - 0.1));
+        const x = p.x + sx * inset + Math.cos(a) * FRAME_CORNER;
+        pts.push(new Vector3(x, p.y + sy * inset + Math.sin(a) * FRAME_CORNER, 0.03 * x * x - 0.12));
       }
     };
     corner(c1, r0, 1, 1, 0);
@@ -126,21 +130,28 @@ export function createSmWall(): SmWall {
     [frame(3.2, 3.2, 0, 3), 'mist'],
   ];
   for (const [points, color] of frames) {
+    // alpha-blended paint, not added light: the line keeps a hard edge and its hue over the bright backdrop
     const line = new RibbonLines({
       capacity: points.length + 2,
       color,
-      width: 0.03,
+      width: 0.075,
       dashStrength: 0,
-      intensity: 0.55,
+      intensity: 1,
+      blend: 'normal',
     });
     line.setLines([{ points, closed: true }]);
     group.add(line);
   }
-  const top = (c: number, r: number): Vector3 => position(c, r).add(new Vector3(-0.86, 0.86, 0));
+  const top = (c: number, r: number): Vector3 =>
+    position(c, r).add(new Vector3(-FRAME_PAD + FRAME_CORNER, FRAME_PAD, 0));
   return {
     group,
     tokens,
     token: (id) => tokens.find((t) => t.card.id === id)!,
-    corners: { quarks: top(0, 0), leptons: top(0, 2), bosons: top(3.2, 0) },
+    corners: {
+      quarks: top(0, 0),
+      leptonsBelow: position(0, 3).add(new Vector3(-FRAME_PAD + FRAME_CORNER, -FRAME_PAD, 0)),
+      bosons: top(3.2, 0),
+    },
   };
 }

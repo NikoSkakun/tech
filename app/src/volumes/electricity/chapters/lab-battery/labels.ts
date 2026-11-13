@@ -1,118 +1,18 @@
 /**
  * Scene labels of `lab-battery` (control captions, chips, callouts). Two groups:
  *
- * - `DOC` — UI copy quoted «…» in the chapter document's «Інтерактив» items. It is copied verbatim and
- *   `__tests__/labels.test.ts` asserts that every entry still occurs in `docs/volumes/electricity/chapters/_export/lab-battery.json`,
- *   so the wording cannot drift from the reviewed script (UI_API §2, DECISIONS §43).
+ * - `DOC` (`labels-doc.ts`) — UI copy of the chapter document's «Інтерактив» items, read from the generated
+ *   content (`steps[].labels`) or, for the few phrases the export does not list, copied verbatim and tested.
  * - `OWN` — short labels the document does not quote (part names for callouts, axis titles, units). Plain
  *   Ukrainian (DECISIONS §54): an abbreviation (SOC, DoD, SOH, CC/CV, BMS, NMC, LFP …) only after the step
  *   text has introduced it. Keep them minimal; anything longer belongs in the chapter document.
  *
  * Step text (panels, terms, facts, hotspots, quiz) is NOT here — it comes from the generated content file.
  */
-export const DOC = {
-  // 1 what-is-battery
-  ladder: 'Драбина потенціалів',
-  idealised:
-    'ідеалізовано: стандартні потенціали (розчини 1 mol/L, 25 °C) — у реальній склянці напруга буде іншою',
-  reactsWithWater: 'Реагує з водою! Потрібен неводний електроліт',
-  discharge: 'Розряд',
-  charge: 'Заряд',
-  notRechargeable: 'у цій склянці зворотна реакція йде погано — тому це не акумулятор',
-  // 2 cell-anatomy
-  unroll: 'Розмотати',
-  capCut: 'Розріз кришки',
-  capLater: 'повернемося до них у кроці 11',
-  mass: 'маса',
-  // 3 intercalation
-  pause: 'Пауза',
-  current: 'Струм',
-  fastCold: 'Швидко на морозі',
-  platingSee7: 'осадження літію: див. крок 7',
-  ionTip: 'Li⁺ · у шубці з 4 молекул розчинника',
-  // 4 why-lithium
-  energyNeeded: 'скільки енергії потрібно',
-  cellsOnly: 'лише комірки, без корпусу й електроніки',
-  usable: 'корисні',
-  // 5 chemistries
-  compareTwo: 'Порівняти дві',
-  pickForTask: 'Вибери хімію для задачі',
-  verdictGood: 'добре',
-  verdictOk: 'можна',
-  verdictBad: 'погано',
-  taskPhone: 'телефон',
-  taskHome: 'домашній накопичувач',
-  taskBus: 'міський автобус',
-  taskDrone: 'дрон',
-  taskPolar: 'полярна станція',
-  whyPhone: 'енергія на об’єм',
-  whyHome: 'ресурс, безпека, ціна',
-  whyDrone: 'Wh/kg',
-  whyPolar: 'мороз',
-  // 6 voltage-capacity
-  dischargeCurrent: 'Струм розряду',
-  temperature: 'Температура',
-  runDischarge: 'Розрядити',
-  overCurrent: 'понад паспортний тривалий струм — лише в лабораторії',
-  showOcv: 'Показати напругу спокою',
-  bothCells: 'обидві',
-  // 7 charging
-  ccCurrent: 'Струм CC',
-  voltageLimit: 'Межа напруги',
-  runCharge: 'Зарядити',
-  overcharge: 'Перезаряд: ризик руйнування й займання',
-  platingRisk: 'Ризик осадження літію',
-  // 8 pack
-  presetPowerbank: 'Павербанк',
-  presetEbike: 'Електровелосипед',
-  presetHome5: 'Домашня 5 kWh',
-  presetHome16: 'Домашня 16 kWh',
-  presetEv: 'Електромобіль',
-  li6Ok: 'Підходить',
-  li6Partial: 'Працюватиме не на всю глибину: інвертор вимкнеться на 40 V',
-  li6Over: 'Не підходить: перенапруга на вході',
-  li6Under: 'замала напруга',
-  li6Caveat:
-    'Напруга — лише перша умова. Справжню батарею добирають за списком сумісності інвертора й з’єднують із ним через BMS',
-  // 9 bms
-  unbalance: 'Розбалансувати',
-  cell7Capacity: 'Ємність комірки №7',
-  usableCapacity: 'корисна ємність збірки',
-  balancing: 'Балансування',
-  balOff: 'вимк.',
-  balPassive: 'пасивне 0,1 A',
-  balActive: 'активне 2 A',
-  toEqual: 'до вирівнювання',
-  link: 'Зв’язок з інвертором',
-  linkNone: 'без зв’язку',
-  bmsEmergency: 'аварійне відключення BMS',
-  // 10 degradation
-  storageTemp: 'Температура зберігання/роботи',
-  cyclesPerYear: 'Циклів на рік',
-  avgSoc: 'Середній рівень заряду',
-  dod: 'Глибина розряду',
-  habitHot: 'Тримати на 100 % у спеці',
-  habitCare: 'Дбайливо',
-  toyModel: 'Ілюстративна модель: показує тенденції, а не прогноз для конкретної батареї',
-  outOfModel: 'поза межами моделі',
-  // 11 safety
-  ovenTemp: 'Температура печі',
-  start: 'Старт',
-  ovenChip: 'ілюстративна модель · час ×30 · пороги справжніх комірок інші',
-  scenario: 'сценарій',
-  nail: 'Цвях',
-  nailLfpNote:
-    'так поводиться більшість LFP-комірок у тесті цвяхом; великі повністю заряджені теж можуть піти в розгін',
-  overchargeScenario: 'Перезаряд',
-  bmsOn: 'BMS увімк.',
-  propagation: 'Поширення',
-  // 12 scale-and-future
-  scale: 'Масштаб',
-  howLong: 'Скільки протягне?',
-  approxPrices: 'наближено, у цінах 2025 р.',
-  cost10kwh: 'Скільки коштувала б батарея 10 kWh',
-  calcDod: 'Глибина розряду',
-} as const;
+import { fmtNumber } from '@/content';
+import { DOC } from './labels-doc';
+
+export { DOC };
 
 /** Labels that are not quoted in the document: part names, axis titles, units — plain Ukrainian (§54). */
 export const OWN = {
@@ -132,9 +32,6 @@ export const OWN = {
   liIon1991: 'Літій-іонна · 1991',
   // 2 cell-anatomy
   hint2: 'Розмотайте рулон і роздивіться шари',
-  // format tabs: «призматична / пакетна» of the document do not fit one tab row, so the short nouns
-  fmtPrismatic: 'призма',
-  fmtPouch: 'пакет',
   capacityAh: 'Ємність Q',
   energyWh: 'Енергія W',
   jellyRoll: 'Рулон електродів',
@@ -153,7 +50,6 @@ export const OWN = {
   separator: 'Сепаратор',
   cuFoil: 'Мідна фольга',
   alFoil: 'Алюмінієва фольга',
-  liIon: 'Li⁺ — іон літію',
   electrons: 'e⁻ — електрони',
   // 4 why-lithium
   hint4: 'Змініть потрібну енергію — порівняйте масу трьох батарей',
@@ -163,6 +59,7 @@ export const OWN = {
   // 5 chemistries
   hint5: 'Натисніть на п’єдестал, щоб порівняти хімії',
   whyBus: 'нічне / швидке заряджання',
+  // one-row captions of the task selector (the verdict spells the document's task names out)
   tabHome: 'дім',
   tabBus: 'автобус',
   tabPolar: 'станція',
@@ -173,7 +70,6 @@ export const OWN = {
   axisPrice: 'ціна',
   solidState: 'Твердотільна',
   naIon: 'Натрій-іонна',
-  naTab: 'Натрій', // the seven-tab selector has no room for «Натрій-іонні» at 1280 px
   // 6 voltage-capacity
   hint6: 'Задайте струм і температуру та натисніть «Розрядити»',
   cellNmc: '21700 NMC',
@@ -225,7 +121,6 @@ export const OWN = {
   statPackU: 'U, V',
   statPackI: 'I, A',
   statModelTime: 't, h',
-  can: 'CAN',
   bmsBoard: 'Плата BMS',
   balanceResistors: 'Резистори балансування',
   canCable: 'CAN: U, I, SOC, ліміти струму',
@@ -241,10 +136,16 @@ export const OWN = {
   statT80: 't_{80 %}, р.',
   statSohNow: 'SOH, %',
   year: 'рік',
-  tempHint: 'Модель не враховує осадження літію при заряді на морозі — див. крок 7',
+  noPlating: `${DOC.noPlatingInModel} — див. крок 7`,
   seiLens: 'Плівка SEI на графіті',
   // 11 safety
   hint11: 'Підніміть температуру печі й натисніть «Старт»',
+  ctaNail: 'Задайте рівень заряду комірок і натисніть «Старт»',
+  ctaOvercharge: 'Увімкніть або вимкніть BMS і натисніть «Старт»',
+  ctaPropagation: 'Поставте або заберіть теплобар’єри й натисніть «Старт»',
+  ovenCold: 'За кімнатної температури з комірками нічого не відбувається — підніміть температуру печі',
+  realTime: 'у реальному часі',
+  plottedCell: 'На графіку — комірка № 2 кожного ряду: сусідка тієї, що вже в розгоні',
   scenarioOven: 'Піч',
   boardThermal: 'T(t) — температура комірок',
   axisTimeS: 't, s',
@@ -281,3 +182,10 @@ export const OWN = {
 /** All scene labels, typed. `content.ts` hands the same object to `defineContent`. */
 export const L = { ...DOC, ...OWN } as const;
 export type LabelKey = keyof typeof L;
+
+/**
+ * Honesty note with the real time lapse of the run on screen (model seconds per screen second, two
+ * significant digits) — for steps where the factor depends on the sliders, so a fixed chip would lie.
+ */
+export const spedUp = (factor: number): string =>
+  factor >= 1.5 ? `прискорено ×${fmtNumber(Number(factor.toPrecision(2)))}` : 'у реальному часі';

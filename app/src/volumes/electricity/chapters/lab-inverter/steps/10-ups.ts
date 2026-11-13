@@ -13,7 +13,9 @@ import { STATUS } from '@/ui3d';
 import type { StepFactory } from '../chapter';
 import { doc } from '../labels';
 import { OWN } from '../labels-own';
+import { createMsRuler } from '../parts/ms-ruler';
 import { createUpsStation } from '../parts/ups-station';
+import { createUpsXray } from '../parts/ups-xray';
 import { UPS_KINDS, UPS_SLOW, createUpsSession } from '../sim-bindings/ups-session';
 import { group } from '../world';
 
@@ -39,7 +41,23 @@ export const ups: StepFactory = (lab) => {
   const lampMat = K.glow({ color: 'green', intensity: 1.7, whiten: 0, keepHue: true, falloff: 0.3 });
   const lamp = new Mesh(new SphereGeometry(0.16, 20, 14), lampMat);
   lamp.position.set(-5.35, 1.3, -1.1);
-  const set = group(`set:${ID}`, 0, 0, 0, [...stations.map((s) => s.group), lamp]);
+  // «Рентген»: the inside of each class on a plate where its scope hangs
+  const xrays = UPS_KINDS.map((kind, i) => {
+    const x = createUpsXray(kind);
+    x.group.position.copy(stations[i]!.scope.position).add(stations[i]!.group.position);
+    x.group.position.y += 0.1;
+    x.group.visible = false;
+    return x;
+  });
+  // the 0…40 ms ruler along the front: the hold-up wall and one marker per UPS
+  const ruler = createMsRuler(UPS_KINDS.map((k) => ACCENT[k]));
+  ruler.group.position.set(0, 0, 2.15);
+  const set = group(`set:${ID}`, 0, 0, 0, [
+    ...stations.map((s) => s.group),
+    ...xrays.map((x) => x.group),
+    ruler.group,
+    lamp,
+  ]);
   lab.stageRoot.add(set);
 
   const apply = (): void =>
@@ -47,7 +65,9 @@ export const ups: StepFactory = (lab) => {
   ui.onChange('tr10', apply);
   ui.onChange('load10', apply);
   const alive = UPS_KINDS.map(() => true);
+  const tmp = new Vector3();
   let clock = 0;
+  const xrayOn = (): boolean => ui.value<boolean>('xray10');
   const ms = (s: number): string => fmtUnit(s * 1000, 'ms', { maxDigits: 1 });
   const at = (i: number, key: 'ups' | 'pc' | 'scope' | 'reserve'): (() => Vector3) => {
     const out = new Vector3();
@@ -102,6 +122,7 @@ export const ups: StepFactory = (lab) => {
           digits: 0,
         },
         { type: 'readout', id: 'hold10', label: OWN.holdUp, text: () => ms(session.holdUpS) },
+        { type: 'toggle', id: 'xray10', label: doc('why-inverter', 0), value: false },
         {
           type: 'table',
           id: 'table10',
@@ -145,7 +166,12 @@ export const ups: StepFactory = (lab) => {
           color: ACCENT[k],
           side: 'up' as const,
         })),
-        { anchor: at(0, 'reserve'), text: OWN.holdUp, color: 'sky', side: 'down' },
+        {
+          anchor: () => ruler.group.localToWorld(tmp.copy(ruler.barrierTop)),
+          text: () => `${OWN.holdUp} · ${ms(session.holdUpS)}`,
+          color: 'sky',
+          side: 'up',
+        },
         {
           anchor: at(0, 'ups'),
           text: () =>
@@ -176,6 +202,7 @@ export const ups: StepFactory = (lab) => {
       transferMs: session.units.map((u) => u.transferS * 1000).join(','),
       survives: UPS_KINDS.map((k) => (session.survives(k) ? 1 : 0)).join(''),
       u: session.units.map((u) => Math.round(u.u * 100) / 100),
+      xray: xrayOn() && xrays.every((x) => x.group.visible),
     }),
     update(dt, t) {
       if (lab.isCurrent(ID)) session.tick(dt);
@@ -188,6 +215,16 @@ export const ups: StepFactory = (lab) => {
         if (alive[i] && !u.pcAlive)
           ui.toast(`${NAME[u.kind]}: ${doc(ID, 5)}`, { tone: 'alarm', icon: 'warning' });
         alive[i] = u.pcAlive;
+      });
+      ruler.set(
+        session.holdUpS,
+        session.units.map((u) => u.transferS),
+      );
+      const xr = xrayOn();
+      stations.forEach((st, i) => {
+        st.scope.visible = !xr;
+        xrays[i]!.group.visible = xr;
+        if (xr) xrays[i]!.apply(session.units[i]!);
       });
       lampMat.setColor(session.mains ? (session.sag ? STATUS.warning : STATUS.ok) : STATUS.alarm);
       lampMat.intensity = session.mains ? 1.7 : 0.6;

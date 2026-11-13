@@ -8,6 +8,7 @@ import { Vector3 } from 'three';
 import { fmtPercent, fmtUnit } from '@/content';
 import { STATUS, type Chart } from '@/ui3d';
 import type { StepFactory } from '../chapter';
+import { roomy } from '../world';
 import { doc } from '../labels';
 import { OWN } from '../labels-own';
 import { binOf } from '../parts/bench-scope';
@@ -201,24 +202,37 @@ export const pwm: StepFactory = (lab) => {
           },
         ],
       },
+      // on short screens (720p) there is no room beside the scope: only the two traces the text is about stay
       callouts: [
         { anchor: onScope(-0.98, 1, 0), text: OWN.refTrace, color: 'yellow', side: 'left' },
         {
-          anchor: onScope(0.98, 1, 0.5),
+          anchor: onScope(0.75, 1, 0.5),
           text: OWN.carrierTrace,
           color: 'cyan',
-          side: 'right',
-          visible: () => isPwm(kind()),
+          side: 'up',
+          visible: () => isPwm(kind()) && roomy(lab),
         },
         { anchor: onScope(0.98, -1, 0.6), text: OWN.pulseTrace, color: 'violet', side: 'right' },
-        { anchor: onScope(-0.98, -1, 0), text: OWN.outTrace, color: 'yellow', side: 'left' },
-        { anchor: onBars(1), text: OWN.fundamental, color: 'yellow', side: 'left' },
+        {
+          anchor: onScope(-0.98, -1, 0),
+          text: OWN.outTrace,
+          color: 'yellow',
+          side: 'left',
+          visible: () => roomy(lab),
+        },
+        {
+          anchor: onBars(1),
+          text: OWN.fundamental,
+          color: 'yellow',
+          side: 'left',
+          visible: () => roomy(lab),
+        },
         {
           anchor: () => onBars(waves.settings.fcHz / 50)(),
           text: OWN.nearCarrier,
           color: 'violet',
           side: 'up',
-          visible: () => isPwm(kind()),
+          visible: () => isPwm(kind()) && roomy(lab),
         },
         {
           anchor: () => station.mini.group.localToWorld(new Vector3(4.2, 2.0, 0.2)),

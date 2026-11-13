@@ -9,7 +9,7 @@
  * them end on the bound charge of the block's face. That is what is drawn: extra short lines in the slits.
  */
 import { CapsuleGeometry, Group, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3 } from 'three';
-import { createHalo, createOrbs, RibbonLines } from '@/fx';
+import { createHalo, createOrbs, RibbonLines, type Orbs } from '@/fx';
 import { G } from '@/kit';
 import { col, K, SEMANTIC, type ColorToken } from '@/style';
 import { CAPACITOR } from '../layout';
@@ -17,6 +17,8 @@ import { clamp } from '../chapter';
 
 const SLIT = 0.1; // drawn air slit between a plate and the block
 const MOLS = 5; // molecules per side of the block
+const ROWS = 3; // rows of field lines, front to back
+const COLUMNS = 13; // most columns of field lines along the plate (strongest field)
 
 export interface CapacitorView {
   /** Plate side, m (5…20 cm); gap, m (0,1…5 mm); field, V/m; charge level 0…1 of what the sliders ask for. */
@@ -37,6 +39,8 @@ export interface CapacitorModel {
   readonly sideUnits: number;
   readonly yBottom: number;
   readonly yTop: number;
+  /** Charges drawn on each plate now (one pair per field line). */
+  readonly charges: number;
   update(dt: number, t: number): void;
 }
 
@@ -70,6 +74,17 @@ export function createCapacitor(): CapacitorModel {
     keepHue: true,
   });
   lines.frustumCulled = false;
+  // the charges of the plates: half-sunk into the facing surfaces, one pair per field line
+  const chargeOrbs = (plusSign: boolean): Orbs =>
+    createOrbs({
+      kind: 'ion',
+      color: plusSign ? SEMANTIC.proton : SEMANTIC.electron,
+      glyph: plusSign ? 'plus' : 'minus',
+      count: COLUMNS * ROWS * 4,
+      radius: 0.13,
+    });
+  const chargesPlus = chargeOrbs(true);
+  const chargesMinus = chargeOrbs(false);
   const glass = K.glass({ color: 'sky', opacity: 0.3, edgeOpacity: 0.85 });
   const block = new Mesh(G.rbox(1, 1, 1, 0.03, 2), glass);
   const plus = createOrbs({
@@ -109,7 +124,7 @@ export function createCapacitor(): CapacitorModel {
   boundTop.rotation.x = boundBottom.rotation.x = -Math.PI / 2;
   const blockSet = new Group();
   blockSet.add(block, bars, plus, minus, boundTop, boundBottom);
-  group.add(bottom, top, ...posts, haloTop, haloBottom, lines, blockSet);
+  group.add(bottom, top, ...posts, haloTop, haloBottom, lines, chargesPlus, chargesMinus, blockSet);
   group.position.y = CAPACITOR.y;
 
   const view: CapacitorView = {
@@ -134,6 +149,7 @@ export function createCapacitor(): CapacitorModel {
     sideUnits: 3,
     yBottom: CAPACITOR.y,
     yTop: CAPACITOR.y + 1,
+    charges: 0,
     update(_dt, t) {
       const s = view.side * CAPACITOR.unitsPerMetre;
       const g = gapUnits(view.gap);
@@ -148,38 +164,49 @@ export function createCapacitor(): CapacitorModel {
         post3.position.set(x, -CAPACITOR.y, back ? -s / 2 - 0.16 : s / 2 - 0.3);
         post3.scale.set(1, back ? CAPACITOR.y + g + 0.12 : CAPACITOR.y - 0.06, 1);
       });
-      // field lines: 0 at U = 0, then ≈ 10 per decade of E on an n × n grid
+      // Field lines: none at U = 0, then columns that get denser with log E, in ROWS rows front to back — the
+      // density reads along the plate. Every line starts on a «+» of the upper plate and ends on a «−» of the
+      // lower one, so the plates fill up with charges exactly as the field grows.
       const e = view.field * view.level;
-      const count = e > 0 ? clamp(Math.round(4 + 9 * Math.log10(1 + e / 2e4)), 1, 36) : 0;
+      const columns = e > 0 ? clamp(Math.round(2 + 4.2 * Math.log10(1 + e / 2e4)), 1, COLUMNS) : 0;
       const filled = view.blockIn > 0.6 && view.permittivity > 1.01;
-      const extra = filled ? Math.min(view.permittivity, 4) - 1 : 0; // lines that end on the bound charge
-      const next = `${s.toFixed(3)}|${g.toFixed(3)}|${count}|${extra.toFixed(2)}`;
+      const extra = filled ? Math.round(Math.min(view.permittivity, 4) - 1) : 0; // lines ending on bound charge
+      const next = `${s.toFixed(3)}|${g.toFixed(3)}|${columns}|${extra}`;
       if (next !== key) {
         key = next;
-        const n = Math.ceil(Math.sqrt(Math.max(count, 1)));
         const out: { points: Vector3[] }[] = [];
-        for (let i = 0; i < count; i++) {
-          const x = (((i % n) + 0.5) / n - 0.5) * s * 0.86;
-          const z = ((Math.floor(i / n) + 0.5) / n - 0.5) * s * 0.86;
+        let used = 0;
+        const charge = (x: number, z: number): void => {
+          if (used >= chargesPlus.capacity) return;
+          // sunk so that they bulge only out of the facing surfaces (never through the outer faces)
+          chargesPlus.setPosition(used, x, g + 0.03, z);
+          chargesMinus.setPosition(used, x, 0.09, z);
+          used++;
+        };
+        for (let i = 0; i < columns * ROWS; i++) {
+          const x = (((i % columns) + 0.5) / columns - 0.5) * s * 0.9;
+          const z = (0.5 - (Math.floor(i / columns) + 0.5) / ROWS) * s * 0.8;
           out.push({ points: [new Vector3(x, g + 0.05, z), new Vector3(x, 0.07, z)] });
-          for (let k = 1; k <= Math.round(extra); k++) {
-            const dx = (k * 0.31 * s) / n;
+          charge(x, z);
+          for (let k = 1; k <= extra; k++) {
+            const dx = ((k / (extra + 1)) * s * 0.9) / columns;
+            const dz = (k % 2 ? 0.5 : -0.5) * ((s * 0.8) / ROWS) * 0.5;
             out.push({
-              points: [
-                new Vector3(x + dx, g + 0.05, z + dx * 0.6),
-                new Vector3(x + dx, g + 0.05 - SLIT, z + dx * 0.6),
-              ],
+              points: [new Vector3(x + dx, g + 0.05, z + dz), new Vector3(x + dx, g + 0.05 - SLIT, z + dz)],
             });
             out.push({
-              points: [
-                new Vector3(x + dx, 0.07 + SLIT, z + dx * 0.6),
-                new Vector3(x + dx, 0.07, z + dx * 0.6),
-              ],
+              points: [new Vector3(x + dx, 0.07 + SLIT, z + dz), new Vector3(x + dx, 0.07, z + dz)],
             });
+            charge(x + dx, z + dz);
           }
         }
         lines.setLines(out);
+        chargesPlus.instances = chargesMinus.instances = used;
+        Object.assign(model, { charges: used });
+        chargesPlus.commit();
+        chargesMinus.commit();
       }
+      chargesPlus.visible = chargesMinus.visible = columns > 0;
       lines.dashSpeed = 0.4 + 0.25 * Math.log10(1 + e / 2e4);
       // plate charge Q ∝ ε_r·E·A: brightness of the halos on a log scale
       const charge =

@@ -4,11 +4,9 @@
  */
 import type { Object3D } from 'three';
 import { defineScene, type Actor, type StepSpec } from '@/engine/api';
-import type { StepUiSpec } from '@/hud';
+import { stepUi, type StepUiApi, type StepUiSpec } from '@/hud';
 import { LOOK_SCALE } from '@/style';
-import { createHoloBoard } from './holo';
 import type { Lab, StepId, StepModule } from './lab';
-import { labUi } from './lab-ui';
 import { STEPS } from './steps';
 import { PODIUM_H, PODIUM_R, createMats, createPodium, group } from './world';
 
@@ -22,7 +20,7 @@ export default defineScene(async (ctx) => {
   const podium = createPodium(ctx);
   const stageRoot = group('stage', 0, PODIUM_H + 0.014, 0);
   ctx.root.add(podium.group, stageRoot);
-  const ui = labUi(ctx);
+  const ui: StepUiApi<StepId> = stepUi(ctx);
   const shared = new Map<string, unknown>();
   const lab: Lab = {
     ctx,
@@ -30,7 +28,6 @@ export default defineScene(async (ctx) => {
     stageRoot,
     podium: stage.actor(podium.group, { appear: 'fade', inDuration: 0.6, outDuration: 0.45 }),
     mats: createMats(),
-    holo: createHoloBoard(ctx),
     share: <T>(key: string, make: () => T): T => {
       if (!shared.has(key)) shared.set(key, make());
       return shared.get(key) as T;
@@ -64,14 +61,10 @@ export default defineScene(async (ctx) => {
   stage.define(specs);
   ui.define(uis);
 
-  if (window.__lab) window.__lab.probe = () => byId.get(stage.current ?? '')?.probe?.() ?? {};
+  // one read-out for the interaction test: the observable state of the step on screen
+  ctx.qa.expose('probe', () => byId.get(stage.current ?? '')?.probe?.() ?? {});
 
   return {
-    enterStep(stepId, info) {
-      // the stage resets the environment only on instant entries, so every step states its full override set
-      ctx.env.tune(byId.get(stepId)?.env ?? {}, { duration: info.instant ? 0 : 1.4 });
-      lab.holo.show(stepId, info.instant);
-    },
     update(dt, t) {
       podium.update(t);
       for (const m of modules) {

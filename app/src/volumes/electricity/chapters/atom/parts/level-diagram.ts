@@ -2,19 +2,26 @@
  * Energy-level diagram of hydrogen as a world console: shelves n = 1…N at their true heights
  * (E_n = −13,6 eV / n², so the upper levels crowd under the ionisation limit at 0 eV), an electron marker on
  * the current level and fading arrows for the latest jumps. Used by `models` (N = 3) and `ions-photons` (N = 6).
+ *
+ * World text costs screen: a console keeps 15 px-eq at ≥ 16 px of a 720p window, so the diagram is drawn on
+ * few px-eq — level number left, energy right, arrows in the lane between them.
  */
 import type { ChapterContext } from '@/engine/api';
 import { fmtNumber } from '@/content';
 import { levelEnergyEv } from '@electricity/sim/atom';
 import type { ColorLike } from '@/style';
-import { Label, UiNode, lit, rgba, worldSurface, type Painter, type UiSurface } from '@/ui3d';
+import { Label, UiNode, lit, rgba, type Painter } from '@/ui3d';
+import { createConsole, type PinnedConsole } from './console';
 
-const W = 250;
-const H = 430;
-const PAD_TOP = 46;
-const PAD_BOTTOM = 26;
-const SHELF_X0 = -W / 2 + 18;
-const SHELF_X1 = 34;
+const W = 200;
+const PAD_TOP = 34;
+const PAD_BOTTOM = 14;
+/** Height of the energy axis per diagram size: room for the labels of n = 2 and n = 3 under the limit. */
+const AXIS = { few: 216, many: 236 } as const;
+/** The lane of the jump arrows: x of the first arrow and the pitch of the next ones (4 slots). */
+const LANE_X = -18;
+const LANE_PITCH = 13;
+const MARKER_X = -W / 2 + 68;
 /** Seconds an arrow stays visible. */
 const ARROW_LIFE = 3.2;
 
@@ -27,97 +34,107 @@ interface Arrow {
 }
 
 class DiagramNode extends UiNode {
-  /** Marker height as a continuous level value (eased); Infinity-like = above the limit. */
+  /** Marker height as a continuous level value (eased). */
   marker = 1;
   ionised = 0;
   readonly arrows: Arrow[] = [];
+  private readonly axis: number;
 
   constructor(
     readonly levels: number,
     limitText: string,
   ) {
-    super({ name: 'level-diagram', width: W, height: H, dir: 'stack' });
-    const text = (n: number): string =>
-      `n = ${n}   ${fmtNumber(Math.round(levelEnergyEv(n) * 100) / 100)} eV`;
-    // label the well-separated levels; the crowded upper ones share one label
+    const axis = levels > 3 ? AXIS.many : AXIS.few;
+    super({ name: 'level-diagram', width: W, height: PAD_TOP + axis + PAD_BOTTOM, dir: 'stack' });
+    this.axis = axis;
+    // label the well-separated levels; the crowded upper ones share one caption
     const labelled = levels > 3 ? [1, 2, 3] : Array.from({ length: levels }, (_, i) => i + 1);
-    for (const n of labelled)
+    for (const n of labelled) {
+      const dy = this.top(n) - 4;
       this.add(
         new Label(
-          text(n),
+          `n = ${n}`,
+          { font: 'mono', size: 17, color: 'white', nowrap: true },
+          { float: { ax: 0, ay: 0, px: 0, py: 1, dx: 2, dy } },
+        ),
+        new Label(
+          `${fmtNumber(Math.round(levelEnergyEv(n) * 100) / 100)} eV`,
           { font: 'mono', size: 15, color: 'mist', nowrap: true },
-          {
-            float: { ax: 0, ay: 0, px: 0, py: 1, dx: 18, dy: this.top(n) - 5 },
-          },
+          { float: { ax: 1, ay: 0, px: 1, py: 1, dx: -2, dy } },
         ),
       );
-    if (levels > 3)
-      this.add(
-        new Label(
-          `n = 4…${levels}`,
-          { font: 'mono', size: 14, color: 'steel', nowrap: true },
-          {
-            float: { ax: 1, ay: 0, px: 1, py: 0.5, dx: -10, dy: this.top(5) },
-          },
-        ),
-      );
+    }
     this.add(
       new Label(
         limitText,
         { size: 15, color: 'amber', nowrap: true },
-        {
-          float: { ax: 0, ay: 0, px: 0, py: 1, dx: 18, dy: PAD_TOP - 8 },
-        },
+        { float: { ax: 0, ay: 0, px: 0, py: 1, dx: 2, dy: PAD_TOP - 6 } },
       ),
     );
   }
 
   /** Distance of level n from the top edge (true energy scale: y ∝ −1/n²). */
   top(n: number): number {
-    return PAD_TOP + (H - PAD_TOP - PAD_BOTTOM) / (n * n);
+    return PAD_TOP + this.axis / (n * n);
   }
 
   override paint(p: Painter): void {
     const y = (n: number): number => this.bh / 2 - this.top(n);
     const limit = this.bh / 2 - PAD_TOP;
-    p.panel(0, 0, this.bw, this.bh, {
-      fill: rgba('bg.deep', 0.86),
-      border: rgba('cyan', 0.45),
-      bw: 1.5,
-      r: 18,
-    });
-    p.line(SHELF_X0, limit, this.bw / 2 - 14, limit, 2, { fill: rgba('amber', 0.9), dash: 12 });
+    const x0 = -this.bw / 2;
+    const x1 = this.bw / 2;
+    p.line(x0, limit, x1, limit, 2, { fill: rgba('amber', 0.9), dash: 10 });
     for (let n = 1; n <= this.levels; n++) {
       const here = Math.max(0, 1 - Math.abs(this.marker - n) * 2) * (1 - this.ionised);
-      p.line(SHELF_X0, y(n), SHELF_X1, y(n), n <= 3 ? 3 : 2, {
-        fill: here > 0 ? lit(rgba('cyan'), 1 + here) : rgba('sky', n <= 3 ? 0.85 : 0.6),
-      });
+      // n ≥ 4 crowd under the limit: short ticks in the arrow lane, clear of the captions of n = 3
+      const short = n > 3;
+      p.line(
+        short ? LANE_X - 14 : x0,
+        y(n),
+        short ? LANE_X + 3 * LANE_PITCH + 14 : x1,
+        y(n),
+        short ? 1.6 : 3,
+        {
+          fill: here > 0 ? lit(rgba('cyan'), 1 + here) : rgba('sky', n <= 3 ? 0.85 : 0.55),
+        },
+      );
     }
     for (const a of this.arrows) {
       const alpha = Math.min(1, (ARROW_LIFE - a.age) / 0.8) * Math.min(1, a.age / 0.15);
-      const c = rgba(a.color, alpha);
-      const y0 = a.from > this.levels ? limit + 14 : y(a.from);
-      const y1 = a.to > this.levels ? limit + 14 : y(a.to);
+      const c = lit(rgba(a.color, alpha), 1.5);
+      const y0 = a.from > this.levels ? limit + 10 : y(a.from);
+      const y1 = a.to > this.levels ? limit + 10 : y(a.to);
       const dir = Math.sign(y1 - y0);
-      p.line(a.x, y0, a.x, y1, 3, { fill: lit(c, 1.5) });
-      p.line(a.x, y1, a.x - 7, y1 - dir * 10, 3, { fill: lit(c, 1.5) });
-      p.line(a.x, y1, a.x + 7, y1 - dir * 10, 3, { fill: lit(c, 1.5) });
+      p.line(a.x, y0, a.x, y1, 3, { fill: c });
+      p.line(a.x, y1, a.x - 6, y1 - dir * 9, 3, { fill: c });
+      p.line(a.x, y1, a.x + 6, y1 - dir * 9, 3, { fill: c });
     }
     // the electron: on its level, or free above the limit
     const level = Math.min(this.marker, this.levels);
-    const my = y(level) * (1 - this.ionised) + (limit + 18) * this.ionised;
-    p.circle(SHELF_X1 - 22, my + 9, 15, {
+    const my = y(level) * (1 - this.ionised) + (limit + 14) * this.ionised;
+    p.circle(MARKER_X, my, 13, {
       fill: lit(rgba('cyan'), 1.6),
       border: rgba('white', 0.9),
       bw: 1.5,
-      glow: 12,
+      glow: 10,
       glowAlpha: 0.6,
     });
   }
 }
 
+export interface LevelDiagramOptions {
+  name: string;
+  /** Number of levels drawn (3 in `models`, 6 in `ions-photons`). */
+  levels: number;
+  /** Caption of the dashed 0 eV line. */
+  limitText: string;
+  /** Top-centre of the console in the world, and its world units per px-eq. */
+  top: readonly [number, number, number];
+  unit: number;
+}
+
 export interface LevelDiagram {
-  surface: UiSurface;
+  console: PinnedConsole;
   /** Put the electron on level n (`'ionized'` = free, above the limit). */
   setLevel(n: number | 'ionized', instant?: boolean): void;
   /** Draw a fading arrow for a jump (levels above the diagram's range mean "from / to the continuum"). */
@@ -125,13 +142,19 @@ export interface LevelDiagram {
   update(dt: number): void;
 }
 
-export function createLevelDiagram(ctx: ChapterContext, levels: number, limitText: string): LevelDiagram {
-  const surface = worldSurface(ctx, { width: W, height: H, unit: 0.019, name: 'level-diagram' });
-  const node = new DiagramNode(levels, limitText);
-  surface.root.add(node);
+export function createLevelDiagram(ctx: ChapterContext, opts: LevelDiagramOptions): LevelDiagram {
+  const node = new DiagramNode(opts.levels, opts.limitText);
+  const console3d = createConsole(ctx, {
+    name: opts.name,
+    width: W + 44,
+    unit: opts.unit,
+    top: opts.top,
+    twin: true, // the dock's «Рівень n» / «Енергія E_n» readouts
+    children: [node],
+  });
   let slot = 0;
   return {
-    surface,
+    console: console3d,
     setLevel(n, instant = false) {
       const ionised = n === 'ionized' ? 1 : 0;
       const marker = n === 'ionized' ? node.marker : n;
@@ -140,16 +163,17 @@ export function createLevelDiagram(ctx: ChapterContext, levels: number, limitTex
         node.ionised = ionised;
         node.repaint();
       } else
-        ctx.tweens.to(
+        ctx.stage.scope.to(
           node,
           { marker, ionised },
           { duration: 0.45, ease: 'power2.inOut', onUpdate: () => node.repaint() },
         );
     },
     transition(from, to, color) {
-      node.arrows.push({ from, to, color, age: 0, x: SHELF_X1 + 26 + (slot++ % 5) * 18 });
+      node.arrows.push({ from, to, color, age: 0, x: LANE_X + (slot++ % 4) * LANE_PITCH });
     },
     update(dt) {
+      console3d.pin();
       if (node.arrows.length === 0) return;
       for (const a of node.arrows) a.age += dt;
       while (node.arrows.length > 0 && node.arrows[0]!.age >= ARROW_LIFE) node.arrows.shift();

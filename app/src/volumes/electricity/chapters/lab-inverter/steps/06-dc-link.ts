@@ -23,14 +23,18 @@ import { doc, pairTitle, splitPair } from '../labels';
 import { OWN } from '../labels-own';
 import { invToSet } from '../parts/bench-set';
 import { STAGE, type StageName } from '../parts/inverter-layout';
-import { createFerriteScale, createToroidScale } from '../parts/weigh-compare';
-import { group } from '../world';
+import { createLfChain } from '../parts/lf-chain';
 import { sharedBench } from './shared-bench';
 
 const ID = 'dc-link';
 const U_LINK = 400;
 /** One slowed switching period of the boost stage on screen, s. */
 const PERIOD = 0.9;
+/** Where the low-frequency chain stands: the free strip of bench in front of the inverter (set space). */
+const LF_AT = { x: 0.75, z: 2.55, s: 0.9 } as const;
+/** One hero at a time: the boost stage (panels), the battery converter, or the two architectures side by side. */
+type Hero = 'pv' | 'bat' | 'lf';
+const SHOT: Record<Hero, string> = { pv: ID, bat: `${ID}-bat`, lf: `${ID}-lf` };
 
 export const dcLink: StepFactory = (lab) => {
   const { ui } = lab;
@@ -57,14 +61,13 @@ export const dcLink: StepFactory = (lab) => {
   arrow.visible = false;
   inv.group.add(arrow);
 
-  const hf = createFerriteScale('');
-  const lf = createToroidScale('');
-  hf.group.position.set(0.3, 0, 2.6);
-  lf.group.position.set(2.1, 0, 2.6);
-  hf.group.scale.setScalar(0.9);
-  lf.group.scale.setScalar(0.9);
-  const scales = group(`set:${ID}`, 0, 0, 0, [hf.group, lf.group]);
-  lab.stageRoot.add(scales);
+  // the other architecture (shown by the «НЧ-інвертор» choice): 48 V bridge → 50 Hz toroid → 230 V, two scales
+  const chain = createLfChain();
+  const { hf, lf } = chain;
+  chain.group.position.set(LF_AT.x, 0, LF_AT.z);
+  chain.group.scale.setScalar(LF_AT.s);
+  lab.stageRoot.add(chain.group);
+  const chainActor = lab.ctx.stage.actor(chain.group);
 
   const [pvName, batName] = splitPair(doc(ID, 2));
   const [outName, inName] = splitPair(doc(ID, 4));
@@ -100,26 +103,63 @@ export const dcLink: StepFactory = (lab) => {
     const out = new Vector3();
     return () => s.group.localToWorld(out.set(0, 1.25, 0.3));
   };
+  const onChain = (p: Vector3): (() => Vector3) => {
+    const out = new Vector3();
+    return () => chain.group.localToWorld(out.copy(p));
+  };
   const v = new Vector3();
   const o = new Vector3();
+
+  const hero = (): Hero => (ui.value<string>('arch6') === 'lf' ? 'lf' : fromBattery() ? 'bat' : 'pv');
+  let framed: Hero | null = null;
+  /** Move the camera to the current hero and show the low-frequency chain only beside its own shot. */
+  function frame(instant: boolean): void {
+    const h = hero();
+    if (h === framed) return;
+    framed = h;
+    lab.ctx.stage.toggle(chainActor, h === 'lf', { instant });
+    void lab.ctx.camera.go(SHOT[h], { instant, duration: 1.6 });
+  }
 
   return {
     id: ID,
     shots: {
-      [ID]: {
-        // the left half of the inverter with the two scales in front of it
-        position: [0.2, 5.9, 9.0],
-        target: [-0.45, 0.8, 0.9],
+      // hero 1: the boost stage — PV inputs, the two chokes, the switches and the DC-link cans
+      [SHOT.pv]: {
+        position: [-0.25, 4.4, 5.2],
+        target: [-1.55, 1.0, 0.0],
         fov: 30,
-        frameAspect: 1.45,
+        frameAspect: 1.5,
         orbit: { azimuth: 0.5, polar: 0.3 },
-        fit: { center: [0, 1, 1], radius: 3.6 },
+        fit: { center: [-1.55, 1.0, 0.0], radius: 1.7 },
+      },
+      // hero 2: the battery converter row — port, bridge, ferrite transformer, rectifier
+      [SHOT.bat]: {
+        position: [-0.35, 3.05, 5.0],
+        target: [-1.25, 0.85, 1.0],
+        fov: 30,
+        frameAspect: 1.5,
+        orbit: { azimuth: 0.5, polar: 0.3 },
+        fit: { center: [-1.35, 0.95, 1.35], radius: 1.7 },
+      },
+      // hero 3: the low-frequency chain and the two scales in front of the inverter
+      [SHOT.lf]: {
+        position: [0.85, 2.6, 7.7],
+        target: [0.25, 1.0, 2.4],
+        fov: 30,
+        frameAspect: 1.6,
+        orbit: { azimuth: 0.5, polar: 0.3 },
+        fit: { center: [0.45, 1.15, 2.4], radius: 2.4 },
       },
     },
     stage: {
-      show: [bench.actor, scales],
+      show: [bench.actor],
       params: { coverOpen: 1, coverAway: 1 },
       post: { bloomIntensity: 1.1 },
+      enter: (info) => {
+        framed = null;
+        frame(info.instant);
+      },
       // the choke rings and the arrow live on the shared inverter: put them away with the step
       leave: () => {
         arrow.visible = false;
@@ -209,6 +249,9 @@ export const dcLink: StepFactory = (lab) => {
       board: {
         title: OWN.board6,
         size: 'sm',
+        // the efficiency curves belong to the inverter on the bench; the comparison of the two architectures
+        // gets the whole width
+        visible: () => hero() !== 'lf',
         children: [
           {
             type: 'chart',
@@ -248,21 +291,54 @@ export const dcLink: StepFactory = (lab) => {
         ],
       },
       callouts: [
+        // only the names of the current hero: two or three labels on screen at a time
         {
           anchor: at('chokeA', 0.1),
           text: OWN.boostChoke,
           color: 'magenta',
           side: 'left',
-          visible: () => !fromBattery(),
+          visible: () => hero() === 'pv',
         },
-        { anchor: at('dcdc', 0.2), text: OWN.batBridge, color: 'cyan', side: 'down', visible: fromBattery },
-        { anchor: at('bat'), text: OWN.batPort, side: 'left' },
-        { anchor: onScale(hf), text: `${OWN.hfCore} · ${OWN.kgHf}`, side: 'down' },
-        { anchor: onScale(lf), text: `${OWN.lfCore} · ${OWN.kgLf}`, side: 'down' },
+        { anchor: at('boost', 0.1), text: OWN.boostSwitch, side: 'up', visible: () => hero() === 'pv' },
+        {
+          anchor: at('dcdc', 0.2),
+          text: OWN.batBridge,
+          color: 'cyan',
+          side: 'up',
+          visible: () => hero() === 'bat',
+        },
+        { anchor: at('bat'), text: OWN.batPort, side: 'left', visible: () => hero() === 'bat' },
+        {
+          anchor: onChain(chain.points.bridge),
+          text: OWN.lfBridge,
+          side: 'up',
+          visible: () => hero() === 'lf',
+        },
+        {
+          anchor: onScale(hf),
+          text: `${OWN.hfCore} · ${OWN.kgHf}`,
+          side: 'up',
+          visible: () => hero() === 'lf',
+        },
+        {
+          anchor: onScale(lf),
+          text: `${OWN.lfCore} · ${OWN.kgLf}`,
+          color: 'yellow',
+          side: 'up',
+          visible: () => hero() === 'lf',
+        },
       ],
       hotspots: [
-        { anchor: at('link'), content: 'dc-link-capacitors' },
-        { anchor: at('transformer'), content: 'ferrite-core' },
+        { anchor: at('link'), content: 'dc-link-capacitors', visible: () => hero() !== 'lf' },
+        {
+          anchor: (() => {
+            const onCore = at('transformer');
+            const onHf = onScale(hf);
+            return () => (hero() === 'lf' ? onHf() : onCore());
+          })(),
+          content: 'ferrite-core',
+          visible: () => hero() !== 'pv',
+        },
       ],
     },
     probe: () => ({
@@ -274,11 +350,14 @@ export const dcLink: StepFactory = (lab) => {
       eta: eta(),
       loadW: loadW(),
       batSpeed: inv.wires.bat.material.speed,
+      hero: hero(),
+      lfShown: lab.ctx.stage.shown(chainActor),
     }),
     update(_dt, t) {
       if (!lab.isCurrent(ID)) return;
       const k = Math.min(1, loadW() / 6000);
       bench.idle(t, 0.35 + 0.65 * k);
+      bench.showScopes(false);
       const bat = fromBattery();
       const dir = charging() ? -1 : 1;
       // only the selected source feeds the link
@@ -302,9 +381,11 @@ export const dcLink: StepFactory = (lab) => {
       arrow.visible = bat;
       arrow.set(o.set(-0.45 * dir, 0, 0), v.set(0.9 * dir, 0, 0));
       inv.setLinkVoltage(Math.max(U_LINK, bat ? 0 : uIn()));
-      const lowFreq = ui.value<string>('arch6') === 'lf';
-      hf.setFocus(!lowFreq);
-      lf.setFocus(lowFreq);
+      frame(false);
+      const lowFreq = hero() === 'lf';
+      // the low-frequency chain: 48 V in, a fat 50 Hz current into the toroid, 230 V out
+      chain.wires.dc.material.power = 0.4 + 0.6 * k;
+      chain.wires.low.material.power = 0.6 + 0.4 * k;
       lab.sound.hum = lowFreq ? 0.5 : 0.1; // the 50 Hz toroid hums; the ferrite one works above hearing
     },
   };

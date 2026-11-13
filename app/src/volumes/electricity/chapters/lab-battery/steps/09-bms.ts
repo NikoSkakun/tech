@@ -11,12 +11,13 @@ import { createWire } from '@/fx';
 import { hybridInverter } from '@/kit';
 import { CELL_LIMITS } from '@electricity/sim/lab-battery';
 import { MOTION } from '@/style';
-import { Button, Chart, row } from '@/ui3d';
-import { factTable, notices, statGrid } from '../hud-bits';
+import type { Chart } from '@/ui3d';
 import type { StepFactory } from '../lab';
 import { L } from '../labels';
-import { BMS_CELLS, createBmsRig } from '../parts';
-import { createBmsSession } from '../sim';
+import { note } from '../notes';
+import { BMS_CELLS, createBmsRig } from '../parts/bms-rig';
+import { BMS_TIME, createBmsSession } from '../sim-bindings/bms-session';
+import { frame } from '../shots';
 import { group, mesh } from '../world';
 
 const ID = 'bms';
@@ -57,65 +58,26 @@ export const bms: StepFactory = (lab) => {
   lab.stageRoot.add(set);
 
   const session = createBmsSession();
-  /* --------------------------------------------------------------------------------------- board */
+  /* --------------------------------------------------------------------------------------- state */
   const xs = Array.from({ length: BMS_CELLS }, (_, i) => i + 1);
-  const chart = new Chart({
-    height: 190,
-    x: { min: 0.4, max: BMS_CELLS + 0.6, label: L.axisCell, ticks: [1, 4, 7, 10, 13, 16] },
-    y: { min: 2.4, max: 3.8, label: L.axisVoltage },
-    series: [
-      { id: 'u', color: 'lime', kind: 'bars' },
-      { id: 'ovp', label: `${L.lineOvp} ${fmtNumber(LFP.uMaxV, { digits: 2 })} V`, color: 'red', width: 1.4 },
-      {
-        id: 'uvp',
-        label: `${L.lineUvp} ${fmtNumber(LFP.uMinV, { digits: 2 })} V`,
-        color: 'amber',
-        width: 1.4,
-      },
-    ],
-  });
-  chart.setData('ovp', [0.4, BMS_CELLS + 0.6], [LFP.uMaxV, LFP.uMaxV]);
-  chart.setData('uvp', [0.4, BMS_CELLS + 0.6], [LFP.uMinV, LFP.uMinV]);
-  const stats = statGrid([{ name: '16S', color: 'lime' }], [L.statPackU, L.statPackI, L.statModelTime]);
-  // the two results the document names: usable capacity of the string and the time to equalise
-  const facts = factTable('facts9', [L.usableCapacity, L.toEqual]);
-  const notes = notices('notes9', { trip: { text: L.bmsEmergency, tone: 'warning' } });
+  let trip = false;
+  let lastVolts = '';
+  let paintedVolts = '';
   const run = (mode: 'charge' | 'discharge') => (): void => {
-    notes.show('trip', false);
+    trip = false;
     session.start(mode);
     audio.play('relay');
   };
-  const buttons = [
-    new Button({
-      label: L.charge,
-      icon: 'plus',
-      variant: 'primary',
-      onClick: ui.action('charge9', run('charge')),
-    }),
-    new Button({ label: L.discharge, icon: 'minus', onClick: ui.action('discharge9', run('discharge')) }),
-    new Button({
-      label: L.unbalance,
-      icon: 'layers',
-      onClick: ui.action(
-        'unbalance9',
-        () => (session.unbalance(() => ctx.random.next()), audio.play('tick')),
-      ),
-    }),
-  ];
-  lab.holo.add(ID, {
-    title: L.boardBms,
-    width: 520,
-    children: [
-      chart,
-      stats.node,
-      facts.spec.node,
-      row({ gap: 10, wrap: true, width: 'fill', children: buttons }),
-      notes.spec.node,
-    ],
-  });
+  /** Chart side: the limit lines once per chart, the sixteen bars whenever a voltage changed. */
+  const paint = (chart: Chart): void => {
+    if (paintedVolts === lastVolts) return;
+    paintedVolts = lastVolts;
+    chart.setData('u', xs, session.state.cellVoltagesV);
+  };
 
   /* ------------------------------------------------------------------ direct manipulation: glasses */
   rig.glasses.forEach((glass, i) => {
+    ctx.qa.probe(`glass:${i + 1}`, glass);
     const state = { hover: 0 };
     ctx.input.register(glass, {
       tooltip: () => `${L.cellGlass} · № ${i + 1}: ${fmtNumber(session.state.socPct[i]!, { digits: 0 })} %`,
@@ -131,22 +93,22 @@ export const bms: StepFactory = (lab) => {
     });
   });
   const v = new Vector3();
-  let lastVolts = '';
+  const idle = (): boolean => session.speed() === BMS_TIME.idle;
 
   return {
     id: ID,
     shots: {
-      [ID]: {
-        position: [0.9, 5.3, 13.4],
-        target: [-2.3, 2.3, 0],
-        fov: 28,
-        orbit: { azimuth: 0.8, polar: 0.3 },
-      },
+      [ID]: frame([0.15, 1.95, 0], 9.2, 4.8, { azimuth: 0.15, elevation: 0.26 }),
     },
     stage: { show: [rig.group, wall, power, can], leave: () => audio.loop('hum').set({ gain: 0 }) },
     ui: {
       hint: L.hint9,
-      honesty: ['simplified', { sped: 450 }],
+      // the real time lapse: a run at ×450, balancing at rest (hours of model time) at ×7200
+      honesty: [
+        'simplified',
+        { sped: BMS_TIME.run, visible: () => !idle() },
+        { sped: BMS_TIME.idle, visible: idle },
+      ],
       controls: [
         {
           type: 'slider',
@@ -180,6 +142,80 @@ export const bms: StepFactory = (lab) => {
           value: 'can',
         },
       ],
+      board: {
+        title: L.boardBms,
+        size: 'md',
+        children: [
+          {
+            type: 'chart',
+            id: 'chart9',
+            chart: {
+              height: 190,
+              x: { min: 0.4, max: BMS_CELLS + 0.6, label: L.axisCell, ticks: [1, 4, 7, 10, 13, 16] },
+              y: { min: 2.4, max: 3.8, label: L.axisVoltage },
+              series: [
+                { id: 'u', color: 'lime', kind: 'bars' },
+                {
+                  id: 'ovp',
+                  label: `${L.lineOvp} ${fmtNumber(LFP.uMaxV, { digits: 2 })} V`,
+                  color: 'red',
+                  dash: true,
+                },
+                {
+                  id: 'uvp',
+                  label: `${L.lineUvp} ${fmtNumber(LFP.uMinV, { digits: 2 })} V`,
+                  color: 'amber',
+                  dash: true,
+                },
+              ],
+            },
+            init: (chart) => {
+              chart.setData('ovp', [0.4, BMS_CELLS + 0.6], [LFP.uMaxV, LFP.uMaxV]);
+              chart.setData('uvp', [0.4, BMS_CELLS + 0.6], [LFP.uMinV, LFP.uMinV]);
+              paintedVolts = '';
+            },
+            update: paint,
+          },
+          {
+            type: 'stats',
+            id: 'stats9',
+            items: [
+              { label: L.statPackU, get: () => fmtNumber(session.state.packVoltageV, { digits: 2 }) },
+              { label: L.statPackI, get: () => fmtNumber(session.state.currentA, { digits: 1 }) },
+              { label: L.statModelTime, get: () => fmtNumber(session.hours, { digits: 1 }) },
+            ],
+          },
+          {
+            // the two results the document names: usable capacity of the string and the time to equalise
+            type: 'table',
+            id: 'facts9',
+            rows: () => {
+              const tBal = session.balanceHours();
+              return [
+                [L.usableCapacity, fmtUnit(session.state.usableCapacityAh, 'Ah', { digits: 1 })],
+                [L.toEqual, tBal === null ? '—' : fmtUnit(tBal, 'h', { maxDigits: 1 })],
+              ];
+            },
+          },
+          note('trip9', L.bmsEmergency, 'warning', () => trip),
+          {
+            type: 'button',
+            id: 'charge9',
+            label: L.charge,
+            icon: 'plus',
+            primary: true,
+            onClick: run('charge'),
+          },
+          { type: 'button', id: 'discharge9', label: L.discharge, icon: 'minus', onClick: run('discharge') },
+          {
+            type: 'button',
+            id: 'unbalance9',
+            label: L.unbalance,
+            icon: 'layers',
+            onClick: () => (session.unbalance(() => ctx.random.next()), audio.play('tick')),
+          },
+        ],
+      },
       callouts: [
         {
           anchor: () => rig.board.getWorldPosition(v).setY(v.y + 1.35),
@@ -201,9 +237,9 @@ export const bms: StepFactory = (lab) => {
         },
       ],
       hotspots: [
-        { anchor: rig.shunt, title: 'Shunt — шунт' },
-        { anchor: rig.contactor, title: 'Contactor — контактор' },
-        { anchor: rig.precharge, title: 'Pre-charge resistor — резистор попереднього заряду' },
+        { anchor: rig.shunt, content: 'shunt' },
+        { anchor: rig.contactor, content: 'contactor' },
+        { anchor: rig.precharge, content: 'pre-charge-resistor' },
       ],
     },
     probe: () => ({
@@ -213,8 +249,8 @@ export const bms: StepFactory = (lab) => {
       usable: session.state.usableCapacityAh,
       hours: session.hours,
       balancing: session.state.balancingA.some((a) => a !== 0),
-      trip: notes.isShown('trip'),
-      glass3: rig.glasses[3]!.getWorldPosition(v.clone()).toArray(),
+      trip,
+      speed: session.speed(),
     }),
     update(dt, t) {
       const live = lab.isCurrent(ID);
@@ -224,7 +260,7 @@ export const bms: StepFactory = (lab) => {
       const stop = live ? session.tick(dt) : null;
       if (stop) {
         // «аварійне відключення BMS» only happens without the CAN link: the inverter charged blind
-        notes.show('trip', stop === 'bms-emergency');
+        trip = stop === 'bms-emergency';
         audio.play(stop === 'complete' ? 'success' : 'breaker', { gain: 0.7 });
       }
       const s = session.state;
@@ -238,17 +274,7 @@ export const bms: StepFactory = (lab) => {
         },
         t,
       );
-      const volts = s.cellVoltagesV.map((u) => u.toFixed(3)).join();
-      if (volts !== lastVolts) {
-        lastVolts = volts;
-        chart.setData('u', xs, s.cellVoltagesV);
-      }
-      stats.set(0, 0, fmtNumber(s.packVoltageV, { digits: 2 }));
-      stats.set(0, 1, fmtNumber(s.currentA, { digits: 1 }));
-      stats.set(0, 2, fmtNumber(session.hours, { digits: 1 }));
-      facts.set(0, fmtUnit(s.usableCapacityAh, 'Ah', { digits: 1 }));
-      const tBal = session.balanceHours();
-      facts.set(1, tBal === null ? '—' : fmtUnit(tBal, 'h', { maxDigits: 1 }));
+      lastVolts = s.cellVoltagesV.map((u) => u.toFixed(3)).join();
       // 3D: power pulses follow the current (toward the pack while charging); CAN pulses only with a link
       const c = s.currentA / 50;
       power.material.speed += (-1.5 * c - power.material.speed) * Math.min(1, dt * 6);

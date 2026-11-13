@@ -9,10 +9,12 @@ import { fmtNumber } from '@/content';
 import { CITY_YIELDS, KYIV_OPTIMUM_YIELD, SEASON_DAYS, orientationYield, snowBehaviour, type ArcSample, type SeasonDay } from '@electricity/sim/lab-pv';
 import { HeatMap } from '@/ui3d';
 import type { StepFactory } from '../chapter';
+import { playTransition } from '../transitions';
 import { doc } from '../content';
 import { L, fill } from '../labels';
 import { SLOPE, createRoofWorld } from '../parts/roof-world';
 import { DAYS, createSunDome } from '../parts/sun-dome';
+import { createProtractor } from '../parts/protractor';
 import { createTestModule } from '../parts/test-module';
 import { sound } from '../sound';
 
@@ -30,6 +32,13 @@ export const orientation: StepFactory = (lab) => {
   const dome = createSunDome(new Vector3(0, 3.5, 0), 15.5);
   const own = test.group;
   world.house.group.add(own, dome.group);
+  // θ drawn at the module: normal spoke, Sun spoke and the arc between them (in the test group's frame)
+  const protractor = createProtractor();
+  own.add(protractor.lines, protractor.normal);
+  const pc = new Vector3();
+  const pn = new Vector3();
+  const ps = new Vector3();
+  const pm = new Vector3();
   const tilt = (): number => ui.value<number>('tilt8');
   const azimuth = (): number => ui.value<number>('az8');
   const day = (): SeasonDay => ui.value<string>('day8') as SeasonDay;
@@ -72,8 +81,15 @@ export const orientation: StepFactory = (lab) => {
     noPodium: true,
     shots: {
       [ID]: { position: [5.5, 7.4, 16.5], target: [0.2, 3.6, 0], frameAspect: 1.05, fov: 34, fit: { center: [0, 3.6, 0], radius: 7.5 }, orbit: { azimuth: 0.9, polar: 0.3 } },
+      // transition from step 7: up from the bench, looking up through the ceiling
+      'orientation-rise': { position: [0.4, 7.5, 6.5], target: [0.2, 16, -3], fov: 34, fit: { center: [0.2, 16, -3], radius: 3 } },
     },
-    stage: { show: [world.group, own, dome.group], envTune: ROOF_ENV, post: { bloomIntensity: 0.85 } },
+    stage: {
+      show: [world.group, own, dome.group],
+      envTune: ROOF_ENV,
+      post: { bloomIntensity: 0.85 },
+      enter: (info) => void playTransition(lab, info, ID, { from: 'shading', kind: 'through', via: 'orientation-rise', first: 1.0, last: 2.2 }),
+    },
     ui: {
       hint: L.hint8,
       honesty: [{ kind: 'notToScale', text: L.enlarged8 }, { kind: 'simplified', text: L.monthlyApprox }, { sped: 3600 }],
@@ -123,7 +139,7 @@ export const orientation: StepFactory = (lab) => {
         { type: 'toggle', id: 'snow8', label: doc(ID, 11), value: false },
       ],
       callouts: [
-        { anchor: test.centre, text: () => (sample && sample.incidenceDeg < 90 ? fill(L.incidence, { a: fmtNumber(Math.round(sample.incidenceDeg)) }) : L.sunBehind), side: 'right', color: 'yellow' },
+        { anchor: () => (protractor.lines.visible ? own.localToWorld(pm.copy(protractor.mid)) : test.centre.getWorldPosition(pm)), text: () => (sample && sample.incidenceDeg < 90 ? fill(L.incidence, { a: fmtNumber(Math.round(sample.incidenceDeg)) }) : L.sunBehind), side: 'right', color: 'yellow' },
         { anchor: test.centre, side: 'left', color: 'sky', visible: () => snow.on, text: () => ({ stays: L.snowStays, 'slides-slowly': L.snowSlow, slides: L.snowSlides })[snowBehaviour(tilt())] },
       ],
       hotspots: [
@@ -137,6 +153,13 @@ export const orientation: StepFactory = (lab) => {
       world.update(dt, t);
       test.set(tilt(), azimuth());
       sample = dome.set(day(), (t % DAY_S) / DAY_S, tilt(), azimuth(), world.house.group.worldToLocal(test.centre.getWorldPosition(v)));
+      own.updateMatrixWorld(true);
+      test.centre.getWorldPosition(pc);
+      test.centre.localToWorld(pn.set(0, 1, 0)).sub(pc).add(pc);
+      own.worldToLocal(pc);
+      own.worldToLocal(pn).sub(pc);
+      own.worldToLocal(dome.sun.getWorldPosition(ps));
+      protractor.set(pc, pn, ps, 3.2);
       // snow: stays on a flat module, creeps or slides off a steep one (`snowBehaviour`)
       const wantSnow = ui.value<boolean>('snow8');
       if (wantSnow !== snow.on) snow = { slide: 0, on: wantSnow };

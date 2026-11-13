@@ -74,7 +74,7 @@ export function createRockingChair(ctx: ChapterContext, mats: Mats): RockingChai
   const solvent = createGas(ctx, {
     kind: 'blob',
     color: 'mist',
-    count: 90,
+    count: ctx.quality.count(90, 30),
     radius: 0.045,
     box: [3.0, 3.0, 2.2],
     wander: 0.3,

@@ -12,11 +12,20 @@ import { STATUS } from '@/ui3d';
 import type { StepFactory } from '../chapter';
 import { doc, pairTitle } from '../labels';
 import { OWN } from '../labels-own';
-import { createExhibit } from '../parts/type-exhibits';
+import { createOneLine, ONE_LINE } from '../parts/one-line';
+import { ACCENT, createExhibit } from '../parts/type-exhibits';
 import { INVERTER_TYPES, TYPE_FACTS, typeFlows, type InverterType } from '../sim-bindings/types-logic';
 import { group } from '../world';
 
 const ID = 'inverter-types';
+/** The shelf line of the waiting exhibits, and the spot in front where the picked one stands (set space). */
+const SHELF = { z: -1.5, s: 0.75 } as const;
+/** The four waiting exhibits keep their order and leave the middle free for the picked one. */
+const SLOTS = [-3.6, -1.9, 1.9, 3.6] as const;
+const slotX = (i: number, picked: number): number => SLOTS[i < picked ? i : i - 1] ?? 0;
+const HERO = { z: 1.35, s: 1.6 } as const;
+/** The one-line diagram floats over the picked exhibit (centre, set space). */
+const DIAGRAM = { y: 3.15, z: 0.85, s: 0.85 } as const;
 const NAMES: Record<InverterType, string> = {
   offgrid: OWN.typeOffgrid,
   string: OWN.typeString,
@@ -29,15 +38,28 @@ export const inverterTypes: StepFactory = (lab) => {
   const { ctx, ui } = lab;
   const exhibits = INVERTER_TYPES.map((type, i) => {
     const e = createExhibit(type);
-    e.group.position.set((i - 2) * 2.15, 0, -0.5 - Math.abs(i - 2) * 0.25);
+    e.group.position.set(slotX(i, INVERTER_TYPES.length - 1), 0, SHELF.z);
+    e.group.scale.setScalar(SHELF.s);
     return e;
+  });
+  const diagrams = INVERTER_TYPES.map((type) => {
+    const d = createOneLine(type, ACCENT[type]);
+    d.group.position.set(0, DIAGRAM.y, DIAGRAM.z);
+    d.group.rotation.x = -0.12;
+    d.group.scale.setScalar(0.001);
+    d.group.visible = false;
+    return d;
   });
   // the sun over the shelf: a glowing ball that goes out with «Сонце є / немає»
   const sunMat = K.glow({ color: 'yellow', intensity: 2, whiten: 0.5 });
   const sun = new Mesh(new SphereGeometry(0.42, 32, 20), sunMat);
   const halo = createHalo({ color: 'yellow', size: 3.2, intensity: 0.8 });
   const sky = group('sun', -4.4, 3.3, -2.2, [sun, halo]);
-  const set = group(`set:${ID}`, 0, 0, 0, [...exhibits.map((e) => e.group), sky]);
+  const set = group(`set:${ID}`, 0, 0, 0, [
+    ...exhibits.map((e) => e.group),
+    ...diagrams.map((d) => d.group),
+    sky,
+  ]);
   lab.stageRoot.add(set);
 
   const selected = (): InverterType => ui.value<InverterType>('type9');
@@ -50,7 +72,8 @@ export const inverterTypes: StepFactory = (lab) => {
       tooltip: NAMES[e.type],
       cursor: 'pointer',
       click: () => ui.set('type9', e.type, { notify: true }),
-      enabled: () => lab.isCurrent(ID),
+      // the picked exhibit stands large in front: its pick box must not take the taps meant for the shelf
+      enabled: () => lab.isCurrent(ID) && selected() !== e.type,
     });
     ctx.qa.probe(`exhibit-${e.type}`, e.hit);
   });
@@ -62,18 +85,28 @@ export const inverterTypes: StepFactory = (lab) => {
     const out = new Vector3();
     return () => exhibits[i]!.group.localToWorld(out.copy(exhibits[i]!.points[key]));
   };
+  /** Name tag of an exhibit: on its top while it waits on the shelf, on the diagram's corner once picked. */
+  const nameAt = (i: number): (() => Vector3) => {
+    const out = new Vector3();
+    const corner = new Vector3(-ONE_LINE.w / 2 + 0.5, ONE_LINE.h / 2, 0);
+    return () =>
+      INVERTER_TYPES[i] === selected()
+        ? diagrams[i]!.group.localToWorld(out.copy(corner))
+        : exhibits[i]!.group.localToWorld(out.copy(exhibits[i]!.points.top));
+  };
   let glow = 1;
 
   return {
     id: ID,
     shots: {
       [ID]: {
-        position: [0, 6.0, 10.4],
-        target: [0, 1.0, 0.1],
+        // the picked exhibit and its diagram fill the middle; the shelf of the other four stays readable
+        position: [0, 5.0, 10.6],
+        target: [0, 2.1, 0.2],
         fov: 30,
-        frameAspect: 2.1,
+        frameAspect: 1.55,
         orbit: { azimuth: 0.5, polar: 0.3 },
-        fit: { center: [0, 1, 0], radius: 5.6 },
+        fit: { center: [0, 2, 0], radius: 4.8 },
       },
     },
     stage: { show: [set], enter: () => (compare = false), post: { bloomIntensity: 1.1 } },
@@ -140,7 +173,7 @@ export const inverterTypes: StepFactory = (lab) => {
       },
       callouts: [
         ...INVERTER_TYPES.map((t, i) => ({
-          anchor: at(i, 'top'),
+          anchor: nameAt(i),
           // the state is named only when it is the news: a dark house
           text: () => (typeFlows(t, gridOn(), sunOn()).houseLit ? NAMES[t] : `${NAMES[t]} · ${OWN.dark}`),
           side: 'up' as const,
@@ -167,6 +200,11 @@ export const inverterTypes: StepFactory = (lab) => {
       litCount: INVERTER_TYPES.filter((t) => typeFlows(t, gridOn(), sunOn()).houseLit).length,
       compare,
       front: exhibits[INVERTER_TYPES.indexOf(selected())]!.group.position.z,
+      diagram: diagrams
+        .filter((d) => d.group.visible)
+        .map((d) => d.group.name)
+        .join(','),
+      relayOpen: diagrams[INVERTER_TYPES.indexOf(selected())]!.relayOpen(),
     }),
     update(dt, t) {
       const sel = selected();
@@ -174,10 +212,14 @@ export const inverterTypes: StepFactory = (lab) => {
         e.apply(typeFlows(e.type, gridOn(), sunOn()));
         // the chosen exhibit steps forward and grows; the others wait on the shelf line
         const on = e.type === sel;
-        const z = on ? 1.35 : -0.5 - Math.abs(i - 2) * 0.25;
-        e.group.position.z = damp(e.group.position.z, z, 7, dt);
-        e.group.scale.setScalar(damp(e.group.scale.x, on ? 1.3 : 1, 7, dt));
+        e.group.position.x = damp(e.group.position.x, on ? 0 : slotX(i, INVERTER_TYPES.indexOf(sel)), 7, dt);
+        e.group.position.z = damp(e.group.position.z, on ? HERO.z : SHELF.z, 7, dt);
+        e.group.scale.setScalar(damp(e.group.scale.x, on ? HERO.s : SHELF.s, 7, dt));
         e.group.position.y = on ? 0.04 * Math.sin(t * 1.6) + 0.04 : 0;
+        const d = diagrams[i]!;
+        d.group.scale.setScalar(damp(d.group.scale.x, on ? DIAGRAM.s : 0.001, 9, dt));
+        d.group.visible = d.group.scale.x > 0.02;
+        if (d.group.visible) d.apply(typeFlows(e.type, gridOn(), sunOn()), gridOn(), t);
       });
       glow = damp(glow, sunOn() ? 1 : 0, 5, dt);
       sunMat.intensity = 0.15 + 1.9 * glow;

@@ -155,7 +155,12 @@ export function createDaniellCell(ctx: ChapterContext, mats: Mats): DaniellCell 
   const plating = ionFlow(lanes(0.12, ROD_X - 0.2), 'orange', 'plus', 12); // cations landing on the cathode
   const crossing = ionFlow(lanes(0.5, -0.5), 'mist', 'minus', 8); // anions through the porous divider
   const bubbles = ([-1, 1] as const).map((side) => {
-    const b = createBubbles(ctx, { size: [0.5, 1.1, 1.2], count: 26, radius: 0.045, rise: 0.7 });
+    const b = createBubbles(ctx, {
+      size: [0.5, 1.1, 1.2],
+      count: ctx.quality.count(26, 8),
+      radius: 0.045,
+      rise: 0.7,
+    });
     b.position.set(side * ROD_X, 0.75, 0);
     b.rate = 0;
     return b;

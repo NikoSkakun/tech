@@ -3,13 +3,20 @@
  * small island with a house that carries a lightning rod, a tall tree, and a cumulonimbus with an anvil made of
  * merged soft puffs. Returns the points the lightning effects need.
  */
-import { Group, Vector3 } from 'three';
+import { Group, Mesh, Plane, Vector3 } from 'three';
 import type { ChapterContext } from '@/engine/api';
 import { Builder, house, island, trees } from '@/kit';
+import type { ColorToken } from '@/style';
 import { STATIC } from '../layout';
 
 /** Scene units per metre of the diorama. */
 export const STORM_SCALE = 0.3;
+/** z (metres, cloud space) of the cutaway face of the thundercloud; the charge marks sit on it. */
+export const CLOUD_CUT = 1.2;
+const CUT = CLOUD_CUT;
+/** x (metres) left of which the cloud stays whole; the charge marks sit right of it. */
+export const CLOUD_CUT_X = -3;
+const CUT_X = CLOUD_CUT_X;
 
 export interface StormSet {
   /** Everything in metres; `group.scale` = `STORM_SCALE`, positioned at `STATIC.storm`. */
@@ -66,16 +73,45 @@ export function createStormSet(ctx: ChapterContext): StormSet {
   land.group.add(wood.group);
   const treeTop = new Vector3(9, land.heightAt(9, -2) + 15.5, -2);
 
-  // cumulonimbus: dark flat base, bulging tower, anvil spreading at the top
-  const cb = new Builder('thundercloud');
+  // Cumulonimbus: dark flat base, bulging tower, anvil spreading at the top. It is shown as a cutaway: the
+  // front-right block (x > CUT_X and z > CUT) is clipped away and flat caps (the exact sections of the puffs)
+  // close the cut, so the separated charge sits *inside* the cloud, on the cut face, while the left part keeps
+  // its puffy outline.
+  const keepZ = new Plane(); // z <= CUT
+  const keepX = new Plane(); // x <= CUT_X
+  const capX = new Plane(); // x >= CUT_X (the front cap only right of the cut)
+  const capZ = new Plane(); // z >= CUT (the side cap only in front of the cut)
+  const cb = new Builder('thundercloud', { clippingPlanes: [keepZ, keepX] });
+  const front = new Builder('thundercloud-cut', { clippingPlanes: [capX] });
+  const side = new Builder('thundercloud-side', { clippingPlanes: [capZ] });
+  const S: [number, number, number] = [1, 0.72, 0.9];
   const puff = (x: number, y: number, z: number, r: number, tone: number): void => {
     cb.sphere(r, {
       seg: 18,
       slot: 'soft',
       c: tone < 0.5 ? ['slate', 'steel'] : ['steel', 'mist'],
       at: [x, y, z],
-      s: [1, 0.72, 0.9],
+      s: S,
     });
+    const inner: ColorToken = tone < 0.7 ? 'slate' : 'steel';
+    // sections of the ellipsoid (r, 0.72 r, 0.9 r) by z = CUT and by x = CUT_X
+    const kz = 1 - ((CUT - z) / (S[2] * r)) ** 2;
+    if (kz > 0) {
+      const a = r * Math.sqrt(kz);
+      front.cyl(a, 0.04, { seg: 24, slot: 'matte', c: inner, at: [x, y, CUT], axis: 'z', s: [1, S[1], 1] });
+    }
+    const kx = 1 - ((CUT_X - x) / r) ** 2;
+    if (kx > 0) {
+      const a = r * Math.sqrt(kx);
+      side.cyl(a, 0.04, {
+        seg: 24,
+        slot: 'matte',
+        c: inner,
+        at: [CUT_X, y, z],
+        axis: 'x',
+        s: [1, S[1], S[2]],
+      });
+    }
   };
   const base = 24;
   for (let i = 0; i < 9; i++)
@@ -86,19 +122,33 @@ export function createStormSet(ctx: ChapterContext): StormSet {
   for (let i = 0; i < 9; i++)
     puff(-17 + i * 4.4, base + 17 + (i % 2) * 0.5, (i % 3) * 0.8 - 0.8, 4.2 - Math.abs(i - 4) * 0.25, 0.9);
   const cloud = cb.build().group;
+  // a fragment is clipped only when it is outside *both* planes: that removes just the front-right block
+  cloud.traverse((o) => {
+    if (o instanceof Mesh) for (const m of [o.material].flat()) m.clipIntersection = true;
+  });
+  cloud.add(front.build().group, side.build().group);
   group.add(cloud);
+  // the planes in cloud space (metres); copied to world space every frame
+  const local = [
+    [keepZ, new Plane(new Vector3(0, 0, -1), CUT)],
+    [keepX, new Plane(new Vector3(-1, 0, 0), CUT_X)],
+    [capX, new Plane(new Vector3(1, 0, 0), -CUT_X)],
+    [capZ, new Plane(new Vector3(0, 0, 1), -CUT)],
+  ] as const;
 
   return {
     group,
     rodTip,
     treeTop,
     cloudBase: new Vector3(-2, base - 0.8, 2.6),
-    core: new Vector3(0, base + 8, 5.6),
-    cloudTop: new Vector3(0, base + 17.5, 4.4),
+    core: new Vector3(CUT_X + 8, base + 8, CUT + 0.6),
+    cloudTop: new Vector3(CUT_X + 6, base + 17.5, CUT + 0.4),
     rod,
     update(dt, t) {
       wood.update?.(dt, t);
       cloud.position.x = Math.sin(t * 0.25) * 0.5; // the cloud drifts a little
+      cloud.updateWorldMatrix(true, false);
+      for (const [world, own] of local) world.copy(own).applyMatrix4(cloud.matrixWorld); // planes are world-space
     },
   };
 }

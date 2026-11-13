@@ -5,12 +5,14 @@
  */
 import type { ChapterContext } from '@/engine/api';
 import { wavelengthToRgb } from '@electricity/sim/atom';
-import { Label, UiNode, rgba, worldSurface, type Painter, type Rgba, type UiSurface } from '@/ui3d';
+import { Label, UiNode, rgba, type Painter, type Rgba } from '@/ui3d';
+import { createConsole, type PinnedConsole } from './console';
 
-const W = 640;
-const H = 92;
+/** Compact on purpose (see console.ts): 370 nm of spectrum on 276 px-eq. */
+const W = 380;
+const H = 86;
 const BAR_H = 34;
-const MARGIN = 62; // UV / IR zones at the ends
+const MARGIN = 38; // UV / IR zones at the ends
 const X0 = -W / 2 + 14 + MARGIN;
 const X1 = W / 2 - 14 - MARGIN;
 const xOf = (nm: number): number => X0 + ((nm - 380) / (750 - 380)) * (X1 - X0);
@@ -19,11 +21,11 @@ class StripNode extends UiNode {
   readonly lines = new Map<number, number>(); // rounded nm → hits
   constructor(labels: { uv: string; ir: string; title: string }) {
     super({ name: 'spectrum-strip', width: W, height: H, dir: 'stack' });
-    const small = { font: 'mono', size: 14, color: 'mist', nowrap: true } as const;
+    const small = { font: 'mono', size: 15, color: 'mist', nowrap: true } as const;
     this.add(
       new Label(
         labels.title,
-        { size: 14, color: 'steel', nowrap: true },
+        { size: 15, color: 'steel', nowrap: true },
         { float: { ax: 0.5, ay: 0, py: 0, dy: 6 } },
       ),
     );
@@ -49,12 +51,6 @@ class StripNode extends UiNode {
       );
   }
   override paint(p: Painter): void {
-    p.panel(0, 0, this.bw, this.bh, {
-      fill: rgba('bg.deep', 0.88),
-      border: rgba('cyan', 0.45),
-      bw: 1.5,
-      r: 16,
-    });
     const y = 4;
     // dim rainbow as the backdrop of the bar, dark UV / IR zones at its ends
     const slices = 74;
@@ -87,7 +83,7 @@ class StripNode extends UiNode {
 }
 
 export interface SpectrumStrip {
-  surface: UiSurface;
+  console: PinnedConsole;
   add(wavelengthNm: number): void;
   clear(): void;
   /** Number of distinct lines on the strip. */
@@ -97,12 +93,19 @@ export interface SpectrumStrip {
 export function createSpectrumStrip(
   ctx: ChapterContext,
   labels: { uv: string; ir: string; title: string },
+  place: { top: readonly [number, number, number]; unit: number },
 ): SpectrumStrip {
-  const surface = worldSurface(ctx, { width: W, height: H, unit: 0.0185, name: 'spectrum-strip' });
   const node = new StripNode(labels);
-  surface.root.add(node);
+  const console3d = createConsole(ctx, {
+    name: 'spectrum-strip',
+    width: W + 44,
+    unit: place.unit,
+    top: place.top,
+    billboard: false,
+    children: [node],
+  });
   return {
-    surface,
+    console: console3d,
     add(nm) {
       const key = Math.round(nm);
       node.lines.set(key, (node.lines.get(key) ?? 0) + 1);

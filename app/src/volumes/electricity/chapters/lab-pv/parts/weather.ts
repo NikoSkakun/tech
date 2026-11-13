@@ -45,7 +45,7 @@ export function createWeather(): Weather {
   const air = levelTube({ height: 0.8, radius: 0.05, color: 'sky', level: level(25), ticks: 4 });
   air.group.position.set(0.02, 0.86, 0.02);
   group.add(cell.group, air.group);
-  const shimmer = createHeatShimmer({ width: 2.3, height: 1.3, lines: 7, intensity: 0, speed: 0.8 });
+  const shimmer = createHeatShimmer({ width: 2.6, height: 3.6, lines: 11, intensity: 0, speed: 0.8 });
   const spin = stand.part('anemometer');
   const c = temperatureRamp(0.5);
 
@@ -59,8 +59,8 @@ export function createWeather(): Weather {
       cell.setColor(temperatureRamp(level(cellC), c));
       air.setColor(temperatureRamp(level(airC), c));
       spin.rotation.y = t * 2.4; // 1 m/s of the NMOT definition, drawn as a lazy turn
-      // shimmer appears above ≈ 40 °C in the cell
-      shimmer.intensity = Math.min(1, Math.max(0, (cellC - 40) / 35)) * 0.9;
+      // shimmer appears above ≈ 35 °C in the cell and is strong by 70 °C
+      shimmer.intensity = Math.min(1, Math.max(0, (cellC - 35) / 35)) * 1.5;
     },
   };
 }

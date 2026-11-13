@@ -1,9 +1,9 @@
 /**
  * Data of step 5 `chemistries`.
  *
- * - `CHEM_TABLE` is parsed from the generated content: the document's table «типові діапазони комірок, 2025»
- *   arrives as one fact string in table markup, so headers and cells shown on screen are the document's own
- *   words (nothing is retyped here). Rows are keyed by `ChemId`; `chemName` is the row's own first cell.
+ * - `CHEM_TABLE` is the document's table «типові діапазони комірок, 2025» as the generated content carries it
+ *   (`facts.items[].table`: head + rows), so headers and cells shown on screen are the document's own words.
+ *   Rows are keyed by `ChemId`; `chemName` is the row's own first cell.
  * - `RADAR` are illustrative 0…1 scores on the five axes of the showcase, derived from the same table
  *   (energy = mid Wh/kg ÷ 300; life = log₁₀ of mid cycles ÷ log₁₀ 20 000; safety from the runaway-onset column;
  *   «ціна» = affordability, low price → high score; power from the panel text: LMO and LTO fast, LCO slow).
@@ -11,39 +11,28 @@
  * - `TASK_FIT` encodes the verdicts of «Вибери хімію для задачі» exactly as the document lists them
  *   (several answers can be right).
  */
+import type { Fact } from '@/content';
 import raw from '@electricity/content/generated/lab-battery.json';
-import type { ChemId } from './parts';
+import type { ChemId } from './parts/crystals';
 
 export const CHEMS: readonly ChemId[] = ['LCO', 'NMC', 'NCA', 'LFP', 'LMO', 'LTO', 'Na-ion'];
 
-function parseTable(): { headers: string[]; rows: Record<string, string[]>; footnote: string } {
-  const text = raw.steps.find((s) => s.id === 'chemistries')!.facts.items[0]!.text;
-  const cells = text.split('|').map((c) => c.trim());
-  const footnote = cells[cells.length - 1]!.replace(/^\*/, '');
-  // the markup is «| h1 | … | h7 | |---|…| | r1c1 | …»: collect runs of non-empty cells of the header's length
-  const runs: string[][] = [];
-  let run: string[] = [];
-  for (const c of cells.slice(0, -1)) {
-    if (c === '' || /^-+$/.test(c)) {
-      if (run.length) runs.push(run);
-      run = [];
-    } else run.push(c);
-  }
-  if (run.length) runs.push(run);
-  const [headers, ...body] = runs as [string[], ...string[][]];
+function readTable(): { headers: readonly string[]; rows: Record<string, readonly string[]> } {
+  const facts: readonly Fact[] = raw.steps.find((s) => s.id === 'chemistries')!.facts.items;
+  const table = facts.find((f) => f.table)!.table!;
   // Rows named by a chemistry code (LFP …) are keyed by it. The document names the newcomer in plain Ukrainian
   // («Натрій-іонні», DECISIONS §54), so the rows without a code take the chemistries without a row, in order.
-  const isCode = (r: string[]): boolean => (CHEMS as readonly string[]).includes(r[0]!);
-  const rows: Record<string, string[]> = {};
-  for (const r of body.filter(isCode)) rows[r[0]!] = r;
-  const named = body.filter((r) => !isCode(r));
+  const isCode = (r: readonly string[]): boolean => (CHEMS as readonly string[]).includes(r[0]!);
+  const rows: Record<string, readonly string[]> = {};
+  for (const r of table.rows.filter(isCode)) rows[r[0]!] = r;
+  const named = table.rows.filter((r) => !isCode(r));
   CHEMS.filter((id) => !rows[id]).forEach((id, i) => {
     if (named[i]) rows[id] = named[i];
   });
-  return { headers, rows, footnote };
+  return { headers: table.head, rows };
 }
 
-export const CHEM_TABLE = parseTable();
+export const CHEM_TABLE = readTable();
 
 /** On-screen name of a chemistry: the first cell of its table row — the code, or the document's Ukrainian name. */
 export const chemName = (id: ChemId): string => CHEM_TABLE.rows[id]?.[0] ?? id;

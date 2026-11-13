@@ -20,7 +20,7 @@ import {
 import { lightningTimeline, stormState } from '@electricity/sim/charge-field';
 import { SEMANTIC } from '@/style';
 import { smooth } from '../chapter';
-import type { StormSet } from './storm-set';
+import { CLOUD_CUT, CLOUD_CUT_X, type StormSet } from './storm-set';
 
 const PLUS = 16;
 const MINUS = 16;
@@ -130,11 +130,11 @@ export function createStormFx(ctx: ChapterContext, set: StormSet): StormFx {
   dust.rotation.x = -Math.PI / 2;
   group.add(ground, fieldLines, ice, graupel, plus, minus, leader, streamer, bolt, flash, dust);
 
-  // fixed seats of the charge marks on the front face of the cloud
+  // fixed seats of the charge marks on the cut face of the cloud
   const seat = (i: number, n: number, y: number, spanX: number): [number, number, number] => [
-    ((i + 0.5) / n - 0.5) * spanX + (i % 2) * 0.8,
+    CLOUD_CUT_X + 1.6 + ((i + 0.5) / n) * spanX * 0.55 + (i % 2) * 0.8, // right of the cut only
     y + ((i * 7) % 3) * 1.5 - 1.5,
-    5.4 + ((i * 5) % 3) * 0.4,
+    CLOUD_CUT + 0.3 + ((i * 5) % 3) * 0.2,
   ];
   let run: {
     t: number;
@@ -166,7 +166,7 @@ export function createStormFx(ctx: ChapterContext, set: StormSet): StormFx {
       for (let i = 0; i < PLUS + 3; i++) {
         const pocket = i >= PLUS;
         const [x, y, z] = pocket
-          ? [-6 + (i - PLUS) * 2.2, set.cloudBase.y + 2.2, 6.4]
+          ? [CLOUD_CUT_X + 2 + (i - PLUS) * 2.2, set.cloudBase.y + 2.2, CLOUD_CUT + 0.5]
           : seat(i, PLUS, set.cloudTop.y, 34);
         plus.setPosition(
           i,

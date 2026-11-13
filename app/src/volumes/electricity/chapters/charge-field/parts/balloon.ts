@@ -29,8 +29,15 @@ export interface BalloonModel {
   /** 0…1 share of the largest charge (−300 nC): number of electron dots shown. */
   charge: number;
   hover: number;
+  /** 0…1: pressed against the wall (+x side). The squash follows it on a spring, so the hit wobbles. */
+  press: number;
+  /** Current flattening along x (0…≈0,15); the +x side of the skin stays at R from the group origin. */
+  readonly squash: number;
   update(dt: number, t: number): void;
 }
+
+/** Largest flattening of the balloon against the wall. */
+const SQUASH = 0.13;
 
 export function createBalloonModel(): BalloonModel {
   const group = new Group();
@@ -65,14 +72,30 @@ export function createBalloonModel(): BalloonModel {
       BALLOON_R * 1.02,
     );
   });
-  group.add(body, b.build().group, dots);
+  // the skin (body + its electron dots) squashes as one; the knot and the string do not
+  const skin = new Group();
+  skin.add(body, dots);
+  group.add(skin, b.build().group);
   let shown = 0;
+  let squash = 0;
+  let speed = 0;
   const balloon: BalloonModel = {
     group,
     body,
     charge: 0,
     hover: 0,
+    press: 0,
+    get squash() {
+      return squash;
+    },
     update(dt, t) {
+      // under-damped spring: a soft rubber hit overshoots and settles in about half a second
+      const h = Math.min(dt, 1 / 30);
+      speed += ((balloon.press * SQUASH - squash) * 260 - speed * 14) * h;
+      squash = Math.max(squash + speed * h, -0.04);
+      // flattened along x, bulging a little in y and z (the volume stays about the same)
+      skin.scale.set(1 - squash, 1 + squash * 0.45, 1 + squash * 0.45);
+      skin.position.x = BALLOON_R * squash; // the wall side stays where it touches, the back comes closer
       shown += (balloon.charge - shown) * Math.min(dt * 8, 1);
       seats.forEach((p, i) =>
         dots.setPosition(

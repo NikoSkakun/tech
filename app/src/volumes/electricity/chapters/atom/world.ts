@@ -9,7 +9,7 @@
  */
 import { Group } from 'three';
 import { damp, toOverlay, type Actor, type ChapterContext, type Param } from '@/engine/api';
-import { ProbabilityCloud } from './parts/cloud';
+import { createProbabilityCloud, type ProbabilityCloud } from '@/fx';
 import { Nucleus } from './parts/nucleus';
 import { createScaleRuler, type ScaleRuler } from './parts/ruler';
 
@@ -52,17 +52,16 @@ export function createWorld(ctx: ChapterContext): World {
     protons: 29,
     neutrons: 34,
   });
-  // holder = stage actor (pop in / out) › pose group (`nucleus` pose, «×1000» size) › cluster (free for steps)
-  const nucleusHolder = new Group();
+  // one group is both the stage actor (pops in / out) and the target of the `nucleus` pose («×1000» size by
+  // default): a pose scales the actor's full size. The cluster inside stays free for the steps.
   const nucleusPose = new Group();
   nucleusPose.scale.setScalar(NUCLEUS_SHOWN);
   nucleusPose.add(nucleus.group);
-  nucleusHolder.add(nucleusPose);
-  atom.add(nucleusHolder);
+  atom.add(nucleusPose);
 
   // 29 electrons as a fuzzy cloud: four radial shells (K, L, M, N) with soft gaussian spread
   const count = ctx.quality.count(9000, 2500);
-  const cloud = new ProbabilityCloud({ capacity: count, size: 0.11, intensity: 0.22 });
+  const cloud = createProbabilityCloud({ capacity: count, size: 0.11, intensity: 0.22 });
   const rng = ctx.random.fork('cu-cloud');
   const shells = [
     { r: 0.14, sigma: 0.035, weight: 2 },
@@ -106,7 +105,7 @@ export function createWorld(ctx: ChapterContext): World {
     snap: () => (snapNext = true),
     atom,
     nucleus,
-    nucleusActor: stage.actor(nucleusHolder),
+    nucleusActor: stage.actor(nucleusPose),
     cloud,
     cloudActor: stage.actor(cloud, { appear: 'fade' }),
     ruler,
@@ -117,7 +116,7 @@ export function createWorld(ctx: ChapterContext): World {
       atom.visible = zoom > 0.02;
       atom.scale.setScalar(Math.max(zoom, 1e-3));
       nucleus.group.scale.setScalar(this.nucleusShrink);
-      if (atom.visible && nucleusHolder.visible) {
+      if (atom.visible && nucleusPose.visible) {
         spin += dt * this.nucleusSpin;
         nucleus.group.rotation.y = spin * 0.16;
         nucleus.group.rotation.x = Math.sin(spin * 0.11) * 0.2;

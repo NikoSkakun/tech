@@ -66,16 +66,17 @@ export function createSpectrum(): Spectrum {
     group.add(bar);
     return bar;
   });
-  const anchor = (at: number, y: number): Object3D => {
+  const anchor = (at: number, y: number, z = 0.3): Object3D => {
     const o = new Group();
-    o.position.set(at, y, 0.3);
+    o.position.set(at, y, z);
     group.add(o);
     return o;
   };
   return {
     group,
     bars,
-    anchors: { uv: anchor(x(0), heights[0]! + 0.2), visible: anchor(x(2), heights[2]! + 0.2), ir: anchor(x(8), heights[8]! + 0.2) },
+    // UV and IR are named from below (their labels hang under the base), visible light from above
+    anchors: { uv: anchor(x(0), 0.05, 0.45), visible: anchor(x(2), heights[2]! + 0.2), ir: anchor(x(8), 0.05, 0.45) },
     top: (i) => [x(i), 0.1 + heights[i]!, 0],
     update(selected, t) {
       bars.forEach((bar, i) => {

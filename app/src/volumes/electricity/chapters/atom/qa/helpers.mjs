@@ -1,6 +1,12 @@
 /* global window */
 // Playwright helpers shared by the chapter's QA scripts (run on lenovo through tools/qa/shot.mjs --script or
-// directly: see interactions.mjs). Controls are addressed by their step-UI id (HUD node name `ctl-<id>`).
+// directly: see interactions.mjs).
+//
+// Only hooks that exist in production builds are used, and every position comes from them in CSS px, so one
+// script serves 1280×720, 1920×1080 and 3840×2160:
+//   HUD controls   `__ui.locate('ctl-<id>')`, segmented items `ctl-<id>:<item>`, values `__ui.value(id)`
+//   scene objects  `__app.locate('<probe>')`   (the chapter's `ctx.qa.probe`)
+//   chapter state  `__app.read('<name>')`      (the chapter's `ctx.qa.expose`)
 
 /** Advance the frozen engine clock by `seconds` (QA runs with ?freeze, so nothing moves by itself). */
 export async function advance(page, seconds) {
@@ -9,19 +15,49 @@ export async function advance(page, seconds) {
   for (let i = 0; i < 14; i++) await page.evaluate(() => window.__app.step(1 / 60, 1));
 }
 
-/** CSS rectangle { x, y, w, h } (centre + size) of a step control; throws when it is not on screen. */
-export async function locate(page, id) {
-  const rect = await page.evaluate((name) => window.__ui.locate(name), `ctl-${id}`);
-  if (!rect) throw new Error(`control '${id}' is not on screen`);
+/** CSS rectangle { x, y, w, h } (centre + size) of a named HUD node; throws when it is not on screen. */
+export async function locateNode(page, name) {
+  const rect = await page.evaluate((n) => window.__ui.locate(n), name);
+  if (!rect) throw new Error(`HUD node '${name}' is not on screen`);
   return rect;
 }
 
+/** Rectangle of a step control by its step-UI id. */
+export const locate = (page, id) => locateNode(page, `ctl-${id}`);
+
 export const value = (page, id) => page.evaluate((k) => window.__ui.value(k), id);
 
-/** Click a button / toggle; `fx` picks a horizontal position inside it (0…1) — a segmented control's item. */
+/** State published by the chapter with `ctx.qa.expose(name, …)`. */
+export const read = (page, name) => page.evaluate((n) => window.__app.read(n), name);
+
+/** Screen position { x, y } of a scene object published with `ctx.qa.probe(name, …)`. */
+export async function at(page, name) {
+  const p = await page.evaluate((n) => window.__app.locate(n), name);
+  if (!p) throw new Error(`probe '${name}' is unknown`);
+  return p;
+}
+
+/** Click a button / toggle by its id; `fx` (0…1) picks a horizontal position inside it (a toggle's switch). */
 export async function click(page, id, fx = 0.5) {
   const r = await locate(page, id);
   await page.mouse.click(r.x - r.w / 2 + r.w * fx, r.y);
+  await advance(page, 0.2);
+}
+
+/** Click item `item` of the segmented control `id` (`ctl-<id>:<item>`), or a part of a custom control. */
+export async function pick(page, id, item) {
+  const r = await locateNode(page, `ctl-${id}:${item}`);
+  await page.mouse.click(r.x, r.y);
+  await advance(page, 0.2);
+}
+
+/** Press and hold a named HUD node for `seconds` of engine time, then release. */
+export async function hold(page, name, seconds) {
+  const r = await locateNode(page, name);
+  await page.mouse.move(r.x, r.y);
+  await page.mouse.down();
+  await advance(page, seconds);
+  await page.mouse.up();
   await advance(page, 0.2);
 }
 
@@ -29,8 +65,8 @@ export async function click(page, id, fx = 0.5) {
 export async function slide(page, id, fx) {
   const r = await locate(page, id);
   const y = r.y + r.h * 0.18; // the track sits in the lower half of the control, under its label
-  const x0 = r.x - r.w / 2 + 14;
-  const x1 = r.x + r.w / 2 - 14;
+  const x0 = r.x - r.w / 2 + r.w * 0.04;
+  const x1 = r.x + r.w / 2 - r.w * 0.04;
   await page.mouse.move(x0 + (x1 - x0) * 0.5, y);
   await page.mouse.down();
   await page.mouse.move(x0 + (x1 - x0) * fx, y, { steps: 6 });
@@ -38,67 +74,29 @@ export async function slide(page, id, fx) {
   await advance(page, 0.2);
 }
 
-/** World point → CSS px. */
-export const project = (page, x, y, z) =>
-  page.evaluate(([a, b, c]) => window.__app.project(a, b, c), [x, y, z]);
-
-/** Drag in the scene from one world point to another (CSS px offsets allowed through `dx`, `dy`). */
-export async function dragWorld(page, from, to, { steps = 12, hold = 0 } = {}) {
-  const a = await project(page, ...from);
-  const b = await project(page, ...to);
-  await page.mouse.move(a.x, a.y);
-  await advance(page, 0.1);
+/**
+ * Press on a probe and drag by a fraction of the viewport height (`fx`, `fy`: right / down positive), keeping
+ * the button down. Returns the release function. Fractions, not pixels: the same gesture at every size.
+ */
+export async function dragProbe(page, name, fx, fy, { settle = 0.6 } = {}) {
+  const p = await at(page, name);
+  const h = page.viewportSize().height;
+  await page.mouse.move(p.x, p.y);
+  // one frame, so that the engine picks what is under the pointer now (the clock is frozen: no frame, no
+  // hover) — and not more: moving targets (orbiting quarks) do not wait
+  await page.evaluate(() => window.__app.step(1 / 60, 1));
   await page.mouse.down();
-  await page.mouse.move(b.x, b.y, { steps });
-  await advance(page, 0.2 + hold);
-  return {
-    release: async () => {
-      await page.mouse.up();
-      await advance(page, 0.2);
-    },
+  await page.mouse.move(p.x + fx * h, p.y + fy * h, { steps: 12 });
+  await advance(page, settle);
+  return async (after = 0.2) => {
+    await page.mouse.up();
+    await advance(page, after);
   };
 }
 
-/**
- * Rectangle of the `index`-th visible HUD widget of a class ('Tabs', 'Readout', 'Chart' …). The HUD names only
- * sliders, toggles and buttons `ctl-<id>` (segmented controls and readouts have no name — reported in
- * docs/requests/B-atom.md), so they are found by class in the HUD's node tree.
- */
-export async function locateWidget(page, className, index = 0) {
-  const rect = await page.evaluate(
-    ([cls, i]) => {
-      // every UiSurface is an Object3D under the engine's HUD root with a `root` UiNode
-      const layer = window.__app.engine.hud;
-      const hits = [];
-      layer.root.traverse((o) => {
-        if (!o.root || typeof o.root.walk !== 'function') return;
-        o.root.walk((n) => {
-          if (n.constructor.name === cls && n.slot >= 0 && n.worldOpacity > 0.5) hits.push([o, n]);
-        });
-      });
-      if (!hits[i]) return null;
-      const [surface, n] = hits[i];
-      const m = layer.metrics;
-      const w = n.world;
-      const v = surface.position.clone().set(w[3], w[7], w[11]);
-      v.applyMatrix4(surface.matrixWorld).project(layer.camera);
-      const k = m.pxPerUnit;
-      return {
-        x: (v.x * 0.5 + 0.5) * m.cssWidth,
-        y: (0.5 - v.y * 0.5) * m.cssHeight,
-        w: n.bw * Math.abs(w[0]) * k,
-        h: n.bh * Math.abs(w[5]) * k,
-      };
-    },
-    [className, index],
-  );
-  if (!rect) throw new Error(`no visible ${className} #${index}`);
-  return rect;
-}
-
-/** Click item `item` (0-based) of `count` in the `index`-th segmented control on screen. */
-export async function pickTab(page, index, item, count) {
-  const r = await locateWidget(page, 'Tabs', index);
-  await page.mouse.click(r.x - r.w / 2 + (r.w * (item + 0.5)) / count, r.y);
+/** Click a scene object by its probe. */
+export async function clickProbe(page, name) {
+  const p = await at(page, name);
+  await page.mouse.click(p.x, p.y);
   await advance(page, 0.2);
 }

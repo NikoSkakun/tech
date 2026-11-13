@@ -75,6 +75,22 @@ const click3d = async (name, n = 30) => {
   await page.mouse.click(p.x, p.y);
   await frames(n);
 };
+/** Real pointer drag from one scene probe to another, in small moves (the engine sees a drag, not a click). */
+const drag3d = async (from, to) => {
+  const a = await page.evaluate((k) => window.__app.locate(k), from);
+  const b = await page.evaluate((k) => window.__app.locate(k), to);
+  if (!a?.visible || !b?.visible) return check(false, `drag: probe '${from}' or '${to}' not visible`);
+  await page.mouse.move(a.x, a.y);
+  await frames(2);
+  await page.mouse.down();
+  await frames(2);
+  for (let k = 1; k <= 12; k++) {
+    await page.mouse.move(a.x + ((b.x - a.x) * k) / 12, a.y + ((b.y - a.y) * k) / 12);
+    await frames(2);
+  }
+  await page.mouse.up();
+  await frames(60);
+};
 const offscreen = async (step) => {
   const list = await page.evaluate(() => window.__ui.offscreen?.() ?? []);
   check(list.length === 0, `${step}: controls outside the viewport: ${JSON.stringify(list).slice(0, 160)}`);
@@ -240,7 +256,9 @@ const steps = {
     await clickUi('ctl-wave5:spwm_uni');
   },
   'dc-link': async () => {
-    check(near((await probe()).duty, 0.375, 0.001), '250 V → D = 0,375');
+    const h = await probe();
+    check(near(h.duty, 0.375, 0.001), '250 V → D = 0,375');
+    check(h.hero === 'pv' && !h.lfShown, `panels: the boost stage is the hero (${h.hero})`);
     await set('uin6', 150);
     check(near((await probe()).duty, 0.625, 0.001), '150 V → D = 0,625');
     await set('uin6', 420);
@@ -252,11 +270,18 @@ const steps = {
       a.src === 'bat' && near(a.eta, 0.9049, 0.001) && a.batSpeed > 0,
       `battery → output at 600 W: η 90,5 % (${a.eta})`,
     );
+    check(a.hero === 'bat', `battery: the camera moves to the battery converter (${a.hero})`);
     await clickUi('ctl-dir6:charge');
     const b = await probe();
     check(b.charging === true && b.batSpeed < 0, 'charging reverses the flow to the battery');
-    await clickUi('ctl-arch6:lf');
-    check((await probe()).arch === 'lf', 'low-frequency architecture selected');
+    await clickUi('ctl-arch6:lf', 90);
+    const c = await probe();
+    check(
+      c.arch === 'lf' && c.hero === 'lf' && c.lfShown,
+      `low-frequency architecture: the 48 V bridge → 50 Hz toroid chain appears (${c.hero}, ${c.lfShown})`,
+    );
+    await clickUi('ctl-arch6:hf', 90);
+    check(!(await probe()).lfShown, 'back to the high-frequency inverter: the chain goes away');
   },
   'mppt-controller': async () => {
     await frames(600);
@@ -281,8 +306,8 @@ const steps = {
     await clickUi('ctl-morning7', 300);
     const c = await probe();
     check(
-      c.mode === 'two' && c.climbers === 2 && c.loss >= 0,
-      `«Ранок» puts two climbers on two hills (${c.mode}, ${c.climbers})`,
+      c.mode === 'two' && c.climbers === 2 && c.loss >= 0 && c.stack > 2,
+      `«Ранок» puts two climbers on two stacked hills (${c.mode}, ${c.climbers}, ${c.stack})`,
     );
     await clickUi('ctl-single7', 200);
     const d = await probe();
@@ -310,6 +335,12 @@ const steps = {
     check(
       b.closed === true && b.soft === false && b.inrush > 50,
       `closing out of sync should give a surge (${b.inrush} A)`,
+    );
+    await frames(40);
+    const b2 = await probe();
+    check(
+      b2.breaker === true && b2.closed === false,
+      'the surge trips the protection: the relay opens again',
     );
     await press('again8', 20);
     await set('f8', 50.05);
@@ -343,6 +374,17 @@ const steps = {
       `anti-islanding trips in ≈ 0,6 s; grid-following: the house is dark (${e.trip}, ${e.powered})`,
     );
     await press('grid8', 20);
+    const g = await probe();
+    check(
+      g.grid === true && g.waitS > 50 && g.closed === false,
+      `grid back: ≈ 1 min of watching first (${g.waitS})`,
+    );
+    await frames(420);
+    const h = await probe();
+    check(
+      h.waitS === 0 && h.closed === true && h.soft === true,
+      'after the minute the inverter reconnects in sync',
+    );
     await press('again8', 20);
     await clickUi('ctl-ctl8:forming');
     await press('pll8', 200);
@@ -368,6 +410,10 @@ const steps = {
       b.type === 'string' && b.lit === false && b.running === false && b.front > 1,
       `the string inverter is silent in a blackout and steps forward (${b.front})`,
     );
+    check(
+      b.diagram === 'one-line-string' && b.relayOpen === true,
+      `its one-line diagram floats over it, grid relay open (${b.diagram}, ${b.relayOpen})`,
+    );
     await clickUi('ctl-type9:offgrid', 60);
     await clickUi('ctl-sun9');
     const c = await probe();
@@ -382,6 +428,10 @@ const steps = {
   },
   ups: async () => {
     check(near((await probe()).holdMs, 22.4, 0.1), '300 W → hold-up 22,4 ms');
+    await clickUi('ctl-xray10', 10);
+    check((await probe()).xray === true, '«Рентген» shows the inside of the three UPS classes');
+    await clickUi('ctl-xray10', 10);
+    check((await probe()).xray === false, '«Рентген» off: the scopes come back');
     await press('mains10', 300);
     const a = await probe();
     check(
@@ -422,8 +472,9 @@ const steps = {
     }
   },
   choosing: async () => {
-    await click3d('toy-3', 2); // pointer: kettle, microwave, fridge from the tray
-    await click3d('toy-4', 2);
+    // pointer: kettle, microwave, fridge from the tray (let each hop land: a toy in flight crosses the others)
+    await click3d('toy-3', 40);
+    await click3d('toy-4', 40);
     await click3d('toy-0', 4);
     const a = await probe();
     check(
@@ -433,12 +484,15 @@ const steps = {
     await frames(60);
     const b = await probe();
     check(near(b.pW, 3350, 1) && b.status === 'ok', 'after the start-up surge the load settles at 3350 W');
+    await click3d('start-0', 3); // pointer: the fridge's own «Пуск» key over it
+    check(near((await probe()).pW, 3950, 1), "the fridge's own «Пуск» key starts the fridge again (3950 W)");
+    await frames(60);
     await press('start12', 3);
     check((await probe()).pW > 3900, '«Пуск» starts the motors again (surge)');
     await click3d('toy-4', 20); // microwave and fridge back to the tray, then 3 kettles + the pump
     await click3d('toy-0', 20);
-    await click3d('toy-10', 2);
-    await click3d('toy-11', 2);
+    await click3d('toy-10', 40);
+    await click3d('toy-11', 40);
     await click3d('toy-1', 3);
     const c = await probe();
     check(
@@ -461,6 +515,17 @@ const steps = {
     check(
       f.modified === true && f.verdicts.includes('fault') && f.verdicts.includes('warn'),
       `modified sine: boiler fault, pump warning (${f.verdicts})`,
+    );
+    // drag and drop: the laptop from the tray onto the platform, then back onto the tray
+    await drag3d('toy-5', 'platform');
+    check(
+      (await probe()).onPlatform.split(',').includes('laptop'),
+      'dragged onto the platform: the laptop is on',
+    );
+    await drag3d('toy-5', 'toy-7');
+    check(
+      !(await probe()).onPlatform.split(',').includes('laptop'),
+      'dragged back to the tray: the laptop is off',
     );
   },
 };

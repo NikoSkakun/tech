@@ -12,6 +12,7 @@ import {
   createMovingCharge,
   electricField,
   FIELD_PRESETS,
+  POTENTIAL_PRESETS,
   RELEASE_DEFAULTS,
   SANDBOX,
   toPointCharges,
@@ -37,7 +38,10 @@ export const fieldStep: StepFactory = ({ ctx, ui, world }) => {
   const set = new Group();
   set.name = 'step-field';
   ctx.root.add(set);
-  let mine: TableCharge[] = FIELD_PRESETS.single.map((c) => ({ ...c }));
+  // The step opens on the pair that step 2 left on the table and that step 4 turns into a hill and a well
+  // (±2 nC, 12 cm apart: 16 lines by the 8·|q| rule) — a field that tells more than one charge with 8 rays.
+  let mine: TableCharge[] = POTENTIAL_PRESETS.hillAndWell.map((c) => ({ ...c }));
+  let own = mine;
 
   /* ------------------------------------------------------------------- probe, pins, arrow grid */
   const probe = createFieldProbe();
@@ -126,10 +130,13 @@ export const fieldStep: StepFactory = ({ ctx, ui, world }) => {
   let wait = 0;
   const nullPoint = new Vector3();
   let hasNull = false;
+  let lineCount = 0;
   const refresh = (): void => {
     seen = sandbox.version;
     const charges = sandbox.charges;
-    lines.set(traceFieldLines(charges), !charges.some((c) => c.chargeNC > 0));
+    const traced = traceFieldLines(charges);
+    lineCount = traced.length;
+    lines.set(traced, !charges.some((c) => c.chargeNC > 0));
     grid.sample(fieldAt);
     probe.refresh(charges);
     // exactly two like charges: the field vanishes between them, at distances in the ratio √|q₁| : √|q₂|
@@ -142,11 +149,13 @@ export const fieldStep: StepFactory = ({ ctx, ui, world }) => {
       nullPoint.set((a!.x + (b!.x - a!.x) * k) * M, CHARGE_Y, (a!.z + (b!.z - a!.z) * k) * M);
     }
     if (on()) mine = charges.map((c) => ({ ...c }));
+    if (on() && ui.value<string>('fieldPreset') === 'own') own = mine;
   };
   const applyPreset = (id: string): void => {
-    if (!PRESETS.includes(id as Preset)) return;
+    if (id !== 'own' && !PRESETS.includes(id as Preset)) return;
     stopRun();
-    sandbox.set(FIELD_PRESETS[id as Preset]);
+    // «Свій набір» brings back the learner's own arrangement (at first: the pair the step opens on)
+    sandbox.set(id === 'own' ? own : FIELD_PRESETS[id as Preset]);
     audio.play('toggle');
   };
   ui.onChange('fieldPreset', (id) => on() && applyPreset(String(id)));
@@ -182,6 +191,7 @@ export const fieldStep: StepFactory = ({ ctx, ui, world }) => {
   ctx.qa.expose('field', () => ({
     charges: sandbox.charges.map((c) => ({ ...c })),
     lines: lines.lines.visible,
+    lineCount,
     grid: ctx.stage.shown(gridActor),
     probe: { x: probe.x, z: probe.z, strength: probe.strength, pins: probe.pins },
     run: mover ? { ...mover.state } : null,
@@ -220,8 +230,11 @@ export const fieldStep: StepFactory = ({ ctx, ui, world }) => {
         {
           type: 'segmented',
           id: 'fieldPreset',
-          value: 'single',
-          items: PRESETS.map((id, i) => ({ id, label: docLabel('field', i) })),
+          value: 'own',
+          items: [
+            ...PRESETS.map((id, i) => ({ id, label: docLabel('field', i) })),
+            { id: 'own', label: L.field.own },
+          ],
         },
         { type: 'toggle', id: 'probe', label: docLabel('field', 4), value: true },
         { type: 'toggle', id: 'grid', label: docLabel('field', 6), value: false },

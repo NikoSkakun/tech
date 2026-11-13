@@ -5,7 +5,6 @@
 import { fmtNumber, fmtSci, plural } from '@/content';
 import type { BuilderResult, HalfLife } from '@electricity/sim/atom';
 import { L } from '../labels';
-import type { ElementCardData } from './element-card';
 
 const B = L.builder;
 
@@ -53,21 +52,26 @@ export function statusText(r: BuilderResult): { text: string; tone: 'green' | 'a
   }
 }
 
-export function builderCard(r: BuilderResult): ElementCardData {
-  if (!r.element) return { symbol: '—', title: B.noAtom, lines: [`${B.neutrons}: ${r.neutrons}`] };
+/** «Гідроген (водень)-1»: element, simple substance and mass number, as the document's check points write it. */
+export function nuclideName(r: BuilderResult): string {
+  if (!r.element) return B.noAtom;
   const el = r.element;
-  const status = statusText(r);
+  return `${el.substanceUk ? `${el.nameUk} (${el.substanceUk})` : el.nameUk}-${r.massNumber}`;
+}
+
+/** The element card of the document as rows of the dock's table (stability is a separate, coloured note). */
+export function builderRows(r: BuilderResult): string[][] {
+  if (!r.element)
+    return [
+      [B.element, B.noAtom],
+      [B.composition, `N = ${r.neutrons}`],
+    ];
   const sign = r.charge === 0 ? '0' : `${r.charge > 0 ? '+' : '−'}${Math.abs(r.charge)} e`;
   const kind = r.ionKind === 'neutral' ? B.neutral : r.ionKind === 'cation' ? B.cation : B.anion;
-  return {
-    symbol: r.ionLabel,
-    title: `${el.substanceUk ? `${el.nameUk} (${el.substanceUk})` : el.nameUk}-${r.massNumber}`,
-    lines: [
-      `Z = ${r.protons} · N = ${r.neutrons} · A = ${r.massNumber}`,
-      `${B.charge}: **${sign}** — ${kind}`,
-      `{${status.tone}:${status.text}}`,
-      r.configurationText ? `\`${r.configurationText}\` · ${r.shells.join('–')}` : '',
-      r.anionUnstable ? `{red:${B.anionUnstable}}` : '',
-    ],
-  };
+  return [
+    [B.element, `${r.ionLabel} · ${nuclideName(r)}`],
+    [B.composition, `Z = ${r.protons} · N = ${r.neutrons} · A = ${r.massNumber}`],
+    [B.charge, `${sign} — ${kind}`],
+    [B.config, r.configurationText ? `${r.configurationText} · ${r.shells.join('–')}` : '—'],
+  ];
 }

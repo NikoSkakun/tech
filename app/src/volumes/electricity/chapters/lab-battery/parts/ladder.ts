@@ -1,12 +1,12 @@
 /**
  * Step 1: the «драбина потенціалів» — twelve metals on a vertical rail, ordered by standard electrode
  * potential (Li at the bottom, Au on top). Rungs are evenly spaced (the three alkali metals would overlap on a
- * true voltage scale) and each carries its E° as text. Clicking a rung puts that metal into the beaker; a
- * glowing bracket links the chosen pair and shows the EMF.
+ * true voltage scale) and each carries its E° as text. Clicking a rung — or dragging its puck to the beaker —
+ * puts that metal into the cell; a glowing bracket links the chosen pair and shows the EMF.
  */
-import { CylinderGeometry, type Group, Mesh, SphereGeometry } from 'three';
+import { BoxGeometry, CylinderGeometry, type Group, Mesh, MeshBasicMaterial, SphereGeometry } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import type { ChapterContext } from '@/engine/api';
+import type { ChapterContext, DragInfo } from '@/engine/api';
 import { fmtUnit } from '@/content';
 import { STANDARD_POTENTIALS_V, type Electrode } from '@electricity/sim/lab-battery';
 import { K, MOTION, SEMANTIC } from '@/style';
@@ -25,12 +25,14 @@ export interface Ladder {
 const STEP_Y = 0.3;
 const BASE_Y = 0.42;
 
-export function createLadder(
-  ctx: ChapterContext,
-  mats: Mats,
-  title: string,
-  onPick: (metal: Electrode) => void,
-): Ladder {
+export interface LadderHandlers {
+  /** A rung was clicked / tapped. */
+  pick(metal: Electrode): void;
+  /** A puck is being dragged away from its rung (the step shows a ghost puck and decides where it lands). */
+  drag?(metal: Electrode, phase: 'start' | 'move' | 'end', e: DragInfo): void;
+}
+
+export function createLadder(ctx: ChapterContext, mats: Mats, title: string, on: LadderHandlers): Ladder {
   const g = group('ladder');
   const height = BASE_Y + STEP_Y * (LADDER.length - 1) + 0.35;
   const postGeometry = new CylinderGeometry(0.035, 0.035, height, 12);
@@ -44,6 +46,9 @@ export function createLadder(
   g.add(header);
 
   const puck = new RoundedBoxGeometry(0.56, 0.2, 0.2, 4, 0.07);
+  // invisible touch target over the puck and its label: as tall as the rung spacing allows (DECISIONS §57 b)
+  const hitGeometry = new BoxGeometry(1.95, STEP_Y * 0.96, 0.34);
+  const hitMaterial = new MeshBasicMaterial({ visible: false });
   const rungs = new Map<Electrode, { g: Group; state: { hover: number; on: number }; text: Text3D }>();
   LADDER.forEach((metal, i) => {
     const rg = group(`rung:${metal}`, 0, BASE_Y + i * STEP_Y, 0);
@@ -56,7 +61,9 @@ export function createLadder(
       'mono',
     );
     text.position.set(0.95, 0, 0);
-    rg.add(body, text);
+    const hit = new Mesh(hitGeometry, hitMaterial);
+    hit.position.x = 0.62;
+    rg.add(body, text, hit);
     g.add(rg);
     const state = { hover: 0, on: 0 };
     rungs.set(metal, { g: rg, state, text });
@@ -66,12 +73,14 @@ export function createLadder(
       body.scale.setScalar(1 + 0.12 * state.hover + 0.2 * state.on);
       body.position.z = 0.16 * state.on;
     };
-    ctx.input.register(body, {
-      tooltip: `${metal} · E° = ${fmtUnit(STANDARD_POTENTIALS_V[metal], 'V', { digits: 2 })}`,
-      cursor: 'pointer',
+    ctx.input.register(rg, {
+      cursor: 'grab',
       hover: (over) =>
         ctx.tweens.to(state, { hover: over ? 1 : 0 }, { duration: MOTION.hover.duration, onUpdate: sync }),
-      click: () => onPick(metal),
+      click: () => on.pick(metal),
+      dragStart: (e) => on.drag?.(metal, 'start', e),
+      drag: (e) => on.drag?.(metal, 'move', e),
+      dragEnd: (e) => on.drag?.(metal, 'end', e),
     });
     (rg.userData as { sync: () => void }).sync = sync;
   });
@@ -109,7 +118,8 @@ export function createLadder(
     setPair(anode, cathode, emfV) {
       for (const [metal, r] of rungs) {
         const on = metal === anode || metal === cathode ? 1 : 0;
-        r.text.opacity = on ? 1 : 0.62; // Text3D has no colour setter: dim the others instead
+        r.text.color = on ? 'white' : 'mist';
+        r.text.opacity = on ? 1 : 0.7;
         ctx.tweens.to(
           r.state,
           { on },

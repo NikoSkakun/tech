@@ -5,6 +5,7 @@
  */
 import { fmtNumber, fmtRange } from '@/content';
 import type { StepFactory } from '../chapter';
+import { playTransition } from '../transitions';
 import { cap, doc } from '../content';
 import { CELL_TECHS, techById, type LayerSlot, type TechId } from '../data/cell-tech';
 import { L } from '../labels';
@@ -44,11 +45,14 @@ export const cell: StepFactory = (lab) => {
     id: ID,
     shots: {
       [ID]: { position: [0.6, 4.4, 10.4], target: [0, 1.7, 0.6], frameAspect: 1.05, fov: 33, fit: { center: [0, 1.6, 0.5], radius: 3.9 }, orbit: { azimuth: 0.6, polar: 0.3 } },
+      // transition from step 2: start among the layers and pull back until the whole cut cell is in view
+      'cell-pull': { position: [0.25, 2.6, 4.2], target: [0, 1.8, 0.6], fov: 33, fit: { center: [0, 1.8, 0.6], radius: 1.2 } },
       'cell-micro': { position: [-4.4, 2.7, 1.6], target: [-1.6, 0.95, -2.5], frameAspect: 1, fov: 30, fit: { center: [-1.55, 0.9, -2.5], radius: 1.6 } },
     },
     stage: {
       show: [set],
-      enter() {
+      enter(info) {
+        playTransition(lab, info, ID, { from: 'pv-effect', kind: 'pull', via: 'cell-pull', last: 2.4 });
         applied = '';
         micro = false;
       },

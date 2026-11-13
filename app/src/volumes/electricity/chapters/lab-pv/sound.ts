@@ -17,8 +17,10 @@ export const sound = {
 
 export function updateSound(step: StepId | undefined): void {
   const on = step !== undefined;
-  audio.loop('hum').set({ gain: on ? 0.05 + 0.16 * Math.min(1, sound.power) : 0, pitch: 1 });
-  audio.loop('buzz').set({ gain: on ? 0.22 * Math.min(1, sound.hot) : 0, pitch: 0.8 + 0.3 * sound.hot });
+  // levels measured live with the mood pad off (master RMS ≈ 0.03 for the pad): hum ≲ 0.008, buzz ≲ 0.011 at full —
+  // a quiet layer under the pad; no hum at all where no current flows (QA log qa/P-lab-pv/audio.log)
+  audio.loop('hum').set({ gain: on ? 0.24 * Math.min(1, sound.power) : 0, pitch: 1 });
+  audio.loop('buzz').set({ gain: on ? 0.8 * Math.min(1, sound.hot) : 0, pitch: 0.8 + 0.3 * sound.hot });
   audio.loop('wind').set({ gain: on ? 0.25 * Math.min(1, sound.wind) : 0, pitch: 1 });
   sound.power = 0;
   sound.hot = 0;

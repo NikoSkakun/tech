@@ -13,6 +13,8 @@ export interface SharedBench extends BenchSet {
   xray: Param;
   /** Baseline look of the living inverter for the frame: wires, switch outlines, LEDs (steps then override). */
   idle(t: number, power: number): void;
+  /** The two mini-scopes and their tags belong to the overview (step 1); close-ups put them away. */
+  showScopes(on: boolean): void;
 }
 
 export function sharedBench(lab: Lab): SharedBench {
@@ -41,6 +43,9 @@ export function sharedBench(lab: Lab): SharedBench {
       actor: stage.actor(set.group),
       open,
       xray,
+      showScopes(on) {
+        for (const o of [set.dcScope, set.acScope, set.tags.dc, set.tags.ac]) o.visible = on;
+      },
       idle(t, power) {
         // slow-motion mains: the diagonal pairs S1+S4 / S3+S2 swap every half period (0.5 Hz on screen) and
         // "chatter" inside it the way pulse-width modulation does

@@ -9,7 +9,6 @@ import {
   Mesh,
   TorusGeometry,
   Vector2,
-  type Vector3,
   type BufferGeometry,
   type Material,
   type Object3D,
@@ -109,15 +108,6 @@ export function createPodium(ctx: ChapterContext): Podium {
   accent.position.y = H + 0.012;
   g.add(plate, top, accent);
   return { group: g, ring, update: (t) => (ring.intensity = 1.35 + Math.sin(t * 1.3) * 0.2) };
-}
-
-/**
- * Anchor for a callout / hotspot that is currently not applicable: a point just behind the camera. The HUD
- * hides annotations whose anchor is behind the camera and snaps them back when it returns (a far-away point
- * would make the label ease in from off-screen).
- */
-export function nowhere(ctx: ChapterContext, out: Vector3): Vector3 {
-  return ctx.camera.camera.localToWorld(out.set(0, 0, 1));
 }
 
 /**

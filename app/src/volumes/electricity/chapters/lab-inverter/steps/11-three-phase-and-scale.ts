@@ -15,6 +15,7 @@ import type { StepFactory } from '../chapter';
 import { doc } from '../labels';
 import { OWN } from '../labels-own';
 import { createDriveCabinet, createThreePhaseBridge, createVolute } from '../parts/three-phase';
+import { createSubModuleInset } from '../parts/submodule';
 import { group } from '../world';
 
 const ID = 'three-phase-and-scale';
@@ -54,6 +55,13 @@ export const threePhaseStep: StepFactory = (lab) => {
   hall.group.scale.setScalar(HALL_SCALE);
   hall.group.position.set(3.55, 0, -0.5);
   hall.group.rotation.y = -0.3;
+  // the kit's hall is a thyristor hall; the text speaks of IGBT sub-modules: a lens shows one block of a tower
+  const valve = new Vector3(-11.5, 10.2, 2)
+    .multiplyScalar(HALL_SCALE)
+    .applyAxisAngle(new Vector3(0, 1, 0), hall.group.rotation.y)
+    .add(hall.group.position);
+  const lens = createSubModuleInset(new Vector3(2.75, 2.05, 1.35), valve);
+  lens.group.scale.setScalar(1.2);
   const scopeL = createScope({
     width: 2.9,
     height: 1.55,
@@ -76,6 +84,7 @@ export const threePhaseStep: StepFactory = (lab) => {
     water,
     hall.group,
     scopeL,
+    lens.group,
   ]);
   lab.stageRoot.add(set);
 
@@ -165,11 +174,13 @@ export const threePhaseStep: StepFactory = (lab) => {
           color: 'violet',
           side: 'up',
         },
+        { anchor: at(2.75, 1.25, 1.35), text: OWN.subModule, color: 'cyan', side: 'down' },
       ],
-      hotspots: [{ anchor: at(3.55, 1.6, 0.2), content: 'valve-hall' }],
+      hotspots: [{ anchor: at(4.3, 1.3, 0.0), content: 'valve-hall' }],
     },
     probe: () => ({ f: f(), rpm: pump().rpm, powerW: pump().powerW, levels: levels(), thd, spin }),
     update(dt, t) {
+      lens.setGlow(0.5 + 0.5 * Math.sin(t * 2));
       // six-step view of the bridge in slow motion: the upper switch of a leg conducts while its sine is positive
       bridge.switches.forEach((m, i) => {
         const k = Math.floor(i / 2);

@@ -150,24 +150,6 @@ export const chargeStep: StepFactory = ({ ctx, ui, world }) => {
             { id: 'giga', label: '10⁹ e⁻' },
           ],
         },
-        {
-          type: 'stats',
-          id: 'chargeStats',
-          items: [
-            { label: L.charge.moved, get: () => fmtCount(n) },
-            { label: L.charge.sum, get: () => fmtPrefixed(read().totalChargeC, 'C'), color: () => 'green' },
-            {
-              label: L.charge.left,
-              get: () => fmtPrefixed(read().leftChargeC, 'C', { sign: true }),
-              color: () => (n > 0 ? 'coral' : n < 0 ? 'cyan' : 'mist'),
-            },
-            {
-              label: L.charge.right,
-              get: () => fmtPrefixed(read().rightChargeC, 'C', { sign: true }),
-              color: () => (n < 0 ? 'coral' : n > 0 ? 'cyan' : 'mist'),
-            },
-          ],
-        },
         { type: 'button', id: 'toLeft', label: L.charge.toLeft, onClick: () => transfer(-1) },
         { type: 'button', id: 'toRight', label: L.charge.toRight, primary: true, onClick: () => transfer(1) },
         {
@@ -178,6 +160,33 @@ export const chargeStep: StepFactory = ({ ctx, ui, world }) => {
           onClick: () => ((n = 0), apply()),
         },
       ],
+      // The four numbers stand on a board, not in the dock: at 1280×720 the dock's height comes out of the text
+      // panel, and with them in the dock the first page of the step had to be scrolled.
+      board: {
+        title: L.capacitor.board,
+        size: 'sm',
+        children: [
+          {
+            type: 'stats',
+            id: 'chargeStats',
+            columns: 2,
+            items: [
+              { label: L.charge.moved, get: () => fmtCount(n) },
+              { label: L.charge.sum, get: () => fmtPrefixed(read().totalChargeC, 'C'), color: () => 'green' },
+              {
+                label: L.charge.left,
+                get: () => fmtPrefixed(read().leftChargeC, 'C', { sign: true }),
+                color: () => (n > 0 ? 'coral' : n < 0 ? 'cyan' : 'mist'),
+              },
+              {
+                label: L.charge.right,
+                get: () => fmtPrefixed(read().rightChargeC, 'C', { sign: true }),
+                color: () => (n < 0 ? 'coral' : n > 0 ? 'cyan' : 'mist'),
+              },
+            ],
+          },
+        ],
+      },
       callouts: [
         { anchor: left.group, text: () => `q = ${fmtCount(n, true)} e`, side: 'left', color: 'mist' },
         { anchor: right.group, text: () => `q = ${fmtCount(-n, true)} e`, side: 'right', color: 'mist' },

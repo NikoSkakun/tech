@@ -188,7 +188,11 @@ export function createInverterLive(): InverterLive {
         c.mesh.scale.y = Math.max(len, 0.001);
         c.mesh.quaternion.setFromUnitVectors(Y, tip.divideScalar(len || 1));
       }
-      cableMat.intensity = 1.1 * Math.min(1, v * 4);
+      // parked far away, cover and cables would only cross a close-up as stray lines: fade them out and hide
+      cableMat.intensity = 1.1 * Math.min(1, v * 4) * (1 - away);
+      const gone = away > 0.97;
+      coverPart.visible = !gone;
+      for (const c of cables) c.mesh.visible = !gone;
     },
     setLinkVoltage(v) {
       link.setColor(voltageRamp(Math.min(1, Math.max(0, v / 450))));

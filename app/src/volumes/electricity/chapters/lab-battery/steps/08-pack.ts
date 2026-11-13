@@ -11,11 +11,12 @@ import { createWire } from '@/fx';
 import { batteryCabinet, hybridInverter } from '@/kit';
 import { CELLS, buildPack, type CellId, type PackResult } from '@electricity/sim/lab-battery';
 import { K } from '@/style';
-import { Chip, STATUS, row } from '@/ui3d';
-import { factTable, notices } from '../hud-bits';
+import { STATUS } from '@/ui3d';
 import type { StepFactory } from '../lab';
 import { L } from '../labels';
-import { createPackGrid } from '../parts';
+import { note } from '../notes';
+import { createPackGrid } from '../parts/pack-grid';
+import { frame } from '../shots';
 import { group, mesh } from '../world';
 
 const ID = 'pack';
@@ -72,43 +73,20 @@ export const pack: StepFactory = (lab) => {
   const set = group(`set:${ID}`, 0, 0, 0, [grid.group, wall, link]);
   lab.stageRoot.add(set);
 
-  /* --------------------------------------------------------------------------------------- board */
-  const table = factTable('pack8', ROWS);
-  // the permanent caveat of the document sits on the board, under the numbers it qualifies
-  const caveat = notices('caveat8', { text: { text: L.li6Caveat, tone: 'info' } }, ['text']);
-  const presets = PRESETS.map(
-    (p) =>
-      new Chip({
-        text: p.label,
-        kind: 'plain',
-        onClick: ui.action(`preset8-${p.id}`, () => {
-          ui.set('cell8', p.cell);
-          ui.set('series8', p.s);
-          ui.set('parallel8', p.p);
-          audio.play('click');
-          rebuild();
-        }),
-      }),
-  );
-  lab.holo.add(ID, {
-    title: L.boardPack,
-    width: 400,
-    children: [
-      table.spec.node,
-      row({ wrap: true, gap: 8, width: 'fill', children: presets }),
-      caveat.spec.node,
-    ],
-  });
-  const notes = notices('notes8', {
-    ok: { text: L.li6Ok, tone: 'ok' },
-    partial: { text: L.li6Partial, tone: 'warning' },
-    over: { text: L.li6Over, tone: 'alarm' },
-    under: { text: `${L.li6Over.split(':')[0]}: ${L.li6Under}`, tone: 'alarm' },
-    blocks: { text: L.asBlocks, tone: 'info' },
-  });
-
   /* --------------------------------------------------------------------------------------- state */
   let verdict: 'ok' | 'partial' | 'over' | 'under' = 'ok';
+  let asBlocks = false;
+  /** Rows of the board's table: the pack's numbers by §M4. */
+  let rows: string[][] = [];
+  ui.onChange('preset8', (id) => {
+    const p = PRESETS.find((x) => x.id === id);
+    if (!p) return;
+    ui.set('cell8', p.cell);
+    ui.set('series8', p.s);
+    ui.set('parallel8', p.p);
+    audio.play('click');
+    rebuild();
+  });
   const home = { on: 0 };
   const n = (x: number, digits: number): string => fmtNumber(x, { digits });
   function rebuild(instant = false): void {
@@ -116,13 +94,13 @@ export const pack: StepFactory = (lab) => {
     const s = ui.value<number>('series8');
     const p = ui.value<number>('parallel8');
     const pk: PackResult = buildPack(cell, s, p);
-    const blocks = grid.set(
+    asBlocks = grid.set(
       cell.chem === 'LFP' ? 'brick' : 'cylinder',
       cell.chem === 'LFP' ? 'sky' : 'violet',
       pk.series,
       pk.parallel,
     );
-    [
+    rows = [
       fmtUnit(pk.uNomV, 'V', { digits: 1 }),
       `${n(pk.uMinV, 1)}…${fmtUnit(pk.uMaxV, 'V', { digits: 1 })}`,
       fmtUnit(pk.capacityAh, 'Ah', { maxDigits: 1 }),
@@ -132,7 +110,7 @@ export const pack: StepFactory = (lab) => {
       fmtUnit(pk.massKg, 'kg', { digits: pk.massKg < 10 ? 2 : 1 }),
       fmtUnit(pk.whPerKg, 'Wh/kg', { digits: 1 }),
       `${pk.series}S${pk.parallel}P = ${n(pk.cells, 0)}`,
-    ].forEach((text, i) => table.set(i, text));
+    ].map((text, i) => [ROWS[i]!, text]);
     // «ЛІ-6» battery window 40…60 V: ok / works partly / refuses
     verdict =
       pk.li6.verdict === 'ok'
@@ -142,8 +120,6 @@ export const pack: StepFactory = (lab) => {
           : pk.li6.reason === 'overvoltage'
             ? 'over'
             : 'under';
-    for (const key of ['ok', 'partial', 'over', 'under'] as const) notes.show(key, key === verdict);
-    notes.show('blocks', blocks);
     rings.forEach((r, i) => (r.visible = i === (verdict === 'ok' ? 0 : verdict === 'partial' ? 1 : 2)));
     inverter.setLeds({
       bat: verdict === 'ok' || verdict === 'partial',
@@ -153,24 +129,24 @@ export const pack: StepFactory = (lab) => {
     link.material.power = verdict === 'ok' ? 1 : verdict === 'partial' ? 0.45 : 0;
     // a 16S LFP pack is the lab's home battery: it "puts on" its cabinet next to the inverter
     const isHome = cell.chem === 'LFP' && pk.series === 16 ? 1 : 0;
-    ctx.tweens.to(home, { on: isHome }, { duration: instant ? 0 : 0.5, ease: isHome ? 'back.out' : 'power2.in', onUpdate: () => {
+    ctx.stage.scope.to(home, { on: isHome }, { duration: instant ? 0 : 0.5, ease: isHome ? 'back.out' : 'power2.in', onUpdate: () => {
       cabinetAt.scale.setScalar(Math.max(home.on, 1e-3));
       cabinetAt.visible = home.on > 0.01;
     } }); // prettier-ignore
     if (!instant) audio.play(verdict === 'ok' ? 'success' : 'tick', { gain: 0.5 });
   }
-  for (const id of ['cell8', 'series8', 'parallel8']) ui.onChange(id, () => rebuild());
+  // a manual change leaves the presets: none of them is marked any more
+  for (const id of ['cell8', 'series8', 'parallel8'])
+    ui.onChange(id, () => {
+      ui.set('preset8', '');
+      rebuild();
+    });
   const v = new Vector3();
 
   return {
     id: ID,
     shots: {
-      [ID]: {
-        position: [1.2, 5.3, 12.9],
-        target: [-1.75, 2.0, 0],
-        fov: 28,
-        orbit: { azimuth: 0.8, polar: 0.3 },
-      },
+      [ID]: frame([-0.1, 1.9, -0.3], 9.0, 4.7, { azimuth: 0.12, elevation: 0.26 }),
     },
     stage: { show: [grid.group, wall, link], enter: () => rebuild(true) },
     ui: {
@@ -189,18 +165,31 @@ export const pack: StepFactory = (lab) => {
           snaps: [16],
         },
         { type: 'slider', id: 'parallel8', label: L.parallelP, min: 1, max: 80, step: 1, value: 2 },
-        notes.spec,
+        // «ЛІ-6» battery window 40…60 V: the document's four verdicts
+        note('ok8', L.li6Ok, 'ok', () => verdict === 'ok'),
+        note('partial8', L.li6Partial, 'warning', () => verdict === 'partial'),
+        note('over8', L.li6Over, 'alarm', () => verdict === 'over'),
+        note('under8', `${L.li6Over.split(':')[0]}: ${L.li6Under}`, 'alarm', () => verdict === 'under'),
+        note('blocks8', L.asBlocks, 'info', () => asBlocks),
       ],
+      board: {
+        title: L.boardPack,
+        size: 'sm',
+        children: [
+          { type: 'table', id: 'pack8', rows: () => rows },
+          // the permanent caveat of the document sits under the numbers it qualifies
+          note('caveat8', L.li6Caveat, 'info'),
+          { type: 'segmented', id: 'preset8', items: PRESETS, value: '' },
+        ],
+      },
       callouts: [
         { anchor: () => inverter.group.getWorldPosition(v).setY(v.y + 0.85), text: L.inverter, side: 'up' },
         {
-          anchor: () =>
-            home.on > 0.5
-              ? cabinetAt.getWorldPosition(v).setY(v.y + 2.4)
-              : ctx.camera.camera.localToWorld(v.set(0, 0, 1)),
+          anchor: () => cabinetAt.getWorldPosition(v).setY(v.y + 2.4),
           text: L.homeBattery,
           color: 'lime',
           side: 'up',
+          visible: () => home.on > 0.5,
         },
         {
           anchor: () => grid.group.getWorldPosition(v).setY(v.y + 1.5),
@@ -212,15 +201,15 @@ export const pack: StepFactory = (lab) => {
       hotspots: [
         {
           anchor: () => grid.group.getWorldPosition(v).set(v.x - grid.halfWidth - 0.2, v.y + 0.5, v.z + 1.0),
-          title: 'Series string — послідовний ланцюжок',
+          content: 'series-string',
         },
         {
           anchor: () => grid.group.getWorldPosition(v).set(v.x + grid.halfWidth * 0.5, v.y + 1.2, v.z - 0.6),
-          title: 'Busbar torque — затягування шин',
+          content: 'busbar-torque',
         },
         {
           anchor: () => grid.group.getWorldPosition(v).set(v.x + 2.75, v.y + 0.3, v.z + 1.45),
-          title: 'Short circuit — коротке замикання',
+          content: 'short-circuit',
         },
       ],
     },
@@ -228,7 +217,7 @@ export const pack: StepFactory = (lab) => {
       verdict,
       home: home.on,
       halfWidth: grid.halfWidth,
-      blocks: notes.isShown('blocks'),
+      blocks: asBlocks,
       cell: ui.value<string>('cell8'),
       s: ui.value<number>('series8'),
       p: ui.value<number>('parallel8'),

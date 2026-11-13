@@ -7,6 +7,7 @@ import { Vector3 } from 'three';
 import { fmtNumber } from '@/content';
 import { createBeam } from '@/fx';
 import { createMpptSim } from '@electricity/sim/lab-pv';
+import type { Object3D } from 'three';
 import type { StepFactory } from '../chapter';
 import { doc } from '../content';
 import { L, fill } from '../labels';
@@ -14,6 +15,7 @@ import { createClimber } from '../parts/climber';
 import { createMountain } from '../parts/mountain';
 import { createMpptSet } from '../parts/mppt-set';
 import { blip, sound } from '../sound';
+import { playTransition } from '../transitions';
 import { group } from '../world';
 
 const ID = 'mppt';
@@ -68,7 +70,21 @@ export const mppt: StepFactory = (lab) => {
     },
     stage: {
       show: [set],
-      enter() {
+      enter(info) {
+        // transition from step 9: the camera dives at the inverter on the wall, then opens onto the mountain
+        const inverter = lab.share<Object3D | null>('inverter9', () => null);
+        if (inverter) {
+          playTransition(lab, info, ID, {
+            from: 'array',
+            kind: 'through',
+            first: 1.0,
+            last: 2.0,
+            via: () => {
+              const p = inverter.getWorldPosition(new Vector3());
+              return { position: [p.x + 0.5, p.y + 0.25, p.z + 0.9], target: [p.x, p.y, p.z], fov: 30, fit: { center: [p.x, p.y, p.z], radius: 0.4 } };
+            },
+          });
+        }
         sim.reset();
         curveSeen = null;
         lastIter = -1;

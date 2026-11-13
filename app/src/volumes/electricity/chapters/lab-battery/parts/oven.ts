@@ -28,13 +28,13 @@ import {
   type Flame,
 } from '@/fx';
 import type { Chemistry } from '@electricity/sim/lab-battery';
+import { Builder } from '@/kit';
 import { K, col, heatRamp, type KToonMaterial } from '@/style';
 import type { Text3D } from '@/text';
-import type { CellView } from '../sim';
+import type { CellView } from '../sim-bindings/thermal-session';
 import type { Mats } from '../world';
 import { group, mesh, tag } from '../world';
-import { lfpBrick } from './bench';
-import { createHeroCell } from './hero-cell';
+import { heroCell, lfpBrick } from './cells';
 
 export interface OvenView {
   propagation: boolean;
@@ -45,6 +45,10 @@ export interface OvenView {
   barrier: boolean;
   /** 0…1: how far the nail is driven into the cells. */
   nail: number;
+  /** The rig waits for «Старт»: the start button pulses and the ladders run a slow "ready" chase. */
+  idle: boolean;
+  /** 0…1 pointer over the start button. */
+  hover: number;
 }
 
 export interface OvenRig {
@@ -54,6 +58,8 @@ export interface OvenRig {
   /** Top of each single cell (vent) and the ladder lamps (callout anchors). */
   vent: Record<Chemistry, Group>;
   ladder: Record<Chemistry, Group>;
+  /** The big lime push-button on the console in front of the rig (the step makes it press «Старт»). */
+  startButton: Group;
   /** One-shot at runaway onset. */
   ignite(chem: Chemistry): void;
   apply(view: OvenView, dt: number, t: number): void;
@@ -85,15 +91,27 @@ export function createOvenRig(ctx: ChapterContext, mats: Mats): OvenRig {
   ] as const)
     oven.add(mesh(new CylinderGeometry(0.05, 0.05, 2.6, 10), mats.steel, x, 1.6, z));
   oven.add(walls);
+  // convection fan under the ceiling: it always turns (idle life) and speeds up with the heater
+  const fanB = new Builder('oven-fan');
+  fanB.cyl(0.12, 0.1, { at: [0, -0.05, 0], seg: 16, slot: 'metal', c: 'steel' });
+  for (let i = 0; i < 5; i++)
+    fanB.box(0.46, 0.02, 0.17, {
+      at: [0.3 * Math.cos((i / 5) * Math.PI * 2), 0, -0.3 * Math.sin((i / 5) * Math.PI * 2)],
+      rot: [0.35, (i / 5) * Math.PI * 2, 0],
+      r: 0.008,
+      slot: 'metal',
+      c: 'mist',
+    });
+  const fan = fanB.build().group;
+  fan.position.set(0, 2.7, 0);
+  oven.add(fan, mesh(new CylinderGeometry(0.04, 0.04, 0.16, 10), mats.steel, 0, 2.8, 0, false));
 
   /* -------------------------------------------------------------------------- the two single cells */
-  const nmc = createHeroCell('violet');
-  nmc.group.scale.setScalar(0.6);
+  const nmc = heroCell('violet', '21700', 0.6);
   const lfp = lfpBrick();
-  const lfpMat = (lfp.children[0] as Mesh).material as KToonMaterial;
   const bodies: Record<Chemistry, { body: Group; mat: KToonMaterial; top: number }> = {
     NMC: { body: nmc.group, mat: nmc.mats.get('gloss') as KToonMaterial, top: 1.5 },
-    LFP: { body: lfp, mat: lfpMat, top: 1.32 },
+    LFP: { body: lfp.group, mat: lfp.mats.get('gloss') as KToonMaterial, top: 1.32 },
   };
   const nailGeometry = new CylinderGeometry(0.035, 0.008, 0.9, 10);
   const single = {} as Record<
@@ -113,7 +131,7 @@ export function createOvenRig(ctx: ChapterContext, mats: Mats): OvenRig {
   >;
   const ladder = {} as OvenRig['ladder'];
   const vent = {} as OvenRig['vent'];
-  const sparks = createSparks(ctx, { count: 90 });
+  const sparks = createSparks(ctx, { count: ctx.quality.count(90, 30) });
   oven.add(sparks);
   for (const chem of ['NMC', 'LFP'] as const) {
     const { body, top } = bodies[chem];
@@ -122,11 +140,11 @@ export function createOvenRig(ctx: ChapterContext, mats: Mats): OvenRig {
     body.position.y = 0.1;
     st.add(body);
     const v = group('vent', 0, top + 0.1, 0);
-    const steam = createSteam(ctx, { radius: 0.09, height: 1.5, count: 26 });
+    const steam = createSteam(ctx, { radius: 0.09, height: 1.5, count: ctx.quality.count(26, 10) });
     const smoke =
       chem === 'NMC'
-        ? createSmoke(ctx, { radius: 0.2, height: 1.8, count: 34 })
-        : createSteam(ctx, { radius: 0.3, height: 1.9, count: 44, opacity: 0.95 });
+        ? createSmoke(ctx, { radius: 0.2, height: 1.8, count: ctx.quality.count(34, 12) })
+        : createSteam(ctx, { radius: 0.3, height: 1.9, count: ctx.quality.count(44, 14), opacity: 0.95 });
     const flame = createFlame({
       height: chem === 'NMC' ? 1.35 : 0.8,
       width: chem === 'NMC' ? 0.75 : 0.5,
@@ -158,6 +176,27 @@ export function createOvenRig(ctx: ChapterContext, mats: Mats): OvenRig {
     single[chem] = { vent: v, steam, smoke, flame, flash, lamps, temp, nail, text: '', fire: 0 };
   }
   g.add(oven);
+
+  /* --------------------------------------------------------- console with the start push-button */
+  const startButton = group('start-button', 2.95, 0, 1.25);
+  startButton.rotation.y = -0.35;
+  const consoleB = new Builder('start-console');
+  consoleB.box(0.62, 0.5, 0.5, { r: 0.07, c: ['bg.indigo', 'slate'] });
+  consoleB.frame({ at: [0, 0.5, 0], rot: [0.5, 0, 0] }, () => {
+    consoleB.box(0.62, 0.1, 0.6, { at: [0, -0.02, 0], r: 0.04, c: ['slate', 'steel'] });
+    consoleB.cyl(0.24, 0.05, { at: [0, 0.08, 0], seg: 36, slot: 'metal', c: 'steel.light', bevel: 0.015 });
+  });
+  startButton.add(consoleB.build().group);
+  const capMat = K.glow({ color: 'lime', intensity: 0.4, keepHue: true, whiten: 0.1, falloff: 0 });
+  const cap = group('cap', 0, 0.5, 0);
+  cap.rotation.x = 0.5;
+  cap.add(mesh(new CylinderGeometry(0.19, 0.2, 0.09, 36), capMat, 0, 0.165, 0, false));
+  // the «play» triangle on the cap
+  const play = mesh(new CylinderGeometry(0.085, 0.085, 0.012, 3), mats.ink, 0.01, 0.215, 0, false);
+  play.rotation.y = -Math.PI / 2;
+  cap.add(play);
+  startButton.add(cap);
+  g.add(startButton);
 
   /* ---------------------------------------------------------------- propagation tray: 2 rows × 4 */
   const tray = group('tray', 0, 0, 0.2);
@@ -227,6 +266,7 @@ export function createOvenRig(ctx: ChapterContext, mats: Mats): OvenRig {
     tray,
     vent,
     ladder,
+    startButton,
     ignite(chem) {
       const s = single[chem];
       s.flash.fire();
@@ -243,13 +283,20 @@ export function createOvenRig(ctx: ChapterContext, mats: Mats): OvenRig {
       tray.visible = show.tray > 0.01;
       barriers.forEach((b) => (b.scale.set(1, Math.max(show.pads, 1e-3), 1), (b.visible = show.pads > 0.01)));
       applyHeat(coilMat, view.heater);
+      fan.rotation.y += dt * (0.9 + 9 * view.heater);
+      // start button: a slow lime pulse while the rig waits, dim while a run is on, pressed-in look on hover
+      const pulse = 0.5 + 0.5 * Math.sin(t * 2.6);
+      capMat.intensity = (view.idle ? 0.9 + 1.1 * pulse : 0.25) + 0.8 * view.hover;
+      cap.position.y = 0.5 - 0.012 * view.hover;
       for (const chem of ['NMC', 'LFP'] as const) {
         const s = single[chem];
         const v = view.cell[chem];
         applyHeat(bodies[chem].mat, glow(v.tempC) * 0.85);
-        [v.sei, v.separator, v.vent, v.runaway].forEach(
-          (on, i) => (s.lamps[i]!.intensity = on ? 1.5 + 0.25 * Math.sin(t * 5 + i) : 0.2),
-        );
+        // passed stages burn steadily; while the rig waits, a faint "ready" light climbs the ladder
+        [v.sei, v.separator, v.vent, v.runaway].forEach((on, i) => {
+          const ready = view.idle ? 0.45 * Math.max(0, Math.sin(t * 1.8 - i * 0.9)) ** 6 : 0;
+          s.lamps[i]!.intensity = on ? 1.5 + 0.25 * Math.sin(t * 5 + i) : 0.2 + ready;
+        });
         s.steam.setEmitting(v.vent && !v.runaway);
         s.smoke.setEmitting(v.runaway);
         // NMC burns violently, LFP more slowly and smokes (§M7 peaks 750 / 450 °C)

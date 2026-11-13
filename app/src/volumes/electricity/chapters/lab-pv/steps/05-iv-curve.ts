@@ -10,6 +10,7 @@ import { doc } from '../content';
 import { L, fill } from '../labels';
 import { createRig } from '../parts/rig';
 import type { BenchSample } from '../sim-bindings/bench-model';
+import { sound } from '../sound';
 import { curveChart } from '../ui-bits/curve-chart';
 
 const ID = 'iv-curve';
@@ -133,6 +134,7 @@ export const ivCurve: StepFactory = (lab) => {
       if (!lab.isCurrent(ID)) return;
       sample = rig.model.sample({ g: 1000, tc: 25, shade: null, bypass: true, modules: 1, load: { kind: 'resistor', ohm: ohm() } });
       rig.show(sample, t, { knob: rig.knobOf(ohm()) });
+      sound.power = sample.op.pW / 440;
       if (game.left > 0) {
         game.best = Math.max(game.best, sample.op.pW);
         game.left -= dt;

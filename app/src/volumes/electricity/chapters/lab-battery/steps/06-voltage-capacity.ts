@@ -1,18 +1,20 @@
 /**
  * Step 6 `voltage-capacity` — the test bench: a 21700 NMC cell and a 100 Ah LFP brick are discharged into an
- * electronic load; the U(Q) curves grow on the holo board while level tubes, heater coils, leads and the
+ * electronic load; the U(Q) curves grow on the board while level tubes, heater coils, leads and the
  * instrument follow the same replayed samples. Model: `discharge` (§M2: OCV + R₀ + 1RC, temperature factors).
  */
 import { Vector3 } from 'three';
 import { audio } from '@/audio';
 import { fmtNumber, fmtSI } from '@/content';
 import { CELLS, type DischargeResult } from '@electricity/sim/lab-battery';
-import { Button, Chart, Toggle, row, spacer } from '@/ui3d';
-import { notices, statGrid } from '../hud-bits';
+import type { Chart } from '@/ui3d';
 import type { StepFactory } from '../lab';
-import { L } from '../labels';
-import { createBench, createPowerBank } from '../parts';
-import { capacityPct, dischargeReplay, type BenchCell, type Replay } from '../sim';
+import { L, spedUp } from '../labels';
+import { note } from '../notes';
+import { createBench } from '../parts/bench';
+import { createPowerBank } from '../parts/props';
+import { capacityPct, dischargeReplay, type BenchCell, type Replay } from '../sim-bindings/runs';
+import { frame } from '../shots';
 import { group } from '../world';
 
 const ID = 'voltage-capacity';
@@ -23,6 +25,7 @@ const SERIES: Record<BenchCell, { key: 'nmc' | 'lfp'; name: string; color: 'viol
   'LFP-100': { key: 'lfp', name: L.cellLfp, color: 'teal' },
 };
 const ORDER: readonly BenchCell[] = ['21700-NMC', 'LFP-100'];
+const NONE: [number[], number[]] = [[], []];
 
 export const voltageCapacity: StepFactory = (lab) => {
   const { ctx, ui, mats } = lab;
@@ -36,51 +39,6 @@ export const voltageCapacity: StepFactory = (lab) => {
   bank.position.set(2.6, 0.66, 0.85);
   bench.group.add(bank);
 
-  /* --------------------------------------------------------------------------------- holo board */
-  const chart = new Chart({
-    height: 236,
-    x: { min: 0, max: 100, label: L.axisCapacity },
-    y: { min: 2.4, max: 4.3, label: L.axisVoltage },
-    series: [
-      // up to three earlier runs stay as thin traces for comparison
-      ...[3, 2, 1].flatMap((n) =>
-        ORDER.map((c) => ({
-          id: `${SERIES[c].key}H${n}`,
-          color: `${SERIES[c].color}.dark` as const,
-          width: 1.5,
-        })),
-      ),
-      ...ORDER.map((c) => ({
-        id: `${SERIES[c].key}Ocv`,
-        color: `${SERIES[c].color}.light` as const,
-        width: 1.3,
-      })),
-      ...ORDER.map((c) => ({ id: SERIES[c].key, label: SERIES[c].name, color: SERIES[c].color })),
-    ],
-  });
-  const stats = statGrid(
-    ORDER.map((c) => ({ name: SERIES[c].name, color: SERIES[c].color })),
-    [L.statAh, L.statWh, L.statMin, L.statMeanV, L.statHeat],
-  );
-  // «Показати OCV» belongs to the chart, so it lives on the board (and keeps the dock short)
-  const ocvToggle = new Toggle({ label: L.showOcv, value: false, onChange: (on) => ocv.set(on) });
-  const ocv = ui.external('ocv6', false, (on) => (ocvToggle.value = on === true));
-  const go = new Button({
-    label: L.runDischarge,
-    icon: 'play',
-    variant: 'primary',
-    onClick: ui.action('run6', () => (audio.play('relay'), start())),
-  });
-  lab.holo.add(ID, {
-    title: L.boardDischarge,
-    width: 540,
-    children: [
-      chart,
-      stats.node,
-      row({ gap: 12, width: 'fill', align: 'center', children: [ocvToggle, spacer(), go] }),
-    ],
-  });
-
   /* -------------------------------------------------------------------------------------- runs */
   interface Run {
     replay: Replay;
@@ -90,8 +48,13 @@ export const voltageCapacity: StepFactory = (lab) => {
   }
   let runs: Run[] = [];
   let elapsed = RUN_S;
+  /** Bumped by every new run; the chart repaints its history when it lags behind (or is a new chart). */
+  let revision = 0;
+  let painted = -1;
+  let over = false;
+  /** Live results per run: Ah, Wh, minutes, mean voltage, heat (the board's table shows them by column). */
+  let results: string[][] = [];
   const history: { xs: number[]; ys: number[] }[][] = [[], []]; // per cell: newest first
-  const notes = notices('notes6', { over: { text: L.overCurrent, tone: 'warning' } });
   const active = (): BenchCell[] => {
     const pick = ui.value<string>('cell6');
     return pick === 'both' ? [...ORDER] : [pick as BenchCell];
@@ -108,34 +71,56 @@ export const voltageCapacity: StepFactory = (lab) => {
       history[k]!.unshift({ xs, ys });
       history[k]!.length = Math.min(history[k]!.length, 3);
     }
-    ORDER.forEach((c, k) =>
-      [1, 2, 3].forEach((n) =>
-        chart.setData(`${SERIES[c].key}H${n}`, history[k]![n - 1]?.xs ?? [], history[k]![n - 1]?.ys ?? []),
-      ),
-    );
     const cRate = ui.value<number>('current6');
     runs = active().map((c) => ({
       ...dischargeReplay(c, cRate, ui.value<number>('temp6')),
       cRate,
       drawn: -1,
     }));
-    for (const c of ORDER)
-      if (!runs.some((r) => r.replay.cell === c))
-        for (const s of ['', 'Ocv']) chart.setData(SERIES[c].key + s, [], []);
     elapsed = 0;
+    revision++;
   }
-
+  /** Chart side of the step: called every frame while the board is on screen. */
+  function paint(chart: Chart): void {
+    if (painted !== revision) {
+      painted = revision;
+      ORDER.forEach((c, k) => {
+        [1, 2, 3].forEach((n) => {
+          const h = history[k]![n - 1];
+          chart.setData(`${SERIES[c].key}H${n}`, h?.xs ?? [], h?.ys ?? []);
+        });
+        if (!runs.some((r) => r.replay.cell === c)) {
+          chart.setData(SERIES[c].key, ...NONE);
+          chart.setData(`${SERIES[c].key}Ocv`, ...NONE);
+          chart.setMarker(SERIES[c].key, null);
+        }
+      });
+      for (const r of runs) r.drawn = -1;
+    }
+    const showOcv = ui.value<boolean>('ocv6');
+    for (const run of runs) {
+      const c = run.replay.cell;
+      const key = SERIES[c].key;
+      // the curve follows the play head: redraw only when another sample is revealed
+      const upTo = run.replay.index() * 2 + (showOcv ? 1 : 0);
+      if (upTo !== run.drawn) {
+        run.drawn = upTo;
+        chart.setData(key, ...curve(run.replay, run.replay.index()));
+        chart.setData(`${key}Ocv`, ...(showOcv ? curve(run.replay, run.replay.index(), true) : NONE));
+      }
+      const p = run.replay.at();
+      chart.setMarker(key, { x: capacityPct(c, p.ah), y: p.voltageV, color: SERIES[c].color, guides: false });
+    }
+  }
+  /** Real time lapse of the run on screen: model seconds per screen second (longest cell). */
+  const speed = (): number => Math.max(0, ...runs.map((r) => r.result.minutes * 60)) / RUN_S;
   const v = new Vector3();
   const fmt = (x: number, digits: number): string => fmtNumber(x, { digits });
+
   return {
     id: ID,
     shots: {
-      [ID]: {
-        position: [2.3, 4.4, 12.6],
-        target: [-1.15, 2.7, 0],
-        fov: 28,
-        orbit: { azimuth: 0.8, polar: 0.3 },
-      },
+      [ID]: frame([0.55, 1.8, 0.3], 7.4, 4.1, { azimuth: 0.18, elevation: 0.22 }),
     },
     stage: {
       show: [bench.group, bank],
@@ -145,7 +130,7 @@ export const voltageCapacity: StepFactory = (lab) => {
     },
     ui: {
       hint: L.hint6,
-      honesty: ['simplified', { sped: 900 }],
+      honesty: ['simplified'],
       controls: [
         {
           type: 'slider',
@@ -178,8 +163,65 @@ export const voltageCapacity: StepFactory = (lab) => {
           ],
           value: 'both',
         },
-        notes.spec,
+        note('over6', L.overCurrent, 'warning', () => over),
+        {
+          type: 'button',
+          id: 'run6',
+          label: L.runDischarge,
+          icon: 'play',
+          primary: true,
+          onClick: () => (audio.play('relay'), start()),
+        },
       ],
+      board: {
+        title: L.boardDischarge,
+        size: 'md',
+        children: [
+          {
+            type: 'chart',
+            id: 'chart6',
+            chart: {
+              height: 236,
+              x: { min: 0, max: 100, label: L.axisCapacity },
+              y: { min: 2.4, max: 4.3, label: L.axisVoltage },
+              series: [
+                // up to three earlier runs stay as thin traces for comparison
+                ...[3, 2, 1].flatMap((n) =>
+                  ORDER.map((c) => ({
+                    id: `${SERIES[c].key}H${n}`,
+                    color: `${SERIES[c].color}.dark` as const,
+                    width: 1.5,
+                  })),
+                ),
+                // «напруга спокою»: the dashed companion of each working curve
+                ...ORDER.map((c) => ({
+                  id: `${SERIES[c].key}Ocv`,
+                  color: `${SERIES[c].color}.light` as const,
+                  dash: true,
+                  opacity: 0.8,
+                })),
+                ...ORDER.map((c) => ({ id: SERIES[c].key, label: SERIES[c].name, color: SERIES[c].color })),
+              ],
+            },
+            init: () => (painted = -1),
+            update: paint,
+          },
+          {
+            type: 'table',
+            id: 'stats6',
+            // one row per quantity, one column per cell on the bench
+            rows: () => [
+              ['', ...runs.map((r) => SERIES[r.replay.cell].name)],
+              ...[L.statAh, L.statWh, L.statMin, L.statMeanV, L.statHeat].map((name, i) => [
+                name,
+                ...results.map((r) => r[i]!),
+              ]),
+            ],
+          },
+          note('speed6', () => spedUp(speed()), 'honesty'),
+          { type: 'toggle', id: 'ocv6', label: L.showOcv, value: false },
+        ],
+      },
       callouts: [
         { anchor: () => bench.device.getWorldPosition(v).setY(v.y + 1.45), text: L.load, side: 'up' },
         {
@@ -198,9 +240,9 @@ export const voltageCapacity: StepFactory = (lab) => {
       hotspots: [
         {
           anchor: () => bench.station['21700-NMC'].getWorldPosition(v).set(v.x + 0.52, v.y + 0.2, v.z + 0.42),
-          title: 'Cut-off — відсічка',
+          content: 'cut-off',
         },
-        { anchor: bank, title: 'mAh on a power bank — mAh на павербанку' },
+        { anchor: bank, content: 'mah-on-a-power-bank' },
       ],
     },
     probe: () => ({
@@ -210,58 +252,38 @@ export const voltageCapacity: StepFactory = (lab) => {
       volts: runs[0]?.replay.at().voltageV ?? 0,
       ocv: ui.value<boolean>('ocv6'),
       temperature: bench.temperature,
-      over: notes.isShown('over'),
+      over,
+      speed: speed(),
+      history: history.map((h) => h.length).join(),
     }),
     update(dt, t) {
       if (!lab.isCurrent(ID)) return; // the bench is shared with step 7: only the current step drives it
       const running = elapsed < RUN_S;
       elapsed = Math.min(elapsed + dt, RUN_S);
       const cNow = ui.value<number>('current6');
-      notes.show(
-        'over',
-        active().some((c) => cNow * CELLS[c].capacityAh > CELLS[c].iMaxA + 1e-9),
-      );
-      const showOcv = ui.value<boolean>('ocv6');
+      over = active().some((c) => cNow * CELLS[c].capacityAh > CELLS[c].iMaxA + 1e-9);
       for (const c of ORDER) bench.state[c].active = active().includes(c);
-      let first = true;
-      ORDER.forEach((c, row) => {
-        const run = runs.find((r) => r.replay.cell === c);
-        stats.showRow(row, run !== undefined);
-        if (!run) return;
+      results = [];
+      runs.forEach((run, k) => {
+        const c = run.replay.cell;
         run.replay.head = elapsed / RUN_S;
         const p = run.replay.at();
-        const key = SERIES[c].key;
-        // the chart follows the play head: redraw only when another sample is revealed
-        const upTo = run.replay.index() * 2 + (showOcv ? 1 : 0);
-        if (upTo !== run.drawn) {
-          run.drawn = upTo;
-          chart.setData(key, ...curve(run.replay, run.replay.index()));
-          chart.setData(
-            `${key}Ocv`,
-            ...(showOcv ? curve(run.replay, run.replay.index(), true) : ([[], []] as [number[], number[]])),
-          );
-        }
-        chart.setMarker(key, {
-          x: capacityPct(c, p.ah),
-          y: p.voltageV,
-          color: SERIES[c].color,
-          guides: false,
-        });
-        stats.set(row, 0, fmt(p.ah, p.ah < 10 ? 2 : 1));
-        stats.set(row, 1, fmt(p.wh, p.wh < 100 ? 1 : 0));
-        stats.set(row, 2, fmt(p.timeS / 60, 0));
-        stats.set(row, 3, p.ah > 0 ? fmt(p.wh / p.ah, 2) : '—');
-        stats.set(row, 4, fmtSI(p.heatJ, 'J', { maxDigits: 1 }));
+        results.push([
+          fmt(p.ah, p.ah < 10 ? 2 : 1),
+          fmt(p.wh, p.wh < 100 ? 1 : 0),
+          fmt(p.timeS / 60, 0),
+          p.ah > 0 ? fmt(p.wh / p.ah, 2) : '—',
+          fmtSI(p.heatJ, 'J', { maxDigits: 1 }),
+        ]);
         // 3D: level tube = SOC, coil glow = I·(U_OCV − U) relative to the cell's rated-current loss, leads ∝ current
         const spec = CELLS[c];
         const st = bench.state[c];
         st.soc = Math.max(p.socPct, 0) / 100;
         st.cRate = running ? -run.cRate : 0;
         st.heat = running ? p.heatW / (spec.iMaxA ** 2 * (spec.r0Ohm + spec.r1Ohm)) : 0;
-        if (first) {
+        if (k === 0) {
           bench.meters.current = running ? run.cRate / 3 : 0;
           bench.meters.voltage = (p.voltageV - 2.4) / 1.9;
-          first = false;
         }
       });
       bench.temperature = ui.value<number>('temp6');

@@ -33,12 +33,14 @@ export const arrayStep: StepFactory = (lab) => {
   const house = world.house.group;
   house.updateMatrixWorld(true);
   const edge = (s: 0 | 1): Vector3 => house.worldToLocal(array.group.localToWorld(array.centre(s ? 11 : 5, new Vector3()).add(new Vector3(1.1, 0, 0))));
-  const gear = createDcGear([edge(0), edge(1)], new Vector3(8.2, 0.3, 3.4), -0.55);
+  const gear = createDcGear([edge(0), edge(1)], new Vector3(6.4, 0.3, 5.0), -0.35);
   const sun = new Mesh(new SphereGeometry(0.9, 28, 20), K.glow({ color: 'orange', intensity: 1.8, whiten: 0.4 }));
   sun.add(createHalo({ color: 'orange', size: 6, intensity: 0.8 }));
   sun.visible = false;
   house.add(gear.group, sun);
   const own = [array.group, gear.group];
+  // step 10's transition dives into this inverter
+  lab.share('inverter9', () => gear.anchors.inverter);
 
   const design = createStringDesign(ARRAY.count, ARRAY.cols);
   const tMin = (): number => ui.value<number>('tmin9');
@@ -63,6 +65,13 @@ export const arrayStep: StepFactory = (lab) => {
     return w ? (TEXT[w] ?? L.ok) : L.ok;
   };
   const p = new Vector3();
+  const q = new Vector3();
+  /** A point half a module beyond module `i`, away from module `j` of the other row (array → world). */
+  const outside = (i: number, j: number): Vector3 => {
+    array.centre(i, p);
+    array.centre(j, q);
+    return array.group.localToWorld(p.addScaledVector(q.sub(p), -0.75));
+  };
   ctx.input.register(array.proxy, {
     tooltip: L.clickTip,
     cursor: 'pointer',
@@ -92,7 +101,7 @@ export const arrayStep: StepFactory = (lab) => {
     id: ID,
     noPodium: true,
     shots: {
-      [ID]: { position: [6.0, 8.0, 11.4], target: [1.2, 3.3, 0.6], frameAspect: 1.05, fov: 32, fit: { center: [1.2, 3.2, 0.6], radius: 5.0 }, orbit: { azimuth: 0.8, polar: 0.3 } },
+      [ID]: { position: [4.6, 8.5, 7.3], target: [1.7, 3.05, 1.2], frameAspect: 0.85, fov: 30, fit: { center: [1.7, 3.05, 1.2], radius: 3.4 }, orbit: { azimuth: 0.8, polar: 0.3 } },
     },
     stage: {
       show: [world.group, ...own],
@@ -155,9 +164,10 @@ export const arrayStep: StepFactory = (lab) => {
         { type: 'button', id: 'reset9', label: doc(ID, 0), icon: 'resetView', onClick: () => design.reset() },
       ],
       callouts: [
-        { anchor: () => array.group.localToWorld(array.centre(0, p).setX(p.x - 0.9)), text: () => `${L.stringA} · ${report(0).n} × 39,4 V`, color: 'teal', side: 'left' },
-        { anchor: () => array.group.localToWorld(array.centre(6, p).setX(p.x - 0.9)), text: () => `${L.stringB} · ${report(1).n} × 39,4 V`, color: 'violet', side: 'left' },
-        { anchor: gear.anchors.inverter, text: L.mpptInputs, side: 'right' },
+        // string tags off the modules: A where its cable leaves the roof, B below its row
+        { anchor: () => array.group.localToWorld(array.centre(5, p).setX(p.x + 0.75)), text: () => `${L.stringA} · ${report(0).n} × 39,4 V`, color: 'teal', side: 'down' },
+        { anchor: () => outside(9, 3), text: () => `${L.stringB} · ${report(1).n} × 39,4 V`, color: 'violet', side: 'down' },
+        { anchor: gear.anchors.inverter, text: L.mpptInputs, side: 'left' },
         { anchor: gear.anchors.isolator, text: L.dcBox, side: 'up' },
       ],
       hotspots: [

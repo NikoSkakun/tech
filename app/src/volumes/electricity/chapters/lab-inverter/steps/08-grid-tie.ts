@@ -16,7 +16,7 @@ import type { StepFactory } from '../chapter';
 import { doc, splitPair } from '../labels';
 import { OWN } from '../labels-own';
 import { createGridWall } from '../parts/grid-wall';
-import { createGridSession } from '../sim-bindings/grid-session';
+import { RECONNECT_SPED, createGridSession } from '../sim-bindings/grid-session';
 import { group } from '../world';
 
 const ID = 'grid-tie';
@@ -56,6 +56,15 @@ export const gridTie: StepFactory = (lab) => {
         duration: 4,
       });
       if (session.forming) ui.toast(OWN.formingIsland, { icon: 'home', duration: 4 });
+    },
+    breaker() {
+      lab.sound.relay();
+      ui.toast(OWN.breakerTrip, { tone: 'alarm', icon: 'warning', duration: 4 });
+    },
+    reconnected() {
+      sendPQ();
+      lab.sound.relay();
+      ui.toast(OWN.reconnected, { tone: 'ok', icon: 'check', duration: 4 });
     },
   });
   const s = session.state;
@@ -99,7 +108,12 @@ export const gridTie: StepFactory = (lab) => {
     },
     ui: {
       hint: OWN.hint8,
-      honesty: ['simplified', { text: OWN.spin8 }, 'notToScale'],
+      honesty: [
+        'simplified',
+        { text: OWN.spin8 },
+        'notToScale',
+        { sped: RECONNECT_SPED, visible: () => session.waitS > 0 },
+      ],
       controls: [
         {
           type: 'slider',
@@ -209,6 +223,13 @@ export const gridTie: StepFactory = (lab) => {
           visible: () => !session.housePowered,
         },
         {
+          type: 'note',
+          id: 'wait8',
+          text: () => `${OWN.reconnectIn} ${fmtUnit(Math.ceil(session.waitS), 's', { digits: 0 })}`,
+          icon: 'clock',
+          visible: () => session.waitS > 0,
+        },
+        {
           type: 'button',
           id: 'pll8',
           label: doc(ID, 5),
@@ -253,7 +274,7 @@ export const gridTie: StepFactory = (lab) => {
             lab.sound.click(on ? 1.2 : 0.7);
             if (!on && s.relayClosed)
               ui.toast(OWN.islandNow, { tone: 'warning', icon: 'warning', duration: 3 });
-            if (on) ui.toast(OWN.gridBack, { icon: 'info' });
+            if (on) ui.toast(session.waitS > 0 ? OWN.gridWatch : OWN.gridBack, { icon: 'info' });
           },
         },
         {
@@ -331,6 +352,8 @@ export const gridTie: StepFactory = (lab) => {
       closed: s.relayClosed,
       soft: s.lastClose?.soft ?? null,
       inrush: s.lastClose?.inrushA ?? 0,
+      breaker: session.breakerTripped,
+      waitS: session.waitS,
       grid: s.gridPresent,
       trip: s.tripTimeS,
       delta: session.pq.deltaDeg,

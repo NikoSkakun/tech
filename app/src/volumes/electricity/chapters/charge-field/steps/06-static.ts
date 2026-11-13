@@ -147,6 +147,7 @@ export const staticStep: StepFactory = ({ ctx, ui, world }) => {
     mode,
     x: pos.x,
     y: pos.y,
+    squash: model.squash,
     phase: ui.value<string>('phase'),
     separation: storm.separation,
     striking: storm.striking,
@@ -306,8 +307,10 @@ export const staticStep: StepFactory = ({ ctx, ui, world }) => {
       if (mode === 'free') {
         pos.x = damp(pos.x, STATIC.balloonHome.x, 3, dt);
         pos.y = damp(pos.y, STATIC.balloonHome.y + 0.12 * Math.sin(t * 1.1), 3, dt);
-      } else if (mode === 'stuck') pos.x = damp(pos.x, STATIC.wallX - BALLOON_R * 0.97, 10, dt);
+      } else if (mode === 'stuck') pos.x = damp(pos.x, STATIC.wallX - BALLOON_R * 0.9, 10, dt);
       model.group.position.copy(pos);
+      // stuck: the skin flattens on the wall (it sinks 0,1 R into the wall, which hides the contact patch)
+      model.press = mode === 'stuck' ? 1 : 0;
       model.charge = share();
       model.update(dt, t);
       figure.group.localToWorld(head.set(0, 4.3, 0));

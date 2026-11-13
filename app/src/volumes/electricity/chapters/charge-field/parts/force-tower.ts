@@ -3,7 +3,7 @@
  * The electric attraction of a proton and an electron at the Bohr radius is a tower almost to the top; their
  * gravitational attraction is a speck near the ground — 39 floors lower (sim: `gravityComparison`).
  */
-import { Group, Mesh, SphereGeometry, Vector3 } from 'three';
+import { Group, Mesh, SphereGeometry, TorusGeometry, Vector3 } from 'three';
 import { fmtScale } from '@/content';
 import { toOverlay } from '@/engine/api';
 import { createElectron, createHalo, createProton } from '@/fx';
@@ -23,6 +23,13 @@ export interface ForceTower {
   gravityTop: Mesh;
   /** Scene height of a force on the scale. */
   heightOf(forceN: number): number;
+  /**
+   * The carriage that rides down the scale with the camera: a ring on the spine at a force level (decades,
+   * log₁₀ of newtons), hidden with `null`. `rider` is its callout anchor, `riderExp` the decade it shows.
+   */
+  rider: Group;
+  riderExp: number;
+  ride(log10N: number | null): void;
   update(dt: number, t: number): void;
 }
 
@@ -70,13 +77,14 @@ export function createForceTower(): ForceTower {
     const t = new Text3D(fmtScale(BASE_EXP + i, 'N'), {
       font: 'mono',
       size: 18,
-      anchorX: 'left',
+      anchorX: 'right',
       anchorY: 'middle',
       color: 'white',
       billboard: true,
       screenSpace: true,
     });
-    t.position.set(0.85, 0.12 + i * h, 0.1);
+    // numbers stand to the left of the columns; the right side is free for the speck of gravity and its label
+    t.position.set(-0.95, 0.12 + i * h, 0.1);
     group.add(t);
     toOverlay(t);
   }
@@ -87,6 +95,16 @@ export function createForceTower(): ForceTower {
   pair.add(proton, electron);
   pair.position.set(5.2, 1.7, 2.4);
   group.add(pair);
+  const rider = new Group();
+  rider.name = 'rider';
+  rider.add(
+    new Mesh(
+      new TorusGeometry(0.2, 0.035, 8, 28).rotateX(Math.PI / 2),
+      K.glow({ color: 'white', intensity: 1.5 }),
+    ),
+  );
+  rider.visible = false;
+  group.add(rider);
   group.position.copy(COULOMB.tower);
   const p = new Vector3();
   return {
@@ -94,6 +112,14 @@ export function createForceTower(): ForceTower {
     electricTop,
     gravityTop,
     heightOf,
+    rider,
+    riderExp: BASE_EXP,
+    ride(log10N) {
+      rider.visible = log10N !== null;
+      if (log10N === null) return;
+      rider.position.set(0, 0.12 + (log10N - BASE_EXP) * h, 0);
+      this.riderExp = Math.round(log10N);
+    },
     update(_dt, t) {
       p.set(Math.cos(t * 1.1) * 1.25, Math.sin(t * 1.1) * 0.35, Math.sin(t * 1.1) * 1.25);
       electron.position.copy(p);

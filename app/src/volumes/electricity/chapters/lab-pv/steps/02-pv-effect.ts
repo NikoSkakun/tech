@@ -9,6 +9,7 @@ import { fmtNumber, fmtPercent } from '@/content';
 import { createHalo, createOrbs, createPhotons } from '@/fx';
 import { photon } from '@electricity/sim/lab-pv';
 import type { StepFactory } from '../chapter';
+import { playTransition } from '../transitions';
 import { doc, docPair } from '../content';
 import { L } from '../labels';
 import { createBandDiagram } from '../parts/band-diagram';
@@ -54,12 +55,15 @@ export const pvEffect: StepFactory = (lab) => {
     noPodium: true,
     shots: {
       [ID]: { position: [0.6, 3.2, 14.6], target: [0.6, 2.7, 0], frameAspect: 1.12, fov: 32, fit: { center: [0.6, 2.7, 0], radius: 4.9 }, orbit: { azimuth: 0.45, polar: 0.25 } },
+      // transition from step 1: the camera dives after the light into the 1 m² frame on the floor
+      'pv-effect-dive': { position: [0.9, 1.6, 0.4], target: [1.0, 0.1, -1.0], fov: 32, fit: { center: [1.0, 0.1, -1.0], radius: 0.8 } },
     },
     stage: {
       show: [set],
       envTune: { floor: 0, bokeh: 1.2, motes: 1.3 },
       post: { bloomIntensity: 1.15 },
-      enter() {
+      enter(info) {
+        playTransition(lab, info, ID, { from: 'sunlight', kind: 'through', via: 'pv-effect-dive', first: 0.9, last: 1.9 });
         pieShown = false;
       },
     },

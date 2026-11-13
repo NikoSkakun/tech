@@ -1,15 +1,17 @@
 /**
  * Step 4: the «ваги енергії» — three platform scales carrying the cells for the same energy in three
- * chemistries. A pan sinks on its spring and the dial needle turns with the mass; the block on the pan grows
- * with the mass (volume ∝ mass — toy densities, the step carries «не в масштабі»). A column floating above
- * each scale shows the specific energy.
+ * chemistries. The pan sinks on its spring, the needle of a logarithmic dial (1 … 1000 kg, decades numbered)
+ * turns with the mass and a digital window beside it shows the exact figure; the block on the pan grows with
+ * the mass (volume ∝ mass — toy densities, the step carries «не в масштабі»). A column floating above each
+ * scale shows the specific energy.
  */
 import { CylinderGeometry, type Group, Mesh } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { Builder } from '@/kit';
 import { K, SEMANTIC, type ColorLike } from '@/style';
+import { Text3D } from '@/text';
 import type { Mats } from '../world';
-import { group, mesh } from '../world';
+import { group, mesh, tag } from '../world';
 
 export type ScaleKind = 'leadAcid' | 'lfp' | 'nmc';
 /** Height at which the Wh/kg columns float (above the tallest block). */
@@ -59,9 +61,32 @@ export interface PlatformScale {
   block: Group;
   /** Top of the Wh/kg column behind the scale. */
   columnTop: Group;
+  /** The digital window under the dial: the step writes the mass into it («125 kg»). */
+  display: Text3D;
   /** Mass on the pan, kg (eased by the caller if wanted). */
   setMass(kg: number): void;
 }
+
+/** The dial is logarithmic: 1 kg … 1000 kg over a 270° sweep (the step's range is 0,4 … 1000 kg). */
+const DIAL = {
+  minKg: 1,
+  maxKg: 1000,
+  sweep: (270 * Math.PI) / 180,
+  radius: 0.46,
+  x: -0.36,
+  y: 0.58,
+  z: 0.68,
+};
+/** Rest height of the pan: above the dial, so the load is never hidden behind it. */
+const PAN_Y = 1.22;
+const TILT = -0.22;
+const WINDOW_X = 0.52;
+/** Clockwise angle from 12 o'clock of a mass on the dial, rad. */
+const dialAngle = (kg: number): number => {
+  const decades = Math.log10(DIAL.maxKg / DIAL.minKg);
+  const k = Math.log10(Math.max(kg, 1e-3) / DIAL.minKg) / decades;
+  return (Math.min(Math.max(k, -0.06), 1.03) - 0.5) * DIAL.sweep;
+};
 
 /**
  * `whPerKg` sets the height of the specific-energy column (250 Wh/kg = `columnMax` units).
@@ -75,19 +100,71 @@ export function createPlatformScale(
   columnMax = 1.5,
 ): PlatformScale {
   const g = group(`scale-${kind}`);
-  g.add(mesh(new RoundedBoxGeometry(1.7, 0.34, 1.25, 4, 0.1), mats.dark, 0, 0.17, 0));
-  // dial on the front
-  const face = new CylinderGeometry(0.36, 0.36, 0.06, 40);
-  face.rotateX(Math.PI / 2);
-  g.add(mesh(face, mats.white, 0, 0.5, 0.56, false));
-  g.add(mesh(new RoundedBoxGeometry(0.9, 0.62, 0.16, 3, 0.07), mats.plinth, 0, 0.48, 0.5));
-  const needle = group('needle', 0, 0.42, 0.6);
-  needle.add(mesh(new RoundedBoxGeometry(0.03, 0.3, 0.02, 1, 0.01), mats.plus, 0, 0.14, 0, false));
-  g.add(needle);
-  // pan on a spring column
-  const pan = group('pan', 0, 0.72, 0);
+  const b = new Builder(`scale-body-${kind}`);
+  b.box(1.7, 0.3, 1.25, { r: 0.1, c: ['bg.indigo', 'slate'] });
+  // dial head: a round housing on the front edge, leaning back toward the viewer's eye line
+  b.frame({ at: [DIAL.x, DIAL.y, DIAL.z], rot: [TILT, 0, 0] }, () => {
+    const R = DIAL.radius;
+    b.cyl(R + 0.07, 0.16, { at: [0, 0, -0.1], axis: 'z', seg: 56, c: ['slate', 'steel'], bevel: 0.03 });
+    b.cyl(R, 0.02, { at: [0, 0, 0.055], axis: 'z', seg: 56, slot: 'flat', c: 'white' });
+    b.ring(R + 0.035, 0.03, { at: [0, 0, 0.07], axis: 'z', seg: 56, slot: 'metal', c: 'steel.light' });
+    // ticks: decades long and dark, 2× and 5× short
+    for (let d = 0; d <= 3; d++)
+      for (const m of d < 3 ? [1, 2, 5] : [1]) {
+        const a = dialAngle(m * 10 ** d);
+        const long = m === 1;
+        const len = long ? 0.11 : 0.06;
+        const r = R - 0.03 - len;
+        b.box(long ? 0.03 : 0.018, len, 0.012, {
+          at: [Math.sin(a) * r, Math.cos(a) * r, 0.08],
+          rot: [0, 0, -a],
+          r: 0,
+          slot: 'flat',
+          c: long ? 'ink' : 'slate',
+        });
+      }
+  });
+  // digital window beside the dial: the exact mass
+  b.frame({ at: [WINDOW_X, 0.33, DIAL.z], rot: [TILT, 0, 0] }, () => {
+    b.box(0.68, 0.34, 0.1, { at: [0, 0, -0.06], r: 0.05, c: ['slate', 'steel'] });
+    b.box(0.62, 0.24, 0.02, { at: [0, 0.05, 0.04], r: 0.03, slot: 'flat', c: 'ink' });
+  });
+  g.add(b.build().group);
+  const head = group('dial', DIAL.x, DIAL.y, DIAL.z);
+  head.rotation.x = TILT;
+  // decade numbers inside the tick ring, each growing inward from its tick (world-size text: ≈ 17 px-eq in
+  // the step's shot)
+  for (let d = 0; d <= 3; d++) {
+    const a = dialAngle(10 ** d);
+    const r = DIAL.radius - 0.17;
+    const text = new Text3D(String(10 ** d), {
+      font: 'mono',
+      size: 0.105,
+      color: 'ink',
+      anchorX: a < 0 ? 'left' : 'right',
+      anchorY: 'middle',
+      halo: false,
+    });
+    text.position.set(Math.sin(a) * r, Math.cos(a) * r, 0.09);
+    head.add(text);
+  }
+  // The exact mass is a screen-space tag (constant on-screen size): it stays legible when a narrow window
+  // makes the scene small, where world-size text on the plate would not.
+  const display = tag('', 21, 'lime', 'mono');
+  const window = group('window', WINDOW_X, 0.33, DIAL.z, [display]);
+  window.rotation.x = TILT;
+  display.position.set(0, 0.17, 0.08);
+  const needle = group('needle', 0, 0, 0.1);
+  needle.add(
+    mesh(new RoundedBoxGeometry(0.04, DIAL.radius - 0.07, 0.02, 1, 0.008), mats.plus, 0, 0.13, 0, false),
+    mesh(new CylinderGeometry(0.06, 0.06, 0.035, 20).rotateX(Math.PI / 2), mats.ink, 0, 0, 0.005, false),
+  );
+  head.add(needle);
+  g.add(head, window);
+  // pan on its spring column (the column slides into the base as the pan sinks)
+  const pan = group('pan', 0, PAN_Y, 0);
   pan.add(mesh(new CylinderGeometry(0.78, 0.74, 0.07, 48), mats.light, 0, 0, 0));
-  pan.add(mesh(new CylinderGeometry(0.1, 0.1, 0.5, 16), mats.steel, 0, -0.27, 0));
+  pan.add(mesh(new CylinderGeometry(0.1, 0.1, 0.9, 16), mats.steel, 0, -0.48, 0));
   const body = block(kind);
   body.position.y = 0.035;
   pan.add(body);
@@ -111,11 +188,11 @@ export function createPlatformScale(
     group: g,
     block: body,
     columnTop,
+    display,
     setMass(kg) {
-      // spring: deflection saturates like a real bathroom scale's dial (toy law)
-      const load = kg / (kg + 90);
-      pan.position.y = 0.72 - 0.26 * load;
-      needle.rotation.z = 1.25 - 2.5 * load;
+      // the pan sinks on its spring (toy law that saturates); the needle reads the mass on the log dial
+      pan.position.y = PAN_Y - 0.2 * (kg / (kg + 90));
+      needle.rotation.z = -dialAngle(kg);
       body.scale.setScalar(Math.min(Math.max(Math.cbrt(kg / 125), 0.22), 1.75) * 0.95);
     },
   };

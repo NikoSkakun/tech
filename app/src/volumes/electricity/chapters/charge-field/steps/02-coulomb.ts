@@ -5,18 +5,21 @@
  */
 import { Group, Vector3 } from 'three';
 import { audio } from '@/audio';
-import { fmtNumber, fmtSci } from '@/content';
+import { fmtNumber, fmtScale, fmtSci } from '@/content';
 import { damp } from '@/engine/api';
-import { createVectorArrow, RibbonLines } from '@/fx';
+import { RibbonLines } from '@/fx';
 import { Builder } from '@/kit';
+import { SEMANTIC } from '@/style';
 import { COULOMB_RANGES, coulombPair, gravityComparison } from '@electricity/sim/charge-field';
 import type { Chart } from '@/ui3d';
 import type { StepFactory } from '../chapter';
 import { docItems, docLabel } from '../content';
-import { fmtSciUnit } from '../fmt';
+import { fmtSciUnit, fmtTwoSig, forceScale } from '../fmt';
 import { DOC, L } from '../labels';
 import { COULOMB, M, TABLE } from '../layout';
+import { SHOTS } from '../shots';
 import { createChargeBall, type ChargeBall } from '../parts/charge-ball';
+import { createForceArrow } from '../parts/force-arrow';
 import { createForceTower } from '../parts/force-tower';
 
 const R = COULOMB_RANGES;
@@ -39,19 +42,19 @@ function torsionBalance(): Group {
 
 export const coulombStep: StepFactory = ({ ctx, ui, world }) => {
   const on = (): boolean => ctx.stage.current === 'coulomb';
+  const comparing = (): boolean => ui.value<boolean>('compare');
   const pairSet = new Group();
   const tower = createForceTower();
+  const cmp = gravityComparison();
   ctx.root.add(pairSet, tower.group);
   // registered here, not on first use: a deep link to another step must find them hidden
   ctx.stage.actor(pairSet);
   ctx.stage.actor(tower.group);
   const balls: [ChargeBall, ChargeBall] = [
-    createChargeBall({ reference: 20, base: 0.4 }),
-    createChargeBall({ reference: 20, base: 0.4, phase: 2 }),
+    createChargeBall({ reference: 20, base: COULOMB.ball }),
+    createChargeBall({ reference: 20, base: COULOMB.ball, phase: 2 }),
   ];
-  const arrows = balls.map(() =>
-    createVectorArrow({ color: 'white', radius: 0.075, headLength: 0.36, headRadius: 0.18, intensity: 1.15 }),
-  );
+  const arrows = balls.map(() => createForceArrow());
   const ruler = new RibbonLines({
     capacity: 8,
     color: 'white',
@@ -64,8 +67,8 @@ export const coulombStep: StepFactory = ({ ctx, ui, world }) => {
     endFade: [0, 0],
   });
   const balance = torsionBalance();
-  balance.position.set(TABLE.radius - 1.6, 0, -2.6);
-  pairSet.add(...balls.map((b) => b.group), ...arrows, ruler, balance);
+  balance.position.set(2.9, 0, -3.3);
+  pairSet.add(...balls.map((b) => b.group), ...arrows.map((a) => a.group), ruler, balance);
   const pos = [new Vector3(-0.75, COULOMB.y, 0), new Vector3(0.75, COULOMB.y, 0)] as const;
   const mid = new Vector3();
   const sim = (): ReturnType<typeof coulombPair> =>
@@ -96,29 +99,92 @@ export const coulombStep: StepFactory = ({ ctx, ui, world }) => {
   ctx.qa.probe('ball-1', balls[0].proxy);
   ctx.qa.probe('ball-2', balls[1].proxy);
   ctx.qa.probe('tower-top', tower.electricTop);
-  ctx.qa.expose('coulomb', () => ({ ...sim(), compare: ui.value<boolean>('compare') }));
+  ctx.qa.expose('coulomb', () => ({
+    ...sim(),
+    compare: ui.value<boolean>('compare'),
+    frame: ctx.camera.currentShot === SHOTS[FRAMES[frame]!] ? frame : -1,
+    forceText: fmtTwoSig(sim().forceN * scale().perNewton, scale().unit),
+    chartUnit: scale().unit,
+  }));
 
+  // The frame follows the pair: three shots, picked by how far the balls and their arrow tips reach from the
+  // table centre. Hysteresis keeps the camera still while a ball is dragged around one threshold.
+  const FRAMES = ['coulomb', 'coulombMid', 'coulombWide'] as const;
+  const REACH = [2.35, 4.0] as const;
+  const tip = new Vector3();
+  let frame = 0;
+  const reach = (): number => {
+    const s = sim();
+    const length = s.arrowLengthL0 * COULOMB.arrowL0;
+    const toward = s.kind === 'attraction' ? 1 : -1;
+    let far = 0;
+    balls.forEach((ball, i) => {
+      const p = pos[i]!;
+      tip
+        .copy(pos[1 - i]!)
+        .sub(p)
+        .setY(0)
+        .normalize()
+        .multiplyScalar(toward * length)
+        .add(p);
+      far = Math.max(far, Math.hypot(p.x, p.z) + ball.radius, Math.hypot(tip.x, tip.z));
+    });
+    return far;
+  };
+  const pickFrame = (from: number): number => {
+    const far = reach();
+    let next = far > REACH[1] ? 2 : far > REACH[0] ? 1 : 0;
+    // step back in only when the pair is clearly inside the tighter frame
+    if (next < from && far > REACH[next]! - 0.45) next = from;
+    return next;
+  };
   const setCompare = (compare: boolean, instant = false): void => {
     ctx.stage.toggle(pairSet, !compare, { instant });
     ctx.stage.toggle(tower.group, compare, { instant });
-    void ctx.camera.go(compare ? 'gravity' : 'coulomb', { instant });
+    frame = pickFrame(0);
+    riding = false;
+    rideNo++;
+    void ctx.camera.go(compare ? 'gravity' : FRAMES[frame]!, { instant });
   };
   ui.onChange('compare', (v) => on() && setCompare(v === true));
+  // The ride: the camera goes down the scale together with a carriage that names the decade it passes, so the
+  // trip reads as "39 floors between the two forces" and not as a camera move for its own sake.
+  let level = 0;
+  let riding = false;
+  /** Bumped whenever a ride starts or is cut short: timers of an older ride see a stale number and do nothing. */
+  let rideNo = 0;
   const ride = (): void => {
+    if (riding) return;
     const scope = ctx.stage.scope;
+    const mine = ++rideNo;
+    const top = Math.log10(cmp.electricN);
+    level = top;
+    riding = true;
     void ctx.camera.go('gravityTop', { duration: 1.2 });
-    scope.delay(1.5, () => void ctx.camera.go('gravityBottom', { duration: 4.5, ease: 'sine.inOut' }));
-    scope.delay(7.2, () => void ctx.camera.go('gravity', { duration: 1.6 }));
+    scope.delay(1.5, () => {
+      if (mine !== rideNo) return;
+      const opts = { duration: 4.5, ease: 'sine.inOut' } as const;
+      void ctx.camera.go('gravityBottom', opts);
+      scope.value(top, Math.log10(cmp.gravityN), opts, (v) => mine === rideNo && (level = v));
+    });
+    scope.delay(7.6, () => {
+      if (mine !== rideNo) return;
+      riding = false;
+      void ctx.camera.go('gravity', { duration: 1.6 });
+    });
   };
 
-  const cmp = gravityComparison();
   const [attraction, repulsion] = docItems('coulomb', 1, '/');
   const dir = new Vector3();
-  const side = new Vector3();
   const tail = new Vector3();
+  const rulerMid = new Vector3();
   const shown = [0, 0];
   let lateral = 0;
   let chartKey = '';
+  // The board and the readout speak one unit: the one that suits the top of the chart for the current charges
+  // (the chart is cut at the force for r = 2,5 cm, so that the 1/r² tail stays readable).
+  const chartTopN = (): number => coulombPair(ui.value<number>('q1'), ui.value<number>('q2'), 0.025).forceN;
+  const scale = (): ReturnType<typeof forceScale> => forceScale(chartTopN());
   const drawChart = (chart: Chart): void => {
     const s = sim();
     const key = `${s.q1NC}|${s.q2NC}`;
@@ -126,14 +192,15 @@ export const coulombStep: StepFactory = ({ ctx, ui, world }) => {
       chartKey = key;
       const xs: number[] = [];
       const ys: number[] = [];
+      const { unit, perNewton } = scale();
       for (let cm = 1; cm <= 20; cm += 0.25) {
         xs.push(cm);
-        ys.push(coulombPair(s.q1NC, s.q2NC, cm / 100).forceN * 1e3);
+        ys.push(coulombPair(s.q1NC, s.q2NC, cm / 100).forceN * perNewton);
       }
-      chart.setAxis('y', { max: Math.max(coulombPair(s.q1NC, s.q2NC, 0.025).forceN * 1e3, 1e-3) });
+      chart.setAxis('y', { max: Math.max(chartTopN() * perNewton, 1), label: `F, ${unit}` });
       chart.setData('f', xs, ys);
     }
-    chart.setMarker('now', { x: s.distanceM * 100, y: s.forceN * 1e3 });
+    chart.setMarker('now', { x: s.distanceM * 100, y: s.forceN * scale().perNewton });
   };
 
   return {
@@ -185,7 +252,7 @@ export const coulombStep: StepFactory = ({ ctx, ui, world }) => {
           visible: () => !ui.value<boolean>('compare'),
           items: [
             { label: L.coulomb.r, get: () => `${fmtNumber(sim().distanceM * 100, { digits: 1 })} cm` },
-            { label: L.coulomb.force, get: () => (sim().forceN > 0 ? fmtSciUnit(sim().forceN, 'N') : '0 N') },
+            { label: L.coulomb.force, get: () => fmtTwoSig(sim().forceN * scale().perNewton, scale().unit) },
             {
               label: L.coulomb.kind,
               get: () => ({ attraction, repulsion, none: L.coulomb.none })[sim().kind] ?? '',
@@ -233,22 +300,28 @@ export const coulombStep: StepFactory = ({ ctx, ui, world }) => {
       },
       callouts: [
         {
-          anchor: () => mid,
+          anchor: () => rulerMid,
           text: () => `r = ${fmtNumber(sim().distanceM * 100, { digits: 1 })} cm`,
           side: 'down',
           visible: () => !ui.value<boolean>('compare'),
         },
         {
+          anchor: tower.rider,
+          text: () => fmtScale(tower.riderExp, 'N'),
+          side: 'right',
+          visible: () => ui.value<boolean>('compare') && riding,
+        },
+        {
           anchor: tower.electricTop,
           text: L.coulomb.electric,
-          side: 'left',
+          side: 'up',
           color: 'amber',
           visible: () => ui.value<boolean>('compare'),
         },
         {
           anchor: tower.gravityTop,
           text: L.coulomb.gravity,
-          side: 'down',
+          side: 'right',
           visible: () => ui.value<boolean>('compare'),
         },
       ],
@@ -267,12 +340,13 @@ export const coulombStep: StepFactory = ({ ctx, ui, world }) => {
     },
     update(dt, t) {
       tower.update(dt, t);
+      tower.ride(riding && comparing() ? level : null);
       const s = sim();
       const dist = pos[0].distanceTo(pos[1]);
       mid.copy(pos[0]).add(pos[1]).multiplyScalar(0.5);
       dir.copy(pos[1]).sub(pos[0]).normalize();
-      side.set(-dir.z, 0, dir.x);
-      // attraction: the two arrows would overlap on the axis, so they slide apart sideways
+      // attraction: arrows that point at each other would overlap on the axis, so one runs above the pair
+      // and the other below it — equal, opposite, each next to its own ball
       lateral = damp(lateral, s.kind === 'attraction' ? 1 : 0, 8, dt);
       const charges = [s.q1NC, s.q2NC];
       balls.forEach((ball, i) => {
@@ -286,10 +360,18 @@ export const coulombStep: StepFactory = ({ ctx, ui, world }) => {
         tail
           .copy(pos[i]!)
           .addScaledVector(dir, sign * r * (1 - lateral))
-          .addScaledVector(side, (i ? -1 : 1) * 0.3 * lateral);
-        arrows[i]!.visible = shown[i]! > 0.02;
-        arrows[i]!.set(tail, hit.copy(dir).multiplyScalar(sign * Math.max(shown[i]!, 0.02)));
+          .addScaledVector(up, (i ? -1 : 1) * (r + COULOMB.arrowGap) * lateral);
+        arrows[i]!.setRim(charges[i]! < 0 ? SEMANTIC.electron : SEMANTIC.proton);
+        arrows[i]!.set(tail, hit.copy(dir).multiplyScalar(sign * shown[i]!));
       });
+      rulerMid.copy(mid).setY(0.04);
+      if (on() && !comparing()) {
+        const next = pickFrame(frame);
+        if (next !== frame) {
+          frame = next;
+          void ctx.camera.go(FRAMES[frame]!, { duration: 0.9 });
+        }
+      }
       ruler.setLines([
         { points: [pos[0].clone().setY(0.04), pos[1].clone().setY(0.04)] },
         { points: [pos[0].clone().setY(0.04), pos[0]] },

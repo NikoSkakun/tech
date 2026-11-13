@@ -46,6 +46,15 @@ export function mesh(geometry: BufferGeometry, material: Material, x = 0, y = 0,
   return m;
 }
 
+/**
+ * True when the window is tall enough for the secondary callouts of a crowded subject. Callout plates keep a
+ * minimum real size, so on a 720p-class screen they take a much larger share of a small subject (the scope of
+ * steps 4–5) and the lower-priority ones are better left out.
+ */
+export function roomy(lab: { ctx: { viewport: { height: number } } }): boolean {
+  return lab.ctx.viewport.height >= 860;
+}
+
 /** A named group at a position. */
 export function group(name: string, x = 0, y = 0, z = 0, children: Object3D[] = []): Group {
   const g = new Group();

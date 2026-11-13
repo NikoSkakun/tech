@@ -21,10 +21,23 @@ export interface InsideWire {
   glass: Vector3;
   /** −1…1: drift of the electron sea (sign = direction, 0 = open circuit). */
   drift: number;
+  /**
+   * 0…1, the dive into the wire: at 0 the whole set sits shrunk inside the bench wire at `origin`; it grows and
+   * rises to its place while a magnified piece of the wire covers the copper window, and in the last part the
+   * wire's wall rushes past the camera — the camera "goes through the wall" into the lattice.
+   */
+  dive: number;
+  /** World point on the bench wire the dive starts from. */
+  readonly origin: Vector3;
   update(dt: number, t: number): void;
 }
 
-export function createInsideWire(ctx: ChapterContext): InsideWire {
+/** Scale at which the magnified wire (radius WIRE_R) is as thick as the bench wire (radius 0,06). */
+const WIRE_R = 1.3;
+const START = 0.06 / WIRE_R;
+const ease = (x: number): number => x * x * (3 - 2 * x);
+
+export function createInsideWire(ctx: ChapterContext, origin: Vector3): InsideWire {
   const group = new Group();
   group.name = 'inside-wire';
   group.position.copy(BRIDGE.inside);
@@ -77,13 +90,34 @@ export function createInsideWire(ctx: ChapterContext): InsideWire {
   for (let i = 0; i < n; i++) atoms.setPosition(i, site(i, p).x + 1.5, p.y, 0);
   atoms.commit();
   const bound = createOrbs({ kind: 'electron', count: n * 2, radius: 0.055 });
-  group.add(ions, sea, atoms, bound);
+  // the magnified piece of the copper wire in front of the copper window (lies along x, like the bench wire)
+  const wb = new Builder('wire-wall');
+  wb.cyl(WIRE_R, W + 0.9, {
+    seg: 48,
+    slot: 'metal',
+    c: ['orange', 'amber.light'],
+    axis: 'x',
+    at: [-1.5 - (W + 0.9) / 2, 0, 0.6],
+  });
+  const skin = wb.build().group;
+  group.add(ions, sea, atoms, bound, skin);
   const inside: InsideWire = {
     group,
     copper: new Vector3(BRIDGE.inside.x - 1.5, BRIDGE.inside.y + H / 2 + 0.3, BRIDGE.inside.z),
     glass: new Vector3(BRIDGE.inside.x + 1.5, BRIDGE.inside.y + H / 2 + 0.3, BRIDGE.inside.z),
     drift: 0,
+    dive: 1,
+    origin: origin.clone(),
     update(_dt, t) {
+      // grow out of the wire (0…0,7), then the wall flies toward the camera and past it (0,6…1)
+      const grow = ease(Math.min(inside.dive / 0.7, 1));
+      group.position.lerpVectors(inside.origin, BRIDGE.inside, grow);
+      group.scale.setScalar(START + (1 - START) * grow);
+      const pass = Math.min(Math.max((inside.dive - 0.6) / 0.4, 0), 1);
+      skin.position.z = pass * pass * 14;
+      skin.scale.setScalar(1 + 2 * pass);
+      // with reduced motion the wall does not rush at the viewer: it just is not there
+      skin.visible = pass < 0.98 && !ctx.reducedMotion;
       sea.drift.x = 0.9 * inside.drift;
       for (let i = 0; i < n * 2; i++) {
         site(i >> 1, p);

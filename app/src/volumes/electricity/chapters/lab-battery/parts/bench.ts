@@ -4,16 +4,16 @@
  * (electronic load / charger) with two dials, a fan and CC / CV lamps; leads carrying energy pulses whose
  * speed and brightness follow the current; a chamber thermometer with frost below 0 °C.
  */
-import { CylinderGeometry, type Group, Mesh, SphereGeometry, TorusGeometry, Vector3 } from 'three';
+import { type Group, SphereGeometry, TorusGeometry, Vector3 } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { damp, type ChapterContext } from '@/engine/api';
 import { applyHeat, createHalo, createParticles, boxEmitter, createWire, type Wire } from '@/fx';
-import { Builder } from '@/kit';
-import { K, SEMANTIC, temperatureRamp } from '@/style';
-import type { BenchCell } from '../sim';
+import { Builder, levelTube, type LevelTube } from '@/kit';
+import { K, temperatureRamp } from '@/style';
+import type { BenchCell } from '../sim-bindings/runs';
 import type { Mats } from '../world';
 import { group, mesh } from '../world';
-import { createHeroCell } from './hero-cell';
+import { heroCell, lfpBrick } from './cells';
 
 export interface BenchCellState {
   active: boolean;
@@ -38,18 +38,6 @@ export interface Bench {
   update(dt: number, t: number): void;
 }
 
-/** A 100 Ah LFP brick: blue-grey can, + coral / − blue studs, vent. ≈ 0.95 × 1.25 × 0.4 units. */
-export function lfpBrick(): Group {
-  const b = new Builder('lfp-brick');
-  b.box(0.95, 1.2, 0.4, { r: 0.045, slot: 'gloss', c: ['blue.dark', 'sky'] });
-  b.box(0.97, 0.06, 0.42, { at: [0, 1.2, 0], r: 0.02, c: 'ink' });
-  b.cyl(0.07, 0.09, { at: [-0.28, 1.26, 0], seg: 16, slot: 'metal', c: SEMANTIC.dcPlus });
-  b.cyl(0.07, 0.09, { at: [0.28, 1.26, 0], seg: 16, slot: 'metal', c: SEMANTIC.dcMinus });
-  b.cyl(0.05, 0.02, { at: [0, 1.26, 0], seg: 12, slot: 'metal', c: 'mist' });
-  b.ring(0.3, 0.012, { at: [0, 0.3, 0.205], axis: 'z', c: 'lime', slot: 'glow' });
-  return b.build().group;
-}
-
 export function createBench(ctx: ChapterContext, mats: Mats): Bench {
   const g = group('bench');
   // table
@@ -67,22 +55,18 @@ export function createBench(ctx: ChapterContext, mats: Mats): Bench {
   const TOP = 0.66;
 
   /* ------------------------------------------------------------------------------------ stations */
-  const nmc = createHeroCell('violet').group;
-  nmc.scale.setScalar(0.6);
+  const nmc = heroCell('violet', '21700', 0.6).group;
   nmc.rotation.y = 0.35;
   const bodies: Record<BenchCell, { body: Group; x: number; h: number }> = {
     '21700-NMC': { body: nmc, x: -2.35, h: 1.5 },
-    'LFP-100': { body: lfpBrick(), x: -0.75, h: 1.3 },
+    'LFP-100': { body: lfpBrick().group, x: -0.75, h: 1.3 },
   };
-  const levelGeometry = new CylinderGeometry(0.075, 0.075, 1, 20);
-  levelGeometry.translate(0, 0.5, 0);
-  const tubeGeometry = new CylinderGeometry(0.11, 0.11, 1.24, 24, 1, true);
   const coilGeometry = new TorusGeometry(0.11, 0.028, 10, 28);
   const station = {} as Bench['station'];
   const parts = {} as Record<
     BenchCell,
     {
-      level: Mesh;
+      level: LevelTube;
       coil: ReturnType<typeof K.toon>;
       holder: Group;
       halo: ReturnType<typeof createHalo>;
@@ -95,16 +79,10 @@ export function createBench(ctx: ChapterContext, mats: Mats): Bench {
     st.add(mesh(new RoundedBoxGeometry(1.25, 0.12, 0.9, 3, 0.04), mats.dark, 0, 0.06, 0));
     body.position.y = 0.12;
     st.add(body);
-    // level tube: lime column = state of charge
-    const level = new Mesh(
-      levelGeometry,
-      K.glow({ color: 'lime', intensity: 1.5, keepHue: true, whiten: 0.1, falloff: 0 }),
-    );
-    level.position.set(0.52, 0.16, 0.3);
-    const tube = new Mesh(tubeGeometry, mats.glass);
-    tube.position.set(0.52, 0.16 + 0.6, 0.3);
-    tube.renderOrder = 4;
-    st.add(level, tube, mesh(new CylinderGeometry(0.13, 0.13, 0.05, 20), mats.steel, 0.52, 0.145, 0.3));
+    // level tube (kit): lime column = state of charge
+    const level = levelTube({ height: 1.2, radius: 0.11, color: 'lime', level: 1 });
+    level.group.position.set(0.52, 0.12, 0.3);
+    st.add(level.group);
     // internal resistance: a little heater coil on the front that glows with I·(U_OCV − U)
     const coil = K.toon({ color: 'slate', gloss: 0.3 });
     const heater = group('heater', -0.05, 0.5, id === 'LFP-100' ? 0.24 : 0.26);
@@ -173,23 +151,18 @@ export function createBench(ctx: ChapterContext, mats: Mats): Bench {
 
   /* --------------------------------------------------------------------------------- thermometer */
   const thermometer = group('thermometer', 3.05, TOP, 0.75);
-  const mercury = K.glow({ color: 'coral', intensity: 1.4, keepHue: true, whiten: 0, falloff: 0 });
-  const column = new Mesh(levelGeometry, mercury);
-  column.scale.set(0.5, 0.5, 0.5);
-  column.position.y = 0.2;
-  const glassTube = new Mesh(new CylinderGeometry(0.07, 0.07, 1.2, 16, 1, true), mats.glass);
-  glassTube.position.y = 0.75;
-  glassTube.renderOrder = 4;
+  // a kit level tube as the mercury column: its level and colour follow the chamber temperature
+  const mercury = levelTube({ height: 1.0, radius: 0.07, color: 'coral', caps: false, ticks: 6 });
+  mercury.group.position.y = 0.2;
   thermometer.add(
     mesh(new RoundedBoxGeometry(0.3, 0.1, 0.3, 2, 0.03), mats.dark, 0, 0.05, 0),
-    mesh(new SphereGeometry(0.1, 16, 12), mercury, 0, 0.18, 0, false),
-    column,
-    glassTube,
+    mesh(new SphereGeometry(0.1, 16, 12), mercury.fill, 0, 0.18, 0, false),
+    mercury.group,
   );
   const frost = createHalo({ color: 'sky', size: 7.5, intensity: 0 });
   frost.position.set(0, TOP + 0.9, 0);
   const snow = createParticles(ctx, {
-    count: 70,
+    count: ctx.quality.count(70, 20),
     emitter: boxEmitter([6.4, 0.2, 2.4]),
     sprite: 'soft',
     color: ['white', 'sky'],
@@ -225,7 +198,7 @@ export function createBench(ctx: ChapterContext, mats: Mats): Bench {
         s.heat = damp(s.heat, want.active ? want.heat : 0, 4, dt);
         const on = damp(p.holder.scale.x, want.active ? 1 : 0.001, 9, dt);
         p.holder.scale.setScalar(on);
-        p.level.scale.y = Math.max(s.soc, 0.004) * 1.2;
+        p.level.level = s.soc;
         applyHeat(p.coil, Math.min(s.heat, 1.2));
         p.halo.intensity = 0.8 * Math.min(s.heat, 1.3);
         // pulses run from the cell to the instrument on discharge and back on charge; brightness ∝ current
@@ -241,8 +214,9 @@ export function createBench(ctx: ChapterContext, mats: Mats): Bench {
       lamps[1]!.intensity = bench.meters.cv ? 1.7 : 0.2;
       // thermometer: −20…+45 °C over the tube; frost and snow below zero
       const k = Math.min(Math.max((bench.temperature + 20) / 65, 0), 1);
-      column.scale.y = 0.12 + 0.88 * k;
-      temperatureRamp(k, mercury.color);
+      mercury.level = 0.12 + 0.88 * k;
+      temperatureRamp(k, mercury.fill.color);
+      mercury.fill.emissive.copy(mercury.fill.color);
       const cold = Math.min(Math.max(-bench.temperature / 20, 0), 1);
       frost.intensity = damp(frost.intensity, 0.5 * cold, 3, dt);
       snow.rate = cold;

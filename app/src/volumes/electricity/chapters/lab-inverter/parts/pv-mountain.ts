@@ -105,10 +105,10 @@ export function createPvMountain(color: ColorLike = 'yellow', who: ColorLike = '
 
   const man = climber(who);
   man.scale.setScalar(1.25);
-  const flag = tag('', 20, 'yellow', 'mono');
-  const label = tag('', 20, 'mist');
+  const flag = tag('', 24, 'yellow', 'mono');
+  const label = tag('', 22, 'mist');
   label.position.set(0, -0.3, 0);
-  const climberTag = tag('', 20, 'white', 'mono');
+  const climberTag = tag('', 26, 'white', 'mono');
   group.add(axes, fill, line, ceiling, man, flag, label, climberTag);
 
   const pts = Array.from({ length: samples + 1 }, () => new Vector3());

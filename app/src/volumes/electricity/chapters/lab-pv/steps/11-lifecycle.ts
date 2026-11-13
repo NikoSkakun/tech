@@ -6,19 +6,19 @@
  */
 import { Color, Group, Vector3 } from 'three';
 import { fmtNumber } from '@/content';
-import { RibbonLines } from '@/fx';
 import { HALF_CELLS, MODULE_MATERIALS_KG, cumulativeEnergyKwh, relativePower, type CellTechnology } from '@electricity/sim/lab-pv';
 import { col } from '@/style';
 import type { StepFactory } from '../chapter';
 import { doc, docPair, xref } from '../content';
 import { L, fill } from '../labels';
+import { createAgeing } from '../parts/ageing';
 import { createLm440 } from '../parts/lm440';
-import { M } from '../parts/lm440-layout';
 import { MATERIAL_ORDER, createMaterials, type MaterialId } from '../parts/materials';
 import { YEARS, createTimeRibbon } from '../parts/time-ribbon';
 import { MODULE_SCALE, group, shadows } from '../world';
 
 const ID = 'lifecycle';
+const RIDER_SCALE = 0.85;
 const PAYBACK_YEARS = 1; // energy payback ≈ 1 year in Europe (document)
 const MAT_LABEL: Record<MaterialId, string> = { glass: L.matGlass, aluminium: L.matAluminium, polymers: L.matPolymers, silicon: L.matSilicon, copper: L.matCopper, silver: L.matSilver };
 const mass = (kg: number): string => (kg >= 0.1 ? `${fmtNumber(kg)} kg` : `${fmtNumber(Math.round(kg * 1000))} g`);
@@ -28,26 +28,19 @@ export const lifecycle: StepFactory = (lab) => {
   const ribbon = createTimeRibbon();
   const module = createLm440();
   module.setExplode(0);
-  module.group.scale.setScalar(MODULE_SCALE * 0.52);
+  module.group.scale.setScalar(MODULE_SCALE * RIDER_SCALE);
   shadows(module.layers.frame);
   const tilt = new Group();
-  tilt.rotation.x = 1.05;
+  tilt.rotation.x = 1.2;
   tilt.add(module.group);
   const rider = group('rider', 0, 0, 0, [tilt]);
-  // hairline cracks over the cells, growing with age
-  const cracks = new RibbonLines({ capacity: 64, color: 'mist', width: 0.008, intensity: 0, blend: 'normal' });
-  const rng = ctx.random.fork('cracks');
-  cracks.setLines(
-    Array.from({ length: 5 }, () => {
-      let x = rng.range(-M.iw / 2 + 0.1, M.iw / 2 - 0.1);
-      let z = rng.range(-M.il / 2 + 0.1, M.il / 2 - 0.3);
-      return { points: Array.from({ length: 6 }, () => new Vector3((x += rng.range(-0.07, 0.07)), 0.004, (z += rng.range(0.02, 0.09)))) };
-    }),
-  );
-  module.group.add(cracks);
+  // micro-crack webs and edge blisters, exaggerated so thirty years read at a glance
+  const ageing = createAgeing(ctx.random.fork('cracks'));
+  module.group.add(ageing.group);
   const materials = createMaterials();
-  materials.group.position.set(0.1, 0.95, 2.0);
-  materials.group.scale.setScalar(0.74);
+  // the raw materials take the module's place in the air, above the track
+  materials.group.position.set(-0.3, 1.75, -0.6);
+  materials.group.scale.setScalar(0.85);
   const set = group('set:lifecycle', 0, 0, 0.9, [ribbon.group]);
   rider.position.z = 0.9;
   lab.stageRoot.add(set, rider, materials.group);
@@ -63,7 +56,7 @@ export const lifecycle: StepFactory = (lab) => {
   let shownYear = -1;
   let x = 0;
   const fresh = col('bg.indigo').lerp(col('blue'), 0.28);
-  const old = col('bg.indigo').lerp(col('amber'), 0.4); // yellowed encapsulant over the same dark cells
+  const old = col('bg.indigo').lerp(col('amber'), 0.55); // yellowed encapsulant over the same dark cells
   const c = new Color();
   const p = new Vector3();
   ctx.qa.probe('rider11', rider);
@@ -72,7 +65,7 @@ export const lifecycle: StepFactory = (lab) => {
   return {
     id: ID,
     shots: {
-      [ID]: { position: [0.4, 4.4, 10.2], target: [0, 1.25, 1.2], frameAspect: 1.0, fov: 34, fit: { center: [0, 1.3, 1.2], radius: 3.5 }, orbit: { azimuth: 0.5, polar: 0.25 } },
+      [ID]: { position: [0.85, 4.3, 10.4], target: [0.55, 1.7, 0.7], frameAspect: 1.15, fov: 32, fit: { center: [0.55, 1.7, 0.7], radius: 3.6 }, orbit: { azimuth: 0.5, polar: 0.25 } },
     },
     stage: {
       show: [set, riderActor],
@@ -128,7 +121,7 @@ export const lifecycle: StepFactory = (lab) => {
         { type: 'button', id: 'next11', label: L.toInverters, icon: 'arrowRight', visible: () => Boolean(nextLab && ctx.nav.locate(nextLab)), onClick: () => void (nextLab && ctx.nav.open(nextLab)) },
       ],
       callouts: [
-        { anchor: () => ribbon.hourglass.localToWorld(p.set(0, 1.75, 0)), text: doc(ID, 3), side: 'up', color: 'yellow' },
+        { anchor: () => ribbon.hourglass.localToWorld(p.set(-0.3, 1.6, 0)), text: doc(ID, 3), side: 'left', color: 'yellow', visible: () => !apart },
         ...MATERIAL_ORDER.map((id) => ({ anchor: materials.anchors[id], text: fill(MAT_LABEL[id], { m: mass(MODULE_MATERIALS_KG[id]) }), side: 'up' as const, visible: () => apart })),
       ],
       hotspots: [
@@ -148,16 +141,18 @@ export const lifecycle: StepFactory = (lab) => {
       const age = year() / YEARS;
       x += (year() - x) * Math.min(1, dt * 4);
       ribbon.at(x, rider.position);
-      rider.position.z += set.position.z;
-      rider.position.y = 1.3 + Math.sin(t * 1.1) * 0.05;
+      // the module glides above the track, on a narrower path so the big module stays in the free frame
+      rider.position.x = rider.position.x * 0.62 - 0.25;
+      rider.position.z += set.position.z - 0.9;
+      rider.position.y = 2.55 + Math.sin(t * 1.1) * 0.05;
       rider.rotation.y = ribbon.heading(x) * 0.35;
       ribbon.setSand(Math.max(0, 1 - x / PAYBACK_YEARS));
+      ribbon.setYears(x, PAYBACK_YEARS);
       if (year() !== shownYear) {
         shownYear = year();
-        for (let i = 0; i < HALF_CELLS; i++) module.cells.setColorAt(i, c.copy(fresh).lerp(old, age * 0.5));
+        for (let i = 0; i < HALF_CELLS; i++) module.cells.setColorAt(i, c.copy(fresh).lerp(old, age * 0.9));
         if (module.cells.instanceColor) module.cells.instanceColor.needsUpdate = true;
-        cracks.intensity = age * 1.3;
-        cracks.visible = age > 0.08;
+        ageing.set(age);
       }
       materials.update(t);
     },

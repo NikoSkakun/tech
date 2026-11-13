@@ -1,80 +1,23 @@
+import { manifestText } from '@/content';
 import { defineChapter } from '@/engine/api';
+import meta from '@electricity/content/generated/lab-battery.manifest.json';
 
 /**
- * Lab «Літій-іонні акумулятори: енергія в кишені й у підвалі» (docs/volumes/electricity/chapters/lab-battery.md) — child of `home`.
+ * Lab «Літій-іонні акумулятори: енергія в кишені й у підвалі»
+ * (docs/volumes/electricity/chapters/lab-battery.md) — child of `home`.
  *
- * The manifest is eager and must stay tiny, so it does not import the generated content (67 kB): step ids and
- * titles are repeated here and `__tests__/manifest.test.ts` asserts that they equal the generated copy.
- * Blurbs are menu teasers (not in the chapter document).
+ * The manifest is eager and must stay tiny: title, step ids, step titles and blurbs come from the generated
+ * manifest file (≈ 2 kB, written by `tools/content/export_runtime.py`), never from the 67 kB content file.
+ * Only the subtitle is the chapter's own (the document has none).
  */
 export default defineChapter({
   id: 'lab-battery',
-  order: 24,
+  order: meta.order,
   group: 'labs',
   parent: 'home',
-  title: 'Літій-іонні акумулятори: енергія в кишені й у підвалі',
-  subtitle: 'Від іона Li⁺ між шарами графіту до домашньої батареї',
-  axisLabel: '10⁻¹⁰…10⁰ m',
+  ...manifestText(meta, { subtitle: 'Від іона Li⁺ між шарами графіту до домашньої батареї' }),
   axisValue: -1,
   theme: { accent: 'lime', sky: 'studio', mood: 'studio' },
-  steps: [
-    {
-      id: 'what-is-battery',
-      title: 'Хімія, що віддає електрони за розкладом',
-      blurb: 'Два метали, електроліт і дріт: звідки береться напруга.',
-    },
-    {
-      id: 'cell-anatomy',
-      title: 'Будова літій-іонної комірки: рулет із фольги',
-      blurb: 'Розмотуємо комірку 21700 шар за шаром.',
-    },
-    {
-      id: 'intercalation',
-      title: 'Інтеркаляція: крісло-гойдалка для іонів',
-      blurb: 'Іони Li⁺ гойдаються між графітом і катодом.',
-    },
-    { id: 'why-lithium', title: 'Чому саме літій', blurb: 'Найлегший метал на терезах енергії.' },
-    {
-      id: 'chemistries',
-      title: 'Хімії катода: від кобальту до заліза — і що далі',
-      blurb: 'Вітрина катодів: енергія, ресурс, безпека, ціна.',
-    },
-    {
-      id: 'voltage-capacity',
-      title: 'Напруга, ємність, кратність струму і крива розряду',
-      blurb: 'Розряджаємо дві комірки на стенді.',
-    },
-    {
-      id: 'charging',
-      title: 'Заряд у дві фази: швидко, але не бездумно',
-      blurb: 'Сталий струм, стала напруга і мороз.',
-    },
-    {
-      id: 'pack',
-      title: 'Батарея з комірок: конструктор sS·pP',
-      blurb: 'Збираємо батарею для інвертора ЛІ-6.',
-    },
-    {
-      id: 'bms',
-      title: 'Система керування батареєю: мозок і охоронець',
-      blurb: 'Захисти, балансування і розмова з інвертором.',
-    },
-    {
-      id: 'degradation',
-      title: 'Старіння: плівка, осадження літію, тріщини і залишкова ємність',
-      blurb: 'Машина часу: що з’їдає ємність.',
-    },
-    {
-      id: 'safety',
-      title: 'Тепловий розгін: коли батарея гріє сама себе',
-      blurb: 'Піч безпеки: нікелева комірка проти залізо-фосфатної.',
-    },
-    {
-      id: 'scale-and-future',
-      title: 'Від телефона до мегаватгодин: масштаб, ціна, переробка',
-      blurb: 'Від 15 Wh у кишені до гігават-годин.',
-    },
-  ],
   load: () => import('./scene'),
   emblem: () => import('./emblem'),
 });

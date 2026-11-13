@@ -5,7 +5,8 @@
  */
 import type { ChapterContext } from '@/engine/api';
 import type { Subshell } from '@electricity/sim/atom';
-import { Label, UiNode, lit, rgba, worldSurface, type Painter, type UiSurface } from '@/ui3d';
+import { Label, UiNode, lit, rgba, type Painter } from '@/ui3d';
+import { createConsole, type PinnedConsole } from './console';
 
 const RUNGS: readonly [number, number][] = [
   [1, 0],
@@ -18,9 +19,10 @@ const RUNGS: readonly [number, number][] = [
   [4, 1],
 ];
 const LETTER = ['s', 'p', 'd', 'f'];
-const W = 330;
-const ROW = 34;
-const H = RUNGS.length * ROW + 24;
+/** Compact on purpose: world text is large on screen (console.ts), so the ladder is drawn on few px-eq. */
+const W = 244;
+const ROW = 23;
+const H = RUNGS.length * ROW + 8;
 
 class LadderNode extends UiNode {
   sequence: Subshell[] = [];
@@ -31,37 +33,31 @@ class LadderNode extends UiNode {
       this.add(
         new Label(
           `${n}${LETTER[l]}`,
-          { font: 'mono', size: 16, color: l === 2 ? 'violet.light' : 'mist', nowrap: true },
+          { font: 'mono', size: 17, color: l === 2 ? 'violet.light' : 'mist', nowrap: true },
           {
-            float: { ax: 0, ay: 1, px: 0, py: 0.5, dx: 14, dy: -(12 + ROW * (i + 0.5)) },
+            float: { ax: 0, ay: 1, px: 0, py: 0.5, dx: 2, dy: -(4 + ROW * (i + 0.5)) },
           },
         ),
       ),
     );
   }
   override paint(p: Painter): void {
-    p.panel(0, 0, this.bw, this.bh, {
-      fill: rgba('bg.deep', 0.86),
-      border: rgba('cyan', 0.45),
-      bw: 1.5,
-      r: 16,
-    });
     const occupied = new Map<string, number>();
     for (let i = 0; i < Math.min(Math.floor(this.filled), this.sequence.length); i++) {
       const s = this.sequence[i]!;
       occupied.set(`${s.n}:${s.l}`, s.electrons);
     }
     RUNGS.forEach(([n, l], i) => {
-      const y = -this.bh / 2 + 12 + ROW * (i + 0.5);
+      const y = -this.bh / 2 + 4 + ROW * (i + 0.5);
       const capacity = 2 * (2 * l + 1);
       const have = occupied.get(`${n}:${l}`) ?? 0;
       for (let k = 0; k < capacity; k++) {
-        const x = -this.bw / 2 + 62 + k * 25;
+        const x = -this.bw / 2 + 50 + k * 20.5;
         const on = k < have;
         p.circle(
           x,
           y,
-          on ? 17 : 13,
+          on ? 15 : 12,
           on
             ? { fill: lit(rgba('cyan'), 1.5), border: rgba('white', 0.8), bw: 1.2, glow: 8, glowAlpha: 0.5 }
             : { fill: rgba('bg.void', 0.6), border: rgba(l === 2 ? 'violet' : 'steel', 0.7), bw: 1.2 },
@@ -72,20 +68,29 @@ class LadderNode extends UiNode {
 }
 
 export interface FillingLadder {
-  surface: UiSurface;
+  console: PinnedConsole;
   /** Restart the animation for a filling sequence. */
   play(sequence: Subshell[]): void;
   /** Advance; returns the subshell that has just started filling (for sounds / captions), if any. */
   update(dt: number): Subshell | null;
 }
 
-export function createFillingLadder(ctx: ChapterContext): FillingLadder {
-  const surface = worldSurface(ctx, { width: W, height: H, unit: 0.0155, name: 'filling-ladder' });
+export function createFillingLadder(
+  ctx: ChapterContext,
+  opts: { top: readonly [number, number, number]; unit: number },
+): FillingLadder {
   const node = new LadderNode();
-  surface.root.add(node);
+  const console3d = createConsole(ctx, {
+    name: 'filling-ladder',
+    width: W + 44,
+    unit: opts.unit,
+    top: opts.top,
+    billboard: false,
+    children: [node],
+  });
   let pause = 0;
   return {
-    surface,
+    console: console3d,
     play(sequence) {
       node.sequence = sequence;
       node.filled = 0;
@@ -93,6 +98,7 @@ export function createFillingLadder(ctx: ChapterContext): FillingLadder {
       node.repaint();
     },
     update(dt) {
+      console3d.pin();
       if (node.filled >= node.sequence.length) return null;
       if (pause > 0) {
         pause -= dt;

@@ -83,19 +83,19 @@ export function createBenchSet(): BenchSet {
   const module = pvModule({ detail: 'hero' });
   module.group.scale.setScalar(1.2);
   module.group.rotation.set(Math.PI / 2 - 0.36, 0, 0);
-  const moduleAt = group('module', -4.95, 0, -0.95, [
+  const moduleAt = group('module', -4.55, 0, -0.95, [
     moduleStand(),
     group('tilt', 0, 1.02, 0, [module.group]),
   ]);
   moduleAt.rotation.y = 0.5;
   const battery = batteryCabinet();
   battery.group.scale.setScalar(1.45);
-  const batteryAt = group('battery', -4.85, 0, 1.75, [battery.group]);
+  const batteryAt = group('battery', -4.45, 0, 1.75, [battery.group]);
   batteryAt.rotation.y = 0.65;
   battery.setSoc(0.8);
 
   const sw = socketWall();
-  const wall = group('socket-wall', 4.85, 0, -0.35, [sw.group]);
+  const wall = group('socket-wall', 4.45, 0, -0.35, [sw.group]);
   wall.rotation.y = -0.6;
   const toSet = (local: Vector3): Vector3 =>
     local
@@ -114,29 +114,29 @@ export function createBenchSet(): BenchSet {
     createWire(pts, { radius, color: 'ink', repeat: 1.3, speed: 1.3, power: 0.8, detail: 8 });
   const feeds = {
     pvA: cable([
-      new Vector3(-4.35, 0.75, -0.95),
-      new Vector3(-4.0, 0.12, -0.7),
+      new Vector3(-3.95, 0.75, -0.95),
+      new Vector3(-3.65, 0.12, -0.7),
       new Vector3(-3.4, 0.1, -0.42),
       pvA0,
     ]),
     pvB: cable([
-      new Vector3(-4.6, 0.75, -0.8),
-      new Vector3(-4.2, 0.1, -0.35),
+      new Vector3(-4.2, 0.75, -0.8),
+      new Vector3(-3.85, 0.1, -0.35),
       new Vector3(-3.5, 0.1, 0.05),
       pvB0,
     ]),
     bat: cable(
-      [new Vector3(-4.45, 0.5, 1.75), new Vector3(-3.9, 0.12, 1.6), new Vector3(-3.4, 0.12, 1.38), bat0],
+      [new Vector3(-4.05, 0.5, 1.75), new Vector3(-3.65, 0.12, 1.6), new Vector3(-3.4, 0.12, 1.38), bat0],
       0.06,
     ),
-    ac: cable([out0, new Vector3(3.7, 0.12, 0.85), new Vector3(4.3, 0.5, 0.45), socket], 0.045),
+    ac: cable([out0, new Vector3(3.5, 0.12, 0.85), new Vector3(3.95, 0.5, 0.45), socket], 0.045),
   };
   // the AC ribbon: a sine travelling along the output cable (the DC cables keep their even pulses)
   const acCurve = new CatmullRomCurve3(
     [
       out0.clone().setY(0.55),
-      new Vector3(3.7, 0.7, 0.85),
-      new Vector3(4.25, 1.15, 0.5),
+      new Vector3(3.5, 0.7, 0.85),
+      new Vector3(3.9, 1.15, 0.5),
       socket.clone().setY(socket.y + 0.1),
     ],
     false,
@@ -159,10 +159,10 @@ export function createBenchSet(): BenchSet {
     cycles: 2,
     frequency: 0.5,
     channels: [SEMANTIC.current],
-    lineWidth: 0.03,
+    lineWidth: 0.055,
   });
   dcScope.setWave(0, () => 0.62);
-  dcScope.position.set(-4.75, 4.15, 0.6);
+  dcScope.position.set(-4.0, 2.95, 0.4);
   dcScope.rotation.y = 0.35;
   const acScope = createScope({
     width: 1.7,
@@ -170,14 +170,14 @@ export function createBenchSet(): BenchSet {
     cycles: 2,
     frequency: 0.5,
     channels: [SEMANTIC.current],
-    lineWidth: 0.03,
+    lineWidth: 0.055,
   });
   acScope.setWave(0, Math.sin, 0.85);
-  acScope.position.set(4.7, 3.75, 0.4);
+  acScope.position.set(4.0, 2.95, 0.4);
   acScope.rotation.y = -0.4;
   const tags = { dc: tag(OWN.dcTag, 20, 'mist'), ac: tag(OWN.acTag, 20, 'mist') };
-  tags.dc.position.set(-4.75, 4.85, 0.6);
-  tags.ac.position.set(4.7, 4.45, 0.4);
+  tags.dc.position.set(-4.0, 3.65, 0.4);
+  tags.ac.position.set(4.0, 3.65, 0.4);
 
   const set = group('set:bench', 0, 0, 0, [
     inv.group,
@@ -203,8 +203,8 @@ export function createBenchSet(): BenchSet {
     acScope,
     tags,
     points: {
-      module: new Vector3(-5.2, 2.2, -0.9),
-      battery: new Vector3(-4.85, 1.75, 1.75),
+      module: new Vector3(-4.8, 2.2, -0.9),
+      battery: new Vector3(-4.45, 1.75, 1.75),
       socket,
       charger,
     },

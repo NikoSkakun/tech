@@ -6,7 +6,7 @@
  */
 import { Group, Vector3 } from 'three';
 import { audio } from '@/audio';
-import { fmtNumber } from '@/content';
+import { fmtNumber, NBSP } from '@/content';
 import { damp } from '@/engine/api';
 import {
   BALL_DEFAULTS,
@@ -21,7 +21,7 @@ import {
   type TableCharge,
 } from '@electricity/sim/charge-field';
 import type { StepFactory } from '../chapter';
-import { cap, docLabel } from '../content';
+import { cap, docLabel, factPairs } from '../content';
 import { DOC, L } from '../labels';
 import { M } from '../layout';
 import { createChargeBall } from '../parts/charge-ball';
@@ -31,6 +31,20 @@ import { createNeedle, type Needle } from '../parts/needle';
 type Preset = keyof typeof POTENTIAL_PRESETS;
 const PRESETS: readonly Preset[] = ['hillAndWell', 'twoHills'];
 const START = { x: 0, z: 0.05 }; // the model's control release point
+
+/**
+ * Floors of the voltage "lift" (document: «шкала-„ліфт“ з прикладами напруг»): the «назва: значення» facts of
+ * the step, highest first. `volts` is parsed from the written value («~70 mV», «750 kV») only to order them.
+ */
+const PREFIX: Record<string, number> = { m: 1e-3, k: 1e3, M: 1e6 };
+const FLOORS = factPairs('potential')
+  .map(({ name, value }) => {
+    const m = /([\d,]+)\s*([mkM]?)V/.exec(value);
+    return { name, value, volts: m ? Number(m[1]!.replace(',', '.')) * (PREFIX[m[2]!] ?? 1) : NaN };
+  })
+  .filter((f) => Number.isFinite(f.volts))
+  .sort((a, b) => b.volts - a.volts);
+
 const fmtV = (v: number): string => `${fmtNumber(v, { maxDigits: Math.abs(v) < 10 ? 1 : 0, sign: true })} V`;
 
 export const potentialStep: StepFactory = ({ ctx, ui, world }) => {
@@ -43,6 +57,7 @@ export const potentialStep: StepFactory = ({ ctx, ui, world }) => {
   const landActor = ctx.stage.actor(land.group, { appear: 'fade' });
   const relief = ctx.stage.param('relief', 1, { duration: 0.9, ease: 'power2.inOut' });
   let mine: TableCharge[] = POTENTIAL_PRESETS.hillAndWell.map((c) => ({ ...c }));
+  let own = mine;
 
   const ball = createChargeBall({ base: 0.24 });
   const mover = createMovingCharge({ ...BALL_DEFAULTS, charges: [] }, START);
@@ -63,6 +78,7 @@ export const potentialStep: StepFactory = ({ ctx, ui, world }) => {
   let seen = -1;
   let drawnSign = 0;
   let wait = 0;
+  let perch = 0;
   const refresh = (): void => {
     seen = sandbox.version;
     drawnSign = land.sign;
@@ -76,6 +92,7 @@ export const potentialStep: StepFactory = ({ ctx, ui, world }) => {
     mover.set({ charges: toPointCharges(charges) });
     if (mover.state.status !== 'moving' && !dragging) mover.release(mover.state.x, mover.state.z);
     if (on()) mine = charges.map((c) => ({ ...c }));
+    if (on() && ui.value<string>('potPreset') === 'own') own = mine;
   };
 
   /* --------------------------------------------------------------------------------- dragging */
@@ -83,6 +100,11 @@ export const potentialStep: StepFactory = ({ ctx, ui, world }) => {
   const through = new Vector3();
   const hit = new Vector3();
   let dragging = false;
+  /**
+   * The lift board takes a column of the screen away from the landscape, so it waits for the moment it has
+   * something to say: it comes in when the learner first moves a voltmeter probe, and stays.
+   */
+  let measured = false;
   const dragOn = (
     target: { x: number; z: number },
     anchor: Group,
@@ -129,6 +151,7 @@ export const potentialStep: StepFactory = ({ ctx, ui, world }) => {
       cursor: 'grab',
       enabled: on,
       hover: (over) => ctx.stage.scope.to(needle, { hover: over ? 1 : 0 }, { duration: 0.12 }),
+      dragStart: () => (measured = true),
       drag: (e) => (dragOn(needle, needle.group, e), snap(needle, needles[1 - i]!)),
     });
     ctx.qa.probe(`needle-${i ? 'b' : 'a'}`, needle.handle);
@@ -139,6 +162,7 @@ export const potentialStep: StepFactory = ({ ctx, ui, world }) => {
     sign: land.sign,
     stepV: land.stepV,
     ...meter(),
+    lift: { floors: FLOORS.map((f) => f.value), cabin: cabin(), shown: measured },
     ball: { ...mover.state },
     needles: needles.map((n) => ({ x: n.x, z: n.z })),
   }));
@@ -147,8 +171,9 @@ export const potentialStep: StepFactory = ({ ctx, ui, world }) => {
     'potPreset',
     (id) =>
       on() &&
-      PRESETS.includes(id as Preset) &&
-      (sandbox.set(POTENTIAL_PRESETS[id as Preset]), audio.play('toggle')),
+      (id === 'own' || PRESETS.includes(id as Preset)) &&
+      // «Свій набір» brings back the learner's own arrangement
+      (sandbox.set(id === 'own' ? own : POTENTIAL_PRESETS[id as Preset]), audio.play('toggle')),
   );
   ui.onChange('ballSign', () => {
     if (!on()) return;
@@ -157,6 +182,11 @@ export const potentialStep: StepFactory = ({ ctx, ui, world }) => {
   });
   ui.onChange('isoStep', (v) => ((land.stepV = Number(v)), (seen = -1)));
 
+  /** Row of the lift where the measured |U| stands: under every example with a higher voltage. */
+  const cabin = (): number => {
+    const u = Math.abs(meter().voltageV);
+    return FLOORS.filter((f) => f.volts > u).length;
+  };
   const spot = new Vector3();
   return {
     id: 'potential',
@@ -193,7 +223,10 @@ export const potentialStep: StepFactory = ({ ctx, ui, world }) => {
           type: 'segmented',
           id: 'potPreset',
           value: 'hillAndWell',
-          items: PRESETS.map((id, i) => ({ id, label: docLabel('potential', i) })),
+          items: [
+            ...PRESETS.map((id, i) => ({ id, label: docLabel('potential', i) })),
+            { id: 'own', label: L.field.own },
+          ],
         },
         {
           type: 'segmented',
@@ -254,6 +287,27 @@ export const potentialStep: StepFactory = ({ ctx, ui, world }) => {
           onClick: () => roll(),
         },
       ],
+      // The "lift": the voltage between the two probes takes its place among the example voltages of the facts.
+      board: {
+        title: L.potential.lift,
+        size: 'sm',
+        visible: () => measured,
+        children: [
+          {
+            type: 'table',
+            id: 'lift',
+            rows: () => {
+              const rows = FLOORS.map((f) => [f.name, f.value.replace(' ', NBSP)]);
+              rows.splice(cabin(), 0, [
+                L.potential.voltage,
+                fmtV(Math.abs(meter().voltageV)).replace('+', ''),
+              ]);
+              return rows;
+            },
+            highlight: cabin,
+          },
+        ],
+      },
       callouts: [
         {
           anchor: () => needles[0].group.position.clone().setY(needles[0].group.position.y + 1.6),
@@ -292,7 +346,10 @@ export const potentialStep: StepFactory = ({ ctx, ui, world }) => {
       if (!dragging) mover.step(Math.min(dt, 1 / 30));
       const s = mover.state;
       ball.set(sign());
-      ball.group.position.set(s.x * M, land.heightAt(s.x, s.z) + 0.22, s.z * M);
+      // a ball caught by a charge perches on top of it: it stays readable there and can be picked up again
+      // (inside the charge its pick sphere would be hidden by the bigger one of the charge)
+      perch = damp(perch, s.status === 'captured' && !dragging ? 0.6 : 0, 8, dt);
+      ball.group.position.set(s.x * M, land.heightAt(s.x, s.z) + 0.22 + perch, s.z * M);
       ball.update(dt, t);
       const same = meter().sameIsoline;
       for (const n of needles) {

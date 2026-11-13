@@ -28,7 +28,7 @@ const [width, height] = parseSize(args.size ?? '1280x720');
 const out = ensureDir(
   typeof args.out === 'string'
     ? args.out
-    : `/srv/electricity/qa/B-charge-field/interaction-${width}x${height}`,
+    : `/srv/electricity/qa/${process.env.QA_ID ?? 'P-charge-field'}/interaction-${width}x${height}`,
 );
 const only = typeof args.only === 'string' ? args.only.split(',') : null;
 const failures = [];

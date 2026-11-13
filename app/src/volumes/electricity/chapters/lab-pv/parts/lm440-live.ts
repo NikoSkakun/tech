@@ -82,7 +82,8 @@ export function createLiveModule(ctx: ChapterContext): LiveModule {
         c.lerp(palette.blue, 0.05 + 0.15 * Math.min(1, light) + 0.14 * work);
         if (tint > 0) c.lerp(palette.sections[loc.section]!, tint * (0.22 + 0.3 * Math.min(1, light)));
         if (age > 0) c.lerp(palette.amber, age * 0.14);
-        if (heat > 0) c.lerp(heat > 0.6 ? palette.red : palette.orange, heat * 0.42);
+        // a hot module reads like a thermal camera: blue cells turn orange, then red (not brighter — that is light)
+        if (heat > 0) c.lerp(palette.orange, Math.min(1, heat * 1.6) * 0.62).lerp(palette.red, Math.max(0, heat - 0.45) * 0.9);
         else if (heat < 0) c.lerp(palette.sky, -heat * 0.3);
         m.cells.setColorAt(i, c);
       }

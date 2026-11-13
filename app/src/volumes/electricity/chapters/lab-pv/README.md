@@ -16,7 +16,8 @@ Structure follows the `lab-battery` pilot with the post-pilot APIs (`board`, `ui
 | `chapter.ts` | contract `Lab` / `StepModule` / `StepFactory` | read this first |
 | `scene.ts` | wiring only: podium, steps, shots, `stage.define`, `ui.define`, update routing | no models, no step logic |
 | `world.ts` | podium, shared materials, `MODULE_SCALE` / `HOUSE_SCALE`, `group` / `shadows` / `tag` | |
-| `sound.ts` | loops driven by what the step publishes each frame (`sound.power`, `.hot`, `.wind`), `blip()` | |
+| `sound.ts` | loops driven by what the step publishes each frame (`sound.power`, `.hot`, `.wind`), `blip()` | no hum without current |
+| `transitions.ts` | scripted camera transitions (`playTransition` from a step's `enter`): 1→2, 2→3, 3→4, 7→8, 9→10 | forward only, never on deep links |
 | `data/cell-tech.ts` | step 3: layers and chip numbers of the five cell generations (document numbers) | |
 | `sim-bindings/bench-model.ts` | **the one model sample** of steps 4–7: inputs → I-V analysis, operating point, section voltages, branch currents, diode currents, hot spots | no three.js |
 | `sim-bindings/shade-state.ts`, `string-design.ts` | step 7 shade (painted cells × silhouettes), step 9 string assignment + `checkString` | no three.js |

@@ -50,14 +50,14 @@ class Tile extends Control {
     this.add(
       new Label(
         String(element),
-        { font: 'mono', size: 14, color: 'white', nowrap: true },
+        { font: 'mono', size: 15, color: 'white', nowrap: true },
         { float: { ax: 0, ay: 0, dx: 5, dy: 3 } },
       ),
     );
     this.add(
       new Label(
         symbol,
-        { font: 'display', size: 19, color: 'white', nowrap: true },
+        { font: 'display', size: 20, color: 'white', nowrap: true },
         { float: { ax: 0.5, ay: 1, dy: -4 } },
       ),
     );

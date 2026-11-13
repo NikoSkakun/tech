@@ -62,8 +62,14 @@ const coulomb = [
   {
     name: 'drag ball 2 away',
     read: ({ read }) => read('coulomb'),
-    do: (a) => a.drag('ball-2', [[3.2, 1.15, 0]]),
-    expect: (b, c) => c.distanceM > b.distanceM * 1.5 && c.forceN < b.forceN,
+    do: async (a) => (await a.drag('ball-2', [[3.2, 1.5, 0]]), await a.step(90)),
+    // the frame follows the pair (wider shot), board and readout keep one unit in plain notation
+    expect: (b, c) =>
+      c.distanceM > b.distanceM * 1.5 &&
+      c.forceN < b.forceN &&
+      c.frame > b.frame &&
+      c.forceText.endsWith(c.chartUnit) &&
+      !c.forceText.includes('×'),
   },
   { name: 'toggle gravity comparison', read: prop('coulomb', 'compare'), do: (a) => a.toggle('compare') },
   {
@@ -84,7 +90,9 @@ const field = [
     name: 'preset dipole',
     read: ({ read }) => read('field'),
     do: (a) => a.segment('fieldPreset', 'dipole'),
-    expect: (_b, c) => c.charges.length === 2 && c.charges[1].chargeNC === -1,
+    // before: the step opens on the ±2 nC pair, 8·|q| = 16 lines
+    expect: (b, c) =>
+      b.charges.length === 2 && b.lineCount === 16 && c.charges.length === 2 && c.charges[1].chargeNC === -1,
   },
   {
     name: 'preset two like charges → null point',
@@ -97,6 +105,17 @@ const field = [
     read: ({ read }) => read('field'),
     do: (a) => a.segment('fieldPreset', 'quadrupole'),
     expect: (_b, c) => c.charges.length === 4,
+  },
+  {
+    // «Свій набір» brings back the learner's own arrangement — at first the pair the step opens on (16 lines)
+    name: 'own set → the opening pair',
+    read: ({ read }) => read('field'),
+    do: (a) => a.segment('fieldPreset', 'own'),
+    expect: (_b, c) =>
+      c.charges.length === 2 &&
+      c.charges[0].chargeNC === 2 &&
+      c.charges[1].chargeNC === -2 &&
+      c.lineCount === 16,
   },
   {
     name: 'preset single',
@@ -195,14 +214,18 @@ const potential = [
   {
     name: 'drag voltmeter probe A',
     read: ({ read }) => read('potential'),
-    do: (a) => a.drag('needle-a', [[0, 0.05, 3.6]]),
-    expect: (b, c) => Math.abs(c.voltageV - b.voltageV) > 1,
+    do: async (a) => (await a.drag('needle-a', [[0, 0.05, 3.6]]), await a.step(60)),
+    // the first probe move brings in the voltage "lift" board with its seven example floors
+    expect: (b, c) =>
+      Math.abs(c.voltageV - b.voltageV) > 1 && !b.lift.shown && c.lift.shown && c.lift.floors.length === 7,
   },
   {
     name: 'drag voltmeter probe B onto the same isoline',
     read: ({ read }) => read('potential'),
     do: (a) => a.drag('needle-b', [[0.03, 0.05, -3]]),
-    expect: (_b, c) => c.sameIsoline && Math.abs(c.voltageV) < 0.5,
+    // U = 0: the cabin of the lift stands under the lowest floor
+    expect: (b, c) =>
+      c.sameIsoline && Math.abs(c.voltageV) < 0.5 && c.lift.cabin === 7 && b.lift.cabin < c.lift.cabin,
   },
   {
     name: 'drag and release the ball',
@@ -221,6 +244,18 @@ const potential = [
     read: ({ read }) => read('potential'),
     do: (a) => a.drag('charge-0', [[-3, 1.2, 2]]),
     expect: (b, c) => c.charges[0].z > b.charges[0].z + 0.03,
+  },
+  {
+    name: 'preset two hills again',
+    read: ({ read }) => read('potential'),
+    do: (a) => a.segment('potPreset', 'twoHills'),
+    expect: (b, c) => b.charges[0].z > 0.03 && c.charges[0].z === 0 && c.charges[1].chargeNC === 2,
+  },
+  {
+    name: 'own set → the dragged arrangement is back',
+    read: ({ read }) => read('potential'),
+    do: (a) => a.segment('potPreset', 'own'),
+    expect: (_b, c) => c.charges[0].z > 0.03 && c.charges[1].chargeNC === -2,
   },
 ];
 
@@ -289,10 +324,10 @@ const statics = [
     expect: (b, c) => c.passes >= b.passes + 3 && Math.abs(c.chargeC) >= 60e-9 - 1e-12,
   },
   {
-    name: 'stick the balloon to the wall',
+    name: 'stick the balloon to the wall: it squashes on the wall',
     read: ({ read }) => read('static'),
-    do: async (a) => (await a.step(120), await a.drag('balloon', [[3.4, 3.2, 0.4]])),
-    expect: (_b, c) => c.mode === 'stuck',
+    do: async (a) => (await a.step(120), await a.drag('balloon', [[3.4, 3.2, 0.4]]), await a.step(60)),
+    expect: (b, c) => c.mode === 'stuck' && b.squash < 0.01 && c.squash > 0.1,
   },
   {
     name: 'take the balloon off the wall',
@@ -344,16 +379,20 @@ const statics = [
 
 const capacitor = [
   {
-    name: 'slider U',
+    name: 'slider U: more charges on the plates, the callout carries Q',
     read: ({ read }) => read('capacitor'),
-    do: (a) => a.slider('capU', 0.5),
-    expect: (b, c) => c.voltageV > b.voltageV && c.energyJ > b.energyJ,
+    do: async (a) => (await a.slider('capU', 0.5), await a.step(10)),
+    expect: (b, c) =>
+      c.voltageV > b.voltageV &&
+      c.energyJ > b.energyJ &&
+      c.plateCharges > b.plateCharges &&
+      b.callout !== c.callout,
   },
   {
     name: 'slider A',
     read: ({ read }) => read('capacitor'),
     do: (a) => a.slider('capA', 0.9),
-    expect: (b, c) => c.areaM2 > b.areaM2 && c.capacitanceF > b.capacitanceF,
+    expect: (b, c) => c.areaM2 > b.areaM2 && c.capacitanceF > b.capacitanceF && !b.wide && c.wide,
   },
   {
     name: 'slider d',
@@ -428,14 +467,16 @@ const bridge = [
     expect: (_b, c) => c.closed && !c.lampOn && c.moved > 1e19,
   },
   {
-    name: 'look inside the wire',
-    read: prop('bridge', 'looking'),
-    do: async (a) => (await a.button('look'), await a.step(150)),
+    name: 'look inside the wire: the set grows out of the wire to full size',
+    read: ({ read }) => read('bridge'),
+    do: async (a) => (await a.button('look'), await a.step(170)),
+    expect: (b, c) => !b.looking && b.dive === 0 && c.looking && c.dive === 1 && c.scale === 1,
   },
   {
-    name: 'back to the table',
-    read: prop('bridge', 'looking'),
+    name: 'back to the table: the set shrinks back into the wire',
+    read: ({ read }) => read('bridge'),
     do: async (a) => (await a.button('lookBack'), await a.step(150)),
+    expect: (b, c) => b.looking && !c.looking && c.dive === 0 && c.scale < 0.1,
   },
 ];
 

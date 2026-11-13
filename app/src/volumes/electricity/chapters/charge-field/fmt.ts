@@ -18,5 +18,21 @@ export function fmtPrefixed(
 /** Scientific notation with two significant digits and a unit: `1,4×10⁻³ N`. */
 export const fmtSciUnit = (value: number, unit: string): string => `${fmtSci(value, 1)}${NBSP}${unit}`;
 
+/**
+ * One unit for a whole force scale (chart axis and readout show the same one): millinewtons when the largest
+ * force of the scale reaches 1 mN, micronewtons below that.
+ */
+export function forceScale(maxN: number): { unit: string; perNewton: number } {
+  return maxN >= 1e-3 ? { unit: 'mN', perNewton: 1e3 } : { unit: 'μN', perNewton: 1e6 };
+}
+
+/** A value in plain notation with two significant digits: `1,4 mN`, `0,36 mN`, `225 mN`. */
+export function fmtTwoSig(value: number, unit: string): string {
+  const abs = Math.abs(value);
+  if (abs === 0) return fmtUnit(0, unit);
+  const digits = Math.min(Math.max(1 - Math.floor(Math.log10(abs)), 0), 4);
+  return fmtUnit(value, unit, { digits: abs >= 10 ? 0 : digits });
+}
+
 /** Integer with thousands groups and an explicit sign. */
 export const fmtCount = (n: number, sign = false): string => fmtNumber(n, { digits: 0, group: true, sign });

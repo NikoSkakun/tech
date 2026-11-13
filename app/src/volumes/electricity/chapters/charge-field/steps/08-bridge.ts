@@ -25,10 +25,12 @@ export const bridgeStep: StepFactory = ({ ctx, ui, world }) => {
   const set = new Group();
   set.name = 'step-bridge';
   const bench = createBench(ctx);
-  const inside = createInsideWire(ctx);
+  const inside = createInsideWire(ctx, bench.wire);
   set.add(bench.group);
   ctx.root.add(set, inside.group);
-  const insideActor = stage.actor(inside.group);
+  // it fades in while it is still a speck inside the bench wire; its size and place come from the dive
+  const insideActor = stage.actor(inside.group, { appear: 'fade' });
+  const dive = stage.param('dive', 0, { duration: 2.4, ease: 'linear' });
   const sim = createDischarge();
   const [closeLabel, openLabel] = docItems('bridge-to-matter', 0, '/');
   const target = crossTarget('matter');
@@ -54,7 +56,10 @@ export const bridgeStep: StepFactory = ({ ctx, ui, world }) => {
   const look = (next: boolean, instant = false): void => {
     looking = next;
     stage.toggle(insideActor, next, { instant });
-    void ctx.camera.go(next ? 'inside' : 'bridge', { instant, duration: 2 });
+    // reduced motion: the camera moves ×0,35 as fast (engine); the dive keeps pace with it
+    const pace = ctx.reducedMotion ? 0.35 : 1;
+    stage.setParam('dive', next ? 1 : 0, { instant, duration: (next ? 2.4 : 1.4) * pace });
+    void ctx.camera.go(next ? 'inside' : 'bridge', { instant, duration: next ? 2.4 : 1.6 });
   };
   ctx.input.register(bench.lever, {
     tooltip: () => (sim.state.closed ? openLabel! : closeLabel!),
@@ -63,7 +68,14 @@ export const bridgeStep: StepFactory = ({ ctx, ui, world }) => {
     click: () => ui.set('key', !sim.state.closed, { notify: true }),
   });
   ctx.qa.probe('lever', bench.lever);
-  ctx.qa.expose('bridge', () => ({ ...sim.state, moved: moved(), looking, points: xs.length }));
+  ctx.qa.expose('bridge', () => ({
+    ...sim.state,
+    moved: moved(),
+    looking,
+    dive: dive.value,
+    scale: inside.group.scale.x,
+    points: xs.length,
+  }));
 
   const drawChart = (chart: Chart): void => {
     if (xs.length === drawn) return;
@@ -172,14 +184,14 @@ export const bridgeStep: StepFactory = ({ ctx, ui, world }) => {
           text: L.bridge.copper,
           side: 'up',
           color: 'orange',
-          visible: () => looking,
+          visible: () => looking && dive.value > 0.95,
         },
         {
           anchor: () => inside.glass,
           text: L.bridge.glass,
           side: 'up',
           color: 'sky',
-          visible: () => looking,
+          visible: () => looking && dive.value > 0.95,
         },
         {
           anchor: [bench.lamp.x, bench.lamp.y + 0.8, bench.lamp.z],
@@ -205,7 +217,8 @@ export const bridgeStep: StepFactory = ({ ctx, ui, world }) => {
       bench.current = s.currentA / (SUPERCAP.initialV / SUPERCAP.resistanceOhm);
       bench.update(dt, t);
       inside.drift = bench.current;
-      if (looking) inside.update(dt, t);
+      inside.dive = dive.value;
+      if (looking || dive.value > 0) inside.update(dt, t);
       sound.hum = 0.35 * s.brightness;
     },
   };

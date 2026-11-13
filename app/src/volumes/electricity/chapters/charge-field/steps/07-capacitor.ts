@@ -9,7 +9,6 @@ import { audio } from '@/audio';
 import { fmtNumber, fmtSci, fmtSI } from '@/content';
 import { damp } from '@/engine/api';
 import { createArc, createSparks } from '@/fx';
-import { Builder } from '@/kit';
 import {
   CAPACITOR_RANGES as R,
   DIELECTRICS,
@@ -21,7 +20,7 @@ import type { ColorToken } from '@/style';
 import { clamp, type StepFactory } from '../chapter';
 import { cap as capitalise, docItems, docLabel } from '../content';
 import { L } from '../labels';
-import { TABLE } from '../layout';
+import { CAPACITOR } from '../layout';
 import { createCapCircuit } from '../parts/cap-circuit';
 import { createCapacitor } from '../parts/capacitor';
 import { sound } from '../sound';
@@ -44,15 +43,7 @@ export const capacitorStep: StepFactory = ({ ctx, ui, world }) => {
     continuous: false,
   });
   const sparks = createSparks(ctx, { count: 50, color: 'violet.light', size: 0.12 });
-  // the supercapacitor of the second hotspot: a labelled can on the rim
-  const sb = new Builder('supercap');
-  sb.cyl(0.42, 1.25, { seg: 28, bevel: 0.06, slot: 'gloss', c: ['blue.dark', 'blue'] });
-  sb.cyl(0.43, 0.3, { seg: 28, slot: 'gloss', c: 'mist', at: [0, 0.5, 0] });
-  for (const x of [-0.16, 0.16])
-    sb.cyl(0.07, 0.16, { seg: 10, slot: 'metal', c: 'steel.light', at: [x, 1.25, 0] });
-  const supercap = sb.build().group;
-  supercap.position.set(-2.2, 0, TABLE.radius - 1.7);
-  set.add(cap.group, circuit.group, spark, sparks, supercap);
+  set.add(cap.group, circuit.group, spark, sparks);
   ctx.root.add(set);
   const blockIn = stage.param('blockIn', 0, { duration: 0.6, ease: 'power2.inOut' });
 
@@ -117,9 +108,22 @@ export const capacitorStep: StepFactory = ({ ctx, ui, world }) => {
     flashes,
     blockIn: blockIn.value,
     lamp: circuit.lamp,
+    wide,
+    plateCharges: cap.charges,
+    callout: L.capacitor.plus.replace('+Q', `+${charge()}`),
   }));
 
   const spot = new Vector3();
+  const lowSpot = new Vector3();
+  const canSpot = new Vector3();
+  // The frame follows the plates: the close shot while they (and the props beside them) fit into it, the wide
+  // one for big plates; hysteresis keeps the camera still while the slider is moved around the threshold.
+  let wide = false;
+  const pickFrame = (): boolean => {
+    const side = Math.sqrt(params().areaM2) * CAPACITOR.unitsPerMetre;
+    return side > (wide ? CAPACITOR.wideFrom - 0.35 : CAPACITOR.wideFrom);
+  };
+  const charge = (): string => fmtSI(sim().chargeC * level, 'C');
   const [air, ptfe, glass, ceramic] = docItems('capacitor', 0);
   const names = [air, ptfe, glass, ceramic];
 
@@ -128,7 +132,10 @@ export const capacitorStep: StepFactory = ({ ctx, ui, world }) => {
     stage: {
       show: [world.top.object, set],
       camera: 'capacitor',
-      enter() {
+      enter(info) {
+        wide = false;
+        wide = pickFrame();
+        void ctx.camera.go(wide ? 'capacitorWide' : 'capacitor', { instant: info.instant });
         phase = 'hold';
         level = 1;
         flash = 0;
@@ -201,14 +208,22 @@ export const capacitorStep: StepFactory = ({ ctx, ui, world }) => {
             items: [
               { label: L.capacitor.c, get: () => fmtSI(sim().capacitanceF, 'F') },
               { label: L.capacitor.q, get: () => fmtSI(sim().chargeC, 'C'), color: () => 'cyan' },
-              { label: L.capacitor.n, get: () => (sim().electrons > 0 ? fmtSci(sim().electrons, 1) : '0') },
               {
                 label: L.capacitor.e,
                 get: () => `${fmtNumber(sim().fieldVPerM / 1e6, { maxDigits: 2 })} kV/mm`,
                 color: () => (sim().breakdownRatio > 0.8 ? 'red' : 'amber'),
               },
               { label: L.capacitor.w, get: () => fmtSI(sim().energyJ, 'J'), color: () => 'yellow' },
-              { label: L.capacitor.sum, get: () => '0 C', color: () => 'green' },
+            ],
+          },
+          // The secondary numbers in a quiet key–value list under the four the step teaches: +Q and −Q stand on
+          // the plates themselves (callouts), the list states how many electrons that is and what they add up to.
+          {
+            type: 'table',
+            id: 'capMore',
+            rows: () => [
+              [L.capacitor.n, sim().electrons > 0 ? fmtSci(sim().electrons * level, 1) : '0'],
+              [L.capacitor.sum, '0 C'],
             ],
           },
         ],
@@ -216,13 +231,14 @@ export const capacitorStep: StepFactory = ({ ctx, ui, world }) => {
       callouts: [
         {
           anchor: () => spot.set(-cap.sideUnits / 2, cap.yTop + 0.2, -cap.sideUnits / 2),
-          text: L.capacitor.plus,
+          text: () => L.capacitor.plus.replace('+Q', `+${charge()}`),
           side: 'up',
           color: 'coral',
         },
         {
-          anchor: () => new Vector3(cap.sideUnits / 2, cap.yBottom - 0.15, cap.sideUnits / 2),
-          text: L.capacitor.minus,
+          // the front edge, right of the centre: the label hangs below the plate, clear of the dock on the right
+          anchor: () => lowSpot.set(cap.sideUnits * 0.2, cap.yBottom - 0.12, cap.sideUnits / 2),
+          text: () => L.capacitor.minus.replace('−Q', `−${charge()}`),
           side: 'down',
           color: 'cyan',
         },
@@ -233,7 +249,10 @@ export const capacitorStep: StepFactory = ({ ctx, ui, world }) => {
           content: 'dielectric-molecules',
           visible: () => blockIn.value > 0.9,
         },
-        { anchor: [supercap.position.x, 1.75, supercap.position.z], content: 'supercapacitor' },
+        {
+          anchor: () => canSpot.copy(circuit.supercap.position).setY(1.15),
+          content: 'supercapacitor',
+        },
       ],
     },
     update(dt, t) {
@@ -262,6 +281,10 @@ export const capacitorStep: StepFactory = ({ ctx, ui, world }) => {
       if (key !== routed) {
         routed = key;
         circuit.route(cap.sideUnits / 2, cap.yBottom, cap.yTop);
+      }
+      if (on() && pickFrame() !== wide) {
+        wide = !wide;
+        void ctx.camera.go(wide ? 'capacitorWide' : 'capacitor', { duration: 1 });
       }
       // electrons run in the wires only while the charge on the plates changes
       const q = s.chargeC * level;

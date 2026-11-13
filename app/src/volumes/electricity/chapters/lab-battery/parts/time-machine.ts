@@ -10,7 +10,7 @@ import { createHalo } from '@/fx';
 import { K, heatRamp, type ColorLike } from '@/style';
 import type { Mats } from '../world';
 import { group, mesh } from '../world';
-import { createHeroCell } from './hero-cell';
+import { heroCell } from './cells';
 import { createRingGauge, type RingGauge } from './rings';
 
 export interface AgingState {
@@ -23,6 +23,9 @@ export interface AgingState {
   /** Climate: 0 = cool … 1 = hot (glow under the dome). */
   heat: number;
 }
+
+/** Enlargement of the lens picture (callout anchors of the step are offsets in lens units × this). */
+export const LENS_SCALE = 1.34;
 
 export interface AgingStation {
   group: Group;
@@ -38,9 +41,9 @@ export function createAgingStation(
   caption: string,
 ): AgingStation {
   const g = group('aging-station');
+  const trappedMat = K.toon({ color: 'lime', emissive: 'lime', emissiveIntensity: 0.5, keepHue: true });
   g.add(mesh(new CylinderGeometry(1.0, 1.08, 0.3, 48), mats.plinth, 0, 0.15, 0));
-  const cell = createHeroCell(wrap).group;
-  cell.scale.setScalar(0.62);
+  const cell = heroCell(wrap, '21700', 0.62).group;
   cell.position.y = 0.3;
   cell.rotation.y = 0.5;
   const dome = new Mesh(new SphereGeometry(0.95, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), mats.glass);
@@ -65,7 +68,9 @@ export function createAgingStation(
   g.add(ring.surface);
 
   /* ----------------------------------------------------------------------------------------- lens */
-  const lens = group('aging-lens', 0, 1.25, 1.45);
+  // the picture inside is authored for R = 0.62 and enlarged as a whole, so its details read at 1280×720
+  const lens = group('aging-lens', 0, 1.2, 1.5);
+  lens.scale.setScalar(LENS_SCALE);
   const R = 0.62;
   lens.add(mesh(new TorusGeometry(R, 0.05, 12, 64), mats.steel));
   const back = new Mesh(new CircleGeometry(R, 48), K.flat('bg.deep'));
@@ -85,6 +90,20 @@ export function createAgingStation(
     false,
   );
   lens.add(sei);
+  // lithium caught in the film («кожен нанометр SEI — це літій, який більше не гойдається»): dim lime dots
+  // that the growing film swallows one after another
+  const trapped = [0.05, 0.11, 0.16, 0.21, 0.26].map((x, i) => {
+    const dot = mesh(
+      new SphereGeometry(0.026, 10, 8),
+      trappedMat,
+      -0.3 + x,
+      -0.26 + ((i * 5) % 7) * 0.085,
+      0.09,
+      false,
+    );
+    lens.add(dot);
+    return { dot, x };
+  });
   // right: a cathode particle with three cracks that open up
   lens.add(mesh(new SphereGeometry(0.23, 28, 20), mats.cathode, 0.24, 0, 0.03, false));
   const crackMat = K.flat('bg.void');
@@ -107,6 +126,7 @@ export function createAgingStation(
       const w = 0.02 + 0.28 * Math.min(s.sei, 1);
       sei.scale.x = w;
       sei.position.x = -0.3 + w / 2;
+      for (const d of trapped) d.dot.visible = w > d.x + 0.02;
       cracks.forEach((c, i) => {
         const open = Math.min(Math.max(s.cracks * 1.3 - i * 0.15, 0), 1);
         c.scale.set(Math.max(open, 0.001), 0.4 + 1.6 * open, 1);

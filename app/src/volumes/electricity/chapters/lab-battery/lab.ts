@@ -8,10 +8,7 @@
  */
 import type { Group, Object3D } from 'three';
 import type { Actor, ChapterContext, Shot, StepSpec } from '@/engine/api';
-import type { StepUiSpec } from '@/hud';
-import type { EnvOverrides } from '@/style';
-import type { HoloBoard } from './holo';
-import type { LabUi } from './lab-ui';
+import type { StepUiApi, StepUiSpec } from '@/hud';
 import type { Mats } from './world';
 
 export type StepId =
@@ -30,14 +27,13 @@ export type StepId =
 
 export interface Lab {
   ctx: ChapterContext;
-  ui: LabUi;
+  /** The HUD's step UI (controls, board, callouts, hotspots); presets use `ui.set(id, v, { notify: true })`. */
+  ui: StepUiApi<StepId>;
   /** Parent of all sets: origin = centre of the podium top. */
   stageRoot: Group;
   /** The podium (an actor: hidden in the micro-world step). */
   podium: Actor;
   mats: Mats;
-  /** Holographic instrument board (big charts) — see `holo.ts`. */
-  holo: HoloBoard;
   /**
    * Objects shared by consecutive steps (the bench of steps 6–7): the first caller builds, the others reuse.
    * A shared object may be listed in several steps' `show`; only the current step drives and updates it.
@@ -52,17 +48,17 @@ export interface StepModule {
   /** Camera shots owned by the step; the one named like the step id is its default. */
   shots: Record<string, Shot>;
   /**
-   * Stage state (`enter(info)` / `leave()` live here too). `camera` defaults to the shot named like the step;
-   * the podium is added to `show` unless `noPodium`.
+   * Stage state: `enter(info)` / `leave()` and the per-step look (`envTune`, `post`) live here too. `camera`
+   * defaults to the shot named like the step; the podium is added to `show` unless `noPodium`.
    */
   stage: Omit<StepSpec, 'show'> & { show: readonly (Actor | Object3D)[] };
   noPodium?: boolean;
-  /** Environment overrides on top of the `studio` preset (a complete set: applied on every entry). */
-  env?: EnvOverrides;
   ui?: StepUiSpec;
   /**
-   * Observable state of the step for the interaction test (`window.__lab.probe()`): plain numbers / strings /
-   * world points that must change when a control is used.
+   * Observable state of the step for the interaction test: `__app.read('probe')` returns the current step's
+   * (wired once in `scene.ts` through `ctx.qa.expose`) — plain numbers / strings that must change when a
+   * control is used. Scene objects a test clicks or drags are named in the step with
+   * `ctx.qa.probe(name, object)` and found with `__app.locate(name)`.
    */
   probe?(): Record<string, unknown>;
   /** Runs every frame while the step is current or its set is still fading out. */

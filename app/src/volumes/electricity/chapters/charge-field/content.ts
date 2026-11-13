@@ -40,9 +40,17 @@ export function docItems(id: StepId, index: number, separator: '|' | '/' = '|'):
     .map((s) => s.trim());
 }
 
-/** Values written as `code` in the facts of a step, in document order (the voltage "lift" reads them). */
-export function factValues(id: StepId): string[] {
-  return step(id).facts.items.flatMap((f) => [...f.text.matchAll(/`([^`]+)`/g)].map((m) => m[1]!));
+/**
+ * «Назва: `значення`» pairs of a step's facts, in document order (the voltage "lift" of step 4 is made of them):
+ * «Пальчикова батарейка AA: `1,5 V`; USB: `5 V`» → two pairs. Facts written as prose give none.
+ */
+export function factPairs(id: StepId): { name: string; value: string }[] {
+  return step(id).facts.items.flatMap((f) =>
+    [...f.text.matchAll(/([^:;`.()]+):\s*`([^`]+)`/g)].map((m) => ({
+      name: cap(m[1]!.trim()),
+      value: m[2]!,
+    })),
+  );
 }
 
 /** Full address of the first cross-reference of the chapter that points into `chapterId`. */
