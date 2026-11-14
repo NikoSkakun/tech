@@ -25,7 +25,7 @@ export interface HeatEngine {
   at: Record<'hot' | 'cold' | 'engine' | 'flywheel', Vector3>;
 }
 
-export const HE = { hotX: -15, coldX: 15, y: 6, r: 4.2 } as const;
+export const HE = { hotX: -11.5, coldX: 11.5, y: 5.6, r: 3.8 } as const;
 
 export function createHeatEngine(ctx: ChapterContext): HeatEngine {
   const group = new Group();
@@ -60,9 +60,9 @@ export function createHeatEngine(ctx: ChapterContext): HeatEngine {
   group.add(thermoHot.group, thermoCold.group);
   const eng = new Vector3(-1.5, 4.5, 0);
   const curve = (pts: [number, number, number][]): { path: CatmullRomCurve3 }[] => [{ path: new CatmullRomCurve3(pts.map((p) => new Vector3(...p))) }];
-  const heatIn = createFlow(ctx, { kind: 'blob', color: 'orange', paths: curve([[HE.hotX + 3.6, HE.y + 1, 0], [-7, 7.5, 0], [-1.5, 6, 0]]), count: 60, radius: 0.45, speed: 4, spread: 0.8 });
+  const heatIn = createFlow(ctx, { kind: 'blob', color: 'orange', paths: curve([[HE.hotX + 3.2, HE.y + 1.2, 0.4], [-5.5, 7.2, 0.6], [-1.5, 6, 0.6]]), count: 90, radius: 0.5, speed: 4, spread: 1.1 });
   const work = createFlow(ctx, { kind: 'pulse', color: 'yellow', paths: curve([[-1.5, 7.6, 0.6], [0.4, 10.2, 0.4], [2.6, 8.4, -0.6]]), count: 28, radius: 0.42, speed: 3, spread: 0.1 });
-  const reject = createFlow(ctx, { kind: 'blob', color: 'sky', paths: curve([[-1.2, 2.6, 0.4], [6, 2.4, 1], [HE.coldX - 3.6, HE.y - 1, 0]]), count: 60, radius: 0.45, speed: 4, spread: 0.8 });
+  const reject = createFlow(ctx, { kind: 'blob', color: 'sky', paths: curve([[-1.2, 2.6, 0.6], [4.5, 2.6, 1.2], [HE.coldX - 3.2, HE.y - 1, 0.4]]), count: 90, radius: 0.5, speed: 4, spread: 1.1 });
   group.add(heatIn, work, reject);
   const p = model.part('piston');
   const w = model.part('flywheel');

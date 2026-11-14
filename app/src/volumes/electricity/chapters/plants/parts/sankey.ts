@@ -2,10 +2,10 @@
  * `SankeyRiver` of step 3: the flow graph of one plant type (`SANKEY[type]`, plants sim M4) laid out as 3D bands.
  * Columns follow the chain (a node sits one column right of its furthest source); band height ∝ share
  * (`UNIT` m per unit of primary energy = 100). Useful bands go right through the «gates» (a slab per node);
- * loss bands peel off downward in pale `red`. Colours encode the *form* of energy (document step 3), not the plant
+ * loss bands peel off downward in pale `red` and each ends in a small pale cloud — waste heat leaving to the air. Colours encode the *form* of energy (document step 3), not the plant
  * type. Electric bands carry `yellow` pulses (`K.energy`).
  */
-import { Color, Group, Mesh, Vector3 } from 'three';
+import { Color, Group, IcosahedronGeometry, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3 } from 'three';
 import { K, col, type ColorLike } from '@/style';
 import { SANKEY, type SankeyFlow, type SankeyType } from '@electricity/sim/plants';
 import { bandGeometry } from './band';
@@ -65,6 +65,9 @@ export function buildSankey(type: SankeyType): SankeyModel {
   }
   const group = new Group();
   group.name = `sankey-${type}`;
+  // every loss band drains to one level under the lowest gate, where a small cloud swallows its end
+  const floorY = Math.min(...[...nodes.values()].map((n) => n.y - n.h / 2)) - 7;
+  const lossEnds: { x: number; h: number }[] = [];
   const outUsed = new Map<string, number>();
   const inUsed = new Map<string, number>();
   const bands: SankeyBand[] = [];
@@ -76,7 +79,8 @@ export function buildSankey(type: SankeyType): SankeyModel {
     outUsed.set(f.from, (outUsed.get(f.from) ?? 0) + h);
     let geo;
     if (f.loss) {
-      const b = new Vector3(a.x + GATE_W / 2 + 3 + h * 0.9, a.y - a.h / 2 - 8 - h, 0);
+      const b = new Vector3(a.x + GATE_W / 2 + 3 + h * 0.9, floorY + 0.5, 0);
+      lossEnds.push({ x: b.x, h: h * 0.6 });
       geo = bandGeometry({ a: new Vector3(a.x + GATE_W / 2, ya, 0), b, ha: h, hb: h * 0.6, depth: DEPTH * 0.8, ca: col(FORM_COLOR[a.form]).lerp(LOSS, 0.6), cb: LOSS, shape: 'drop' });
     } else {
       const t = nodes.get(f.to)!;
@@ -100,5 +104,23 @@ export function buildSankey(type: SankeyType): SankeyModel {
     gate.name = `gate-${n.id}`;
     group.add(gate);
   }
+  if (lossEnds.length) group.add(lossClouds(lossEnds, floorY));
   return { type, group, nodes: [...nodes.values()], bands, width: cols * DX };
+}
+
+/** A small cloud of pale, slightly warm puffs at each loss band's end (one instanced draw call): waste heat. */
+function lossClouds(ends: readonly { x: number; h: number }[], y: number): InstancedMesh {
+  const mesh = new InstancedMesh(new IcosahedronGeometry(1, 2), K.toon({ color: col('white').lerp(LOSS, 0.3), gloss: 0.2, rim: 0.7 }), ends.length * 4);
+  const m = new Matrix4();
+  const q = new Quaternion();
+  ends.forEach((e, j) => {
+    const r0 = 1.4 + e.h * 0.45;
+    const puffs: [number, number, number, number][] = [[0, -0.2, 0.4, 1], [-0.9, -0.5, -0.2, 0.75], [0.95, -0.45, -0.1, 0.8], [0.3, 0.55, -0.4, 0.62]];
+    puffs.forEach(([dx, dy, dz, k], i) => {
+      m.compose(new Vector3(e.x + dx * r0, y + dy * r0, dz * r0), q, new Vector3(1.2, 1, 1).multiplyScalar(r0 * k));
+      mesh.setMatrixAt(j * 4 + i, m);
+    });
+  });
+  mesh.name = 'loss-clouds';
+  return mesh;
 }

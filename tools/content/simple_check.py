@@ -8,10 +8,10 @@ Checks the exports (`_export/<id>.json`, kept current by the `export` group) and
            option; 1–2 simple pages per step, each ≤ 250 characters of plain text; no sentence of simple copy longer
            than 18 words; no formula signs in simple copy (=, ≈, ×10, superscripts, code spans, √, ^, symbol
            arithmetic such as «U·I» or «q/t»); every hotspot id of «Підказки» exists in the step; a detailed
-           misconception with a «[Сцена: …]» part is well formed and its learner part has no stage words
+           misconception with a «[Сцена: …]» part is well formed; no detailed misconception has stage words (кадр,
+           кнопка, хотспот, перемикач, вкладка, камера, анімація) in its learner part — they belong in «[Сцена: …]»
   warnings sentences of simple copy longer than 12 words; «Слова» outside 1–4, «Цікаво» outside 1–2; step hotspots
-           without a simple sentence (the card falls back to the detailed text); stage words (кадр, кнопка,
-           хотспот, перемикач, вкладка, камера, анімація) in a detailed misconception not yet split with «[Сцена: …]»
+           without a simple sentence (the card falls back to the detailed text)
 
 Chapters without a simple layer pass (the layer is rolled out chapter by chapter).
 Usage: simple_check.py [--volume <id> | --all] [--verbose]   (warnings are listed with --verbose, else counted)
@@ -67,7 +67,7 @@ def has_simple(d):
     return any(s.get('simple') for s in d['steps']) or 'simpleQuiz' in d
 
 
-def check_misconceptions(cid, d, err, warn):
+def check_misconceptions(cid, d, err):
     """Detailed misconceptions (every chapter): the `[Сцена: …]` split and stage words in the learner part."""
     for s in d['steps']:
         for i, m in enumerate(s.get('misconceptions') or []):
@@ -77,9 +77,9 @@ def check_misconceptions(cid, d, err, warn):
                 continue
             learner = (m['myth'] or '') + ' ' + m['correction']
             hit = STAGE_RE.search(learner)
-            if hit:
-                (err if 'scene' in m else warn)('%s: stage word «%s» in the learner part%s'
-                                                % (where, hit.group(0), '' if 'scene' in m else ' (not yet split)'))
+            if hit:  # every chapter is split (C9): a stage word in an unsplit item is an error too
+                err('%s: stage word «%s» in the learner part%s'
+                    % (where, hit.group(0), '' if 'scene' in m else ' — move it into «[Сцена: …]»'))
 
 
 def check_quiz(cid, d, err):
@@ -155,7 +155,7 @@ def main():
         def warn(msg, cid=cid):
             warnings.append('warn   %s: %s' % (cid, msg))
 
-        check_misconceptions(cid, d, err, warn)
+        check_misconceptions(cid, d, err)
         if not has_simple(d):
             continue
         layered += 1

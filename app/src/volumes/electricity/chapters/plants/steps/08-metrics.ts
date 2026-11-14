@@ -12,7 +12,7 @@ import type { StepFactory } from '../chapter';
 import { doc, splitAll } from '../labels';
 import { LISTS, OWN } from '../labels-own';
 import { createDayTiles } from '../parts/day-tiles';
-import { group } from '../world';
+import { group, tag } from '../world';
 
 const ID = 'metrics';
 const TYPES: readonly TileType[] = ['nuclear', 'wind', 'solar'];
@@ -23,12 +23,20 @@ const ROWS = ['coal', 'gasCcgt', 'gasPeaker', 'nuclear', 'hydro', 'windOnshore',
 
 export const metrics: StepFactory = (hub) => {
   const { ctx, ui, arch } = hub;
-  const set = group(ID, 0, 30, 44);
-  set.rotation.x = 1.3;
-  set.scale.setScalar(1.45);
+  // the calendar hangs in front of the hub, tilted toward the camera; the live equation floats above it
+  // outside the world ring (r = 74 m), so the ring never crosses the calendar
+  const set = group(ID, 0, 30, 84);
   hub.stageRoot.add(set);
+  const carpet = group('carpet');
+  carpet.rotation.x = 1.3;
+  carpet.scale.setScalar(1.0);
+  set.add(carpet);
   const tiles = createDayTiles();
-  set.add(tiles.group);
+  carpet.add(tiles.group);
+  const eq = tag('', 30, 'yellow', 'display');
+  eq.position.set(0, 27.5, 3);
+  set.add(eq);
+  const num = (v: number, d: number): string => v.toFixed(d).replace('.', ',');
   const type = (): TileType => ui.value<TileType>('type8');
   const P = (): number => ui.value<number>('p8');
   const CF = (): number => ui.value<number>('cf8') / 100;
@@ -39,7 +47,7 @@ export const metrics: StepFactory = (hub) => {
   const names = rows.map((r) => LISTS.compareShort[COMPARE_ROWS.indexOf(r)] ?? r.id);
   const xs = rows.map((_, i) => i);
   const cost = (): boolean => ui.value<boolean>('cost8');
-  const corner = (): Vector3 => set.localToWorld(new Vector3(-tiles.width / 2, 0.5, -6));
+  const corner = (): Vector3 => carpet.localToWorld(new Vector3(-tiles.width / 2 - 0.5, 0.5, -tiles.depth / 2 - 0.5));
   ctx.qa.probe('tiles', () => set.localToWorld(tiles.group.position.clone()));
   const labelsOf = (v: number): string => names[Math.round(v)] ?? '';
 
@@ -48,7 +56,7 @@ export const metrics: StepFactory = (hub) => {
     hall: true,
     turboSet: true,
     shots: {
-      [ID]: { position: [0, 50, 112], target: [0, 29, 24], fov: 40, drift: 0.5, fit: { center: [0, 30, 44], radius: 64 } },
+      [ID]: { position: [0, 34, 130], target: [0, 33, 84], fov: 40, drift: 0.5, fit: { center: [0, 37, 84], radius: 37 } },
     },
     stage: {
       show: [set],
@@ -123,6 +131,8 @@ export const metrics: StepFactory = (hub) => {
       tiles.set(dayTiles(type(), CF()));
       tiles.reveal = st.run < 0 ? 1 : st.run / YEAR_S;
       tiles.update(dt);
+      // P_inst × 8760 h × CF = W, with the live numbers (symbols and units only)
+      eq.text = `${Math.round(P())} MW × 8760 h × ${num(CF(), 2)}\n= ${num(W(), 2)} TWh`;
       for (const t of TYPES) arch.want.line[ISLAND[t]] = st.run < 0 ? 0.25 : 0.2 + 1.2 * (ran(t) / 7.5);
       arch.want.ring = 0.7;
       hub.sound.hum = 0.06;

@@ -86,9 +86,10 @@ const steps = {
     await click3d('isl-wind', 40);
     let a = await probe();
     check(a.selected === 'wind' && a.built === true, `a click selects the wind island (${a.selected})`);
-    await click3d('isl-coal', 40);
+    // plant-coal is built since main 2026-11-14; «Майбутнє» is the island least likely to get its chapter soon
+    await click3d('isl-future', 40);
     a = await probe();
-    check(a.selected === 'coal' && a.built === false, `coal selected, its chapter not built (${a.selected}, ${a.built})`);
+    check(a.selected === 'future' && a.built === false, `future selected, its chapter not built (${a.selected}, ${a.built})`);
     await press('open1', 40);
     const pos = await page.evaluate(() => window.__app.position());
     check(pos.chapterId === 'plants', `«Відкрити розділ» is quiet for a chapter not built yet (${pos.chapterId})`);
@@ -206,6 +207,8 @@ const steps = {
     check(a.ua === 'ua2021', `Ukraine 2021 (${a.ua})`);
   },
   gallery: async () => {
+    const rims = (await probe()).rims;
+    check(rims.includes('wind') && !rims.includes('future'), `a glowing rim marks built chapters only (${rims})`);
     await clickUi('ctl-cmp11', 40);
     check((await probe()).compare === true, '«Порівняти» opens the table');
     await clickUi('ctl-sort11:lcoeUsd', 30);

@@ -12,6 +12,7 @@ import { HALL, HUB, RING, satPosition } from '../layout';
 import { PLANT_IDS, type PlantId } from '../plants-data';
 import { dressHub, type HubDressing } from './hub-dressing';
 import { createIslandPicker, type IslandPicker } from './island-picker';
+import { plainRotor } from './plain-rotor';
 import { createPlantIsland, type Alive, type PlantIsland } from './plant-islands';
 
 export interface Archipelago {
@@ -55,6 +56,7 @@ export function createArchipelago(ctx: ChapterContext, root: Group): Archipelago
   hall.group.position.set(HALL.x, 0, HALL.z);
   root.add(hall.group);
   const turbo = turboSet({ cut: 2.1 });
+  plainRotor(turbo.part('gen.rotor'));
   const turboGroup = new Group();
   turboGroup.name = 'turbo-set';
   turbo.group.position.set(-turbo.length / 2, 0, 0);

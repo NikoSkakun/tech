@@ -35,16 +35,19 @@ export function satPosition(id: PlantId): [number, number, number] {
 }
 
 /**
- * Gallery layout (step 11): the nine islands on an arc that opens toward the camera, raised above the hub.
- * Arc centre (0, 0, GALLERY.cz), radius GALLERY.r, angles ±GALLERY.span.
+ * Gallery layout (step 11): the nine islands on three tiers of a shallow arc that opens toward the camera (three
+ * per tier, each tier higher and further back, like seats of a theatre), raised above the hub. Three per row
+ * instead of nine lets every island be ≈ 1,7× larger on screen. Arc centre (0, 0, GALLERY.cz), front radius
+ * GALLERY.r; tier k adds `dr` to the radius and `dy` to the height.
  */
-export const GALLERY = { cz: 360, r: 300, span: 0.6, y: 40, scale: 1.55 } as const;
+export const GALLERY = { cz: 420, r: 300, step: 0.32, y: 44, dy: 74, dr: 40, scale: 2.25 } as const;
 
 export function galleryPosition(id: PlantId): [number, number, number] {
   const i = PLANT_IDS.indexOf(id);
-  const n = PLANT_IDS.length - 1;
-  const phi = -GALLERY.span + (2 * GALLERY.span * i) / n;
-  return [Math.sin(phi) * GALLERY.r, GALLERY.y + (i % 2 ? 8 : -4), GALLERY.cz - Math.cos(phi) * GALLERY.r + (i % 2 ? -10 : 6)];
+  const k = Math.floor(i / 3);
+  const phi = ((i % 3) - 1) * GALLERY.step;
+  const r = GALLERY.r + k * GALLERY.dr;
+  return [Math.sin(phi) * r, GALLERY.y + k * GALLERY.dy, GALLERY.cz - Math.cos(phi) * r];
 }
 
 /** Rotation (about Y) that turns an island's front (+Z) toward a point. */

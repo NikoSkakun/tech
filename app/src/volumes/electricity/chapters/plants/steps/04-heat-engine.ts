@@ -5,6 +5,7 @@
  * Carnot limit against t_h with the band of real plants (0,55…0,75 η_C, `realBand`) and the plant markers
  * (`PLANT_MARKERS`); the chips set the sliders to a plant's temperatures.
  */
+import { Vector3 } from 'three';
 import { applyHeat } from '@/fx';
 import { carnotEfficiency, PLANT_MARKERS, realBand } from '@electricity/sim/plants';
 import type { StepFactory } from '../chapter';
@@ -33,9 +34,10 @@ export const heatEngine: StepFactory = (hub) => {
   const etaTag = tag('', 24, 'yellow', 'display');
   etaTag.position.set(2.6, 13.4, -1.4);
   const hotTag = tag('', 20, 'orange', 'mono');
-  hotTag.position.set(HE.hotX - 3.2, 12.4, -4.4);
+  // temperatures on the pedestals' fronts (above the spheres they hid under the board at 720p)
+  hotTag.position.set(HE.hotX, 0.8, 3.3);
   const coldTag = tag('', 20, 'sky', 'mono');
-  coldTag.position.set(HE.coldX + 3.2, 12.4, -4.4);
+  coldTag.position.set(HE.coldX, 0.8, 3.3);
   set.add(etaTag, hotTag, coldTag);
 
   const th = (): number => ui.value<number>('th4');
@@ -50,7 +52,7 @@ export const heatEngine: StepFactory = (hub) => {
   return {
     id: ID,
     shots: {
-      [ID]: { position: [0, 15, 42], target: [0, 7.5, 4], fov: 38, drift: 0.5, fit: { center: [0, 6, 4], radius: 22 } },
+      [ID]: { position: [2, 15, 38], target: [2, 9, 4], fov: 38, drift: 0.5, fit: { center: [0, 7, 4], radius: 18 } },
     },
     stage: {
       show: [set],
@@ -118,7 +120,8 @@ export const heatEngine: StepFactory = (hub) => {
         ],
       },
       callouts: [
-        { anchor: () => set.localToWorld(rig.at.hot.clone()), text: OWN.hotRes, side: 'up' },
+        // below the sphere, on the floor: above it the label hid under the board at 720p
+        { anchor: () => set.localToWorld(new Vector3(HE.hotX + HE.r * 0.7, 1.6, 2.6)), text: OWN.hotRes, side: 'down' },
         { anchor: () => set.localToWorld(rig.at.engine.clone().setY(9.2)), text: OWN.engine, side: 'left' },
       ],
       hotspots: [{ anchor: () => set.localToWorld(rig.at.cold.clone()), content: 'cold-reservoir' }],

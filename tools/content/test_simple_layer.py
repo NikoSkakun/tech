@@ -75,6 +75,16 @@ class Scene(unittest.TestCase):
         plain = X.parse_misconceptions(dict(inline='«Міф» → пояснення.', items=[]))[0]
         self.assertNotIn('scene', plain)
 
+    def test_stage_words_are_errors(self):
+        def errors(inline):
+            d = dict(steps=[dict(id='s', misconceptions=X.parse_misconceptions(dict(inline=inline, items=[])))])
+            out = []
+            SC.check_misconceptions('c', d, out.append)
+            return out
+        self.assertEqual(errors('«Міф» → пояснення. [Сцена: кнопка «Пуск».]'), [])
+        self.assertEqual(len(errors('«Міф» → кадр показує пояснення.')), 1)  # unsplit: an error, not a warning
+        self.assertEqual(len(errors('«Міф» → кнопка пояснює. [Сцена: кадр.]')), 1)
+
 
 class Checks(unittest.TestCase):
     def test_sentences(self):

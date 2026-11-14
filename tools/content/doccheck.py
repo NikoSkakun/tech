@@ -20,7 +20,7 @@
                  abbreviation explained in Ukrainian at its first mention in a chapter
  11b. simple     tools/content/simple_check.py: the simple reading level («Просто», «Простий квіз», docs/briefs/L-simple-level.md)
                  in chapters that have it — every step covered, page / sentence length, no formulas, hotspot ids, 3-question
-                 quiz; detailed misconceptions: «[Сцена: …]» split, no stage words in the learner part (warning until split)
+                 quiz; detailed misconceptions: «[Сцена: …]» split, no stage words in the learner part
  12. fonts       app/scripts/font-coverage.mjs: every character of the on-screen copy has a glyph in the font atlas
  13. oracles     tools/ref-models/C6-labs/{home,battery,thermal}_model.py --check (control points of the labs)
 

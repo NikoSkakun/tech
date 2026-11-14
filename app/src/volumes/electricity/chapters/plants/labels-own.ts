@@ -35,6 +35,8 @@ export const OWN = {
   makeupOpen: 'уся пара — в небо!',
   tsBoard: 'Діаграма T–s (ілюстративно)',
   boiler: 'Котел',
+  pump: 'Насос',
+  compressor: 'Компресор',
   turbine: 'Турбіна',
   generatorShort: 'Генератор',
   pressureRatio: 'Ступінь підвищення тиску r',

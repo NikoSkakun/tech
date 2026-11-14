@@ -9,6 +9,7 @@ import type { StepFactory } from '../chapter';
 import { doc, plantBlurb, plantTitle } from '../labels';
 import { OWN } from '../labels-own';
 import { RING } from '../layout';
+import { createInflow } from '../parts/energy-inflow';
 import { PLANTS, PLANT_IDS, type PlantId } from '../plants-data';
 import { group, roomy } from '../world';
 
@@ -18,6 +19,9 @@ export const intro: StepFactory = (hub) => {
   const { ctx, arch } = hub;
   const set = group(ID);
   hub.stageRoot.add(set);
+  // energy in → energy out: every island gets its primary energy from outside and sends current to the ring
+  const inflow = createInflow(ctx, arch);
+  set.add(inflow.group);
   const picker = arch.picker;
   const built = (id: PlantId): boolean => ctx.nav.locate(PLANTS[id].route) !== null;
   const sel = (): PlantId | null => (hub.isCurrent(ID) ? picker.selected : null);
@@ -80,6 +84,11 @@ export const intro: StepFactory = (hub) => {
       if (!hub.isCurrent(ID)) return;
       picker.mode = 'select';
       arch.want.ring = 1;
+      const on = sel();
+      for (const id of PLANT_IDS) {
+        inflow.flows[id].density = on === null ? 0.85 : on === id ? 1 : 0.3;
+        arch.want.line[id] = on === null || on === id ? 1 : 0.35;
+      }
       hub.sound.hum = 0.08;
       hub.sound.wind = 0.25;
     },

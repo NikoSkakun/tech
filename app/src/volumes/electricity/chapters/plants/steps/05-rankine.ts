@@ -35,7 +35,7 @@ export const rankineStep: StepFactory = (hub) => {
   const pumpTag = tag('', 18, 'white', 'mono');
   pumpTag.position.copy(rig.at.pump).add(new Vector3(0, 1.2, 1.4));
   const turbTag = tag('', 18, 'yellow', 'mono');
-  turbTag.position.copy(rig.at.turbine).add(new Vector3(-1, -4.6, 2));
+  turbTag.position.copy(rig.at.turbine).add(new Vector3(-0.6, -5.4, 2));
   set.add(pumpTag, turbTag);
 
   const sh = (): boolean => ui.value<boolean>('sh5') || ui.value<boolean>('rh5');
@@ -57,7 +57,7 @@ export const rankineStep: StepFactory = (hub) => {
     id: ID,
     noLines: true,
     shots: {
-      [ID]: { position: [0, 11, 33], target: [0, 7.2, 4], fov: 40, drift: 0.4, fit: { center: [0, 7.5, 4], radius: 17 } },
+      [ID]: { position: [-0.5, 10, 31], target: [-0.5, 6.8, 4], fov: 40, drift: 0.4, fit: { center: [-1, 7.5, 4], radius: 16 } },
     },
     stage: {
       show: [set],
@@ -127,7 +127,9 @@ export const rankineStep: StepFactory = (hub) => {
       },
       callouts: [
         { anchor: () => set.localToWorld(rig.at.boiler.clone()), text: OWN.boiler, side: 'up', priority: 1 },
-        { anchor: () => set.localToWorld(rig.at.turbine.clone().add(new Vector3(0, 2.2, 0))), text: OWN.turbine, side: 'up', priority: 2 },
+        { anchor: () => set.localToWorld(rig.at.turbine.clone().add(new Vector3(0, 0.4, 0))), text: OWN.turbine, side: 'up', priority: 2 },
+        { anchor: () => set.localToWorld(rig.at.pump.clone().add(new Vector3(0, -1.2, 1.4))), text: OWN.pump, side: 'down', priority: 3 },
+        { anchor: () => set.localToWorld(rig.at.condenser.clone().add(new Vector3(0, -1.6, 0))), text: OWN.condenser, side: 'down', priority: 3, visible: () => cond() },
         { anchor: () => set.localToWorld(rig.at.generator.clone()), text: OWN.generatorShort, side: 'right', priority: 4 },
       ],
       hotspots: [

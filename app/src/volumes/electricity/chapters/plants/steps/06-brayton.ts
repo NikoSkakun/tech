@@ -44,18 +44,32 @@ export const brayton: StepFactory = (hub) => {
     noLines: true,
     shots: {
       [ID]: { position: [0, 9, 29], target: [0, 4.4, 4], fov: 38, drift: 0.4, fit: { center: [2, 5, 4], radius: 19 } },
+      // with the heat-recovery boiler the frame widens to the right: boiler, stack and the small steam loop
+      [`${ID}-cc`]: { position: [6.5, 11, 37], target: [6.5, 4.6, 2], fov: 38, drift: 0.4, fit: { center: [6.5, 5, 2], radius: 25 } },
     },
     stage: {
       show: [set],
       env: 'dusk',
       envTune: STUDIO_TUNE,
-      enter: (info) => sync(info.instant),
+      enter: (info) => {
+        sync(info.instant);
+        if (hrsg()) void ctx.camera.go(`${ID}-cc`, { instant: info.instant });
+      },
     },
     ui: {
       honesty: ['simplified', 'notToScale', { slowed: 100 }],
       controls: [
         { type: 'slider', id: 'r6', label: OWN.pressureRatio, min: 4, max: 40, step: 1, value: 20 },
-        { type: 'toggle', id: 'hrsg6', label: doc(ID, 1), value: false, onChange: () => hub.sound.relay() },
+        {
+          type: 'toggle',
+          id: 'hrsg6',
+          label: doc(ID, 1),
+          value: false,
+          onChange: (on: boolean) => {
+            hub.sound.relay();
+            void ctx.camera.go(on ? `${ID}-cc` : ID, { duration: 1.6 });
+          },
+        },
         {
           type: 'stats',
           id: 'read6',
@@ -84,8 +98,9 @@ export const brayton: StepFactory = (hub) => {
         ],
       },
       callouts: [
-        { anchor: () => w(rig.at.combustor.clone().add(new Vector3(0, 2.6, 0))), text: OWN.combustor, side: 'up', priority: 1 },
-        { anchor: () => w(rig.at.turbine.clone().add(new Vector3(0, 2.4, 0))), text: OWN.gasTurbineName, side: 'up', priority: 2 },
+        { anchor: () => w(rig.at.compressor.clone().add(new Vector3(0, 1.4, 0))), text: OWN.compressor, side: 'up', priority: 2, visible: () => !hrsg() },
+        { anchor: () => w(rig.at.combustor.clone().add(new Vector3(0, 1.6, 0))), text: OWN.combustor, side: 'up', priority: 1 },
+        { anchor: () => w(rig.at.turbine.clone().add(new Vector3(0, 1.4, 0))), text: OWN.gasTurbineName, side: 'up', priority: 2 },
         { anchor: () => w(rig.at.generator), text: OWN.generatorShort, side: 'left', priority: 3 },
         { anchor: () => w(rig.at.exhaust.clone().add(new Vector3(7, 9.6, 0))), text: OWN.hrsg, side: 'right', visible: () => hrsg(), priority: 2 },
       ],
@@ -105,6 +120,7 @@ export const brayton: StepFactory = (hub) => {
       rig.exhaust.density = hrsg() ? 0 : 1;
       rig.cooled.density = hrsg() ? 1 : 0;
       rig.shimmer.visible = !hrsg();
+      rig.openStack.visible = !hrsg();
       rig.mini.parts.rotor.rotation.x += dt * 4;
       arch.want.ring = 0.3;
       hub.sound.fire = 0.35;

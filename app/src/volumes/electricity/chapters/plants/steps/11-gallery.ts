@@ -4,19 +4,20 @@
  * name callout in its plant colour; a click opens the plant chapter (quiet while that chapter is not built).
  * «Порівняти» opens the comparison table (`COMPARE_ROWS`, sortable by any column, two filters).
  */
-import { Vector3 } from 'three';
+import { Mesh, TorusGeometry, Vector3 } from 'three';
+import { K } from '@/style';
 import { COMPARE_ROWS, sortRows, type CompareKey, type CompareRow, type Range } from '@electricity/sim/plants';
 import type { StepFactory } from '../chapter';
 import { doc, fact, plantTitle } from '../labels';
 import { LISTS, OWN } from '../labels-own';
-import { GALLERY, facing, galleryPosition } from '../layout';
+import { GALLERY, SAT, facing, galleryPosition } from '../layout';
 import { ISLAND_SCALE } from '../parts/plant-islands';
 import { PLANTS, PLANT_IDS, TRANSMISSION_ROUTE, type PlantId } from '../plants-data';
 import { group } from '../world';
 
 const ID = 'gallery';
 const KEYS: readonly CompareKey[] = ['cfPct', 'etaPct', 'co2Median', 'lcoeUsd', 'rampPctPerMin', 'coldStartMin'];
-const CAMERA: [number, number, number] = [0, 86, 405];
+const CAMERA: [number, number, number] = [0, 186, 440];
 
 const range = (r: Range | null, nd: string): string => (r ? (r[0] === r[1] ? `${r[0]}` : `${r[0]}–${r[1]}`) : nd);
 function start(r: Range | null, nd: string): string {
@@ -39,6 +40,15 @@ export const gallery: StepFactory = (hub) => {
     poses[`sat-${id}`] = { position: p, rotation: [0, facing(p, CAMERA) - Math.PI / 4, 0], scale: ISLAND_SCALE * GALLERY.scale };
   }
   const built = (id: PlantId): boolean => ctx.nav.locate(PLANTS[id].route) !== null;
+  // a glowing rim in the plant colour around every island whose chapter is built: «this one opens»
+  const rimGeo = new TorusGeometry(SAT.radius * GALLERY.scale * 1.04, 0.9, 8, 72);
+  rimGeo.rotateX(Math.PI / 2);
+  const rims = Object.fromEntries(PLANT_IDS.map((id): [PlantId, Mesh] => {
+    const m = new Mesh(rimGeo, K.glow({ color: PLANTS[id].color, intensity: 1.6, whiten: 0.2, keepHue: true }));
+    m.name = `rim-${id}`;
+    set.add(m);
+    return [id, m];
+  })) as unknown as Record<PlantId, Mesh>;
   const nextBuilt = (): boolean => ctx.nav.locate(TRANSMISSION_ROUTE) !== null;
   const v = Object.fromEntries(PLANT_IDS.map((id) => [id, new Vector3()])) as Record<PlantId, Vector3>;
   const plaque = (id: PlantId): Vector3 => arch.sats[id].group.getWorldPosition(v[id]).add(new Vector3(0, -16, 10));
@@ -69,7 +79,7 @@ export const gallery: StepFactory = (hub) => {
     hall: true,
     turboSet: true,
     shots: {
-      [ID]: { position: CAMERA, target: [0, 34, 92], fov: 40, drift: 0.4, fit: { center: [0, 40, 90], radius: 180 } },
+      [ID]: { position: CAMERA, target: [0, 112, 80], fov: 40, drift: 0.4, fit: { center: [0, 116, 80], radius: 160 } },
     },
     stage: {
       show: [set],
@@ -105,11 +115,18 @@ export const gallery: StepFactory = (hub) => {
       })),
       hotspots: PLANT_IDS.map((id, i) => ({ anchor: () => plaque(id), title: plantTitle(id), text: fact(ID, i) })),
     },
-    probe: () => ({ compare: compare(), sort: sortKey(), rows: rows().map((r) => r.id), hovered: arch.picker.hovered, poseX: arch.sats.coal.group.position.x }),
+    probe: () => ({ rims: PLANT_IDS.filter((id) => rims[id].visible), compare: compare(), sort: sortKey(), rows: rows().map((r) => r.id), hovered: arch.picker.hovered, poseX: arch.sats.coal.group.position.x }),
     update() {
       if (!hub.isCurrent(ID)) return;
       arch.picker.mode = 'open';
       arch.want.ring = 0.6;
+      for (const id of PLANT_IDS) {
+        const rim = rims[id];
+        rim.visible = built(id);
+        if (!rim.visible) continue;
+        arch.sats[id].group.getWorldPosition(rim.position).y -= 0.6;
+        rim.scale.setScalar(arch.sats[id].group.scale.x / (ISLAND_SCALE * GALLERY.scale));
+      }
     },
   };
 };

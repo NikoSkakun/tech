@@ -64,18 +64,27 @@ export const turbineGenerator: StepFactory = (hub) => {
   // three phases out of the terminals; power electronics box for wind / no-rotation
   set.updateMatrixWorld(true);
   const terms = ['u', 'v', 'w'].map((n) => set.worldToLocal(gen.anchorWorld(n)).setY(0.4));
-  const phases = createBundle(terms, terms.map((p) => p.clone().add(new Vector3(8, 0, -9))), { sag: 0.2, radius: 0.12, repeat: 0.5, speed: 4 });
+  // the phases run back to a terminal cabinet right behind the generator (P-plants: they used to trail off-frame)
+  const PHASE_RUN = new Vector3(2.5, 0, -6.5);
+  const phases = createBundle(terms, terms.map((p) => p.clone().add(PHASE_RUN).setY(1.2)), { sag: 0.2, radius: 0.12, repeat: 0.5, speed: 4 });
   set.add(phases);
+  const tb = new Builder('terminal-cabinet');
+  tb.box(3.2, 2.4, 1.6, { r: 0.2, c: ['steel.dark', 'steel'], slot: 'matte' });
+  for (const [i, c] of (['yellow', 'lime', 'coral'] as const).entries()) tb.cyl(0.16, 0.5, { at: [-0.8 + i * 0.8, 2.4, 0.3], c, slot: 'gloss' });
+  const cabinet = tb.build();
+  cabinet.group.position.copy(terms[1]!).add(PHASE_RUN).setY(0).add(new Vector3(0, 0, -1.1));
+  set.add(cabinet.group);
   const cb = new Builder('converter');
   cb.box(2.2, 2.6, 1.4, { r: 0.2, c: ['ink', 'slate'], slot: 'gloss' });
   cb.tube(Array.from({ length: 21 }, (_, i) => new Vector3(-0.6 + (i / 20) * 1.2, 1.8 + Math.sin((i / 20) * Math.PI * 2) * 0.35, 0.72)), 0.05, { c: 'yellow', slot: 'glow' });
   const converter = cb.build();
-  converter.group.position.set(terms[0]!.x + 9.5, 0, terms[0]!.z - 10);
+  converter.group.position.copy(cabinet.group.position).add(new Vector3(3.2, 0, 0));
   set.add(converter.group);
   const aConv = ctx.stage.actor(converter.group, { appear: 'pop' });
+  // the shelf of exceptions stands on the floor in front of the generator, below it in the frame
   const shelf = createShelf(ctx);
-  shelf.group.position.set(15, 0, 9);
-  shelf.group.rotation.y = -0.45;
+  shelf.group.position.set(5, 0, 12);
+  shelf.group.rotation.y = -0.12;
   set.add(shelf.group);
 
   const mode = (): Mode => ui.value<Mode>('drive2');
@@ -96,10 +105,10 @@ export const turbineGenerator: StepFactory = (hub) => {
   return {
     id: ID,
     shots: {
-      [ID]: { position: [-3, 10, 31], target: [-2, 4, HALL.z + 2], fov: 38, drift: 0.6, fit: { center: [0, 3, HALL.z], radius: 20 } },
+      [ID]: { position: [-1, 15, 33], target: [-1, 3, HALL.z + 3], fov: 38, drift: 0.6, fit: { center: [0, 3, HALL.z + 3], radius: 20 } },
     },
     stage: {
-      show: [set, gen.group, shelf.group, phases],
+      show: [set, gen.group, shelf.group, phases, cabinet.group],
       enter: (info) => sync(info.instant),
     },
     ui: {
@@ -127,7 +136,7 @@ export const turbineGenerator: StepFactory = (hub) => {
       callouts: [
         { anchor: () => gen.anchorWorld('stator', new Vector3()), text: OWN.generator, side: 'up' },
         { anchor: () => set.localToWorld(new Vector3(COUPLING_X - 6, AXIS + 4.5, 0)), text: () => LISTS.driveName[MODES.indexOf(mode())] ?? '', side: 'up', visible: () => mode() !== 'none' },
-        { anchor: () => shelf.group.localToWorld(shelf.at.cell.clone().setY(5)), text: OWN.shelf, side: 'up', color: 'cyan' },
+        { anchor: () => shelf.group.localToWorld(shelf.at.panel.clone().setX(-4.8).setY(2.2)), text: OWN.shelf, side: 'left', color: 'cyan' },
         { anchor: () => converter.group.localToWorld(new Vector3(0, 3.2, 0)), text: OWN.converter, side: 'right', visible: () => mode() === 'wind' && roomy(hub) },
       ],
       hotspots: [

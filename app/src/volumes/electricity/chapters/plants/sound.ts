@@ -2,7 +2,9 @@
  * Audio of the chapter: loops driven by "wanted this frame" levels. `begin()` clears them, the step on screen
  * raises what it needs in its `update`, `apply()` hands the result to the audio engine (FX_API §10: loops are
  * set continuously, never once in the factory). The turbine hall hums softly at 100 Hz (a 50 Hz machine:
- * `hum` at pitch 2); steam, water, fire and wind loops follow the rig on screen. Sound is seasoning.
+ * `hum` at pitch 2); steam, water, fire and wind loops follow the rig on screen. Sound is seasoning, but audible:
+ * the loop gains sit ≈ 7 dB above the builder's first mix, which measured 16–34 dB under the mood pad
+ * (`qa/sound-offline.mjs`).
  */
 import { audio } from '@/audio';
 
@@ -43,12 +45,12 @@ export function createSound(): Sound {
       s.wind = 0;
     },
     apply() {
-      audio.loop('hum').set({ gain: Math.min(1, s.hum) * 0.4, pitch: 2 });
-      audio.loop('turbine').set({ gain: Math.min(1, s.turbine) * 0.35, pitch: Math.max(0.2, s.turbinePitch) });
-      audio.loop('steam').set({ gain: Math.min(1, s.steam) * 0.3, pitch: 1 });
-      audio.loop('water').set({ gain: Math.min(1, s.water) * 0.35, pitch: 1 });
-      audio.loop('fire').set({ gain: Math.min(1, s.fire) * 0.3, pitch: 1 });
-      audio.loop('wind').set({ gain: Math.min(1, s.wind) * 0.3, pitch: 1 });
+      audio.loop('hum').set({ gain: Math.min(1, s.hum) * 0.9, pitch: 2 });
+      audio.loop('turbine').set({ gain: Math.min(1, s.turbine) * 0.75, pitch: Math.max(0.2, s.turbinePitch) });
+      audio.loop('steam').set({ gain: Math.min(1, s.steam) * 0.65, pitch: 1 });
+      audio.loop('water').set({ gain: Math.min(1, s.water) * 0.75, pitch: 1 });
+      audio.loop('fire').set({ gain: Math.min(1, s.fire) * 0.65, pitch: 1 });
+      audio.loop('wind').set({ gain: Math.min(1, s.wind) * 0.65, pitch: 1 });
     },
     click: (pitch = 1) => audio.play('tick', { pitch, gain: 0.6 }),
     relay: () => audio.play('relay'),

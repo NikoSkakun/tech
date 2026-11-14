@@ -23,10 +23,13 @@ cycle), `@electricity/sim/generator-ac` (`generatorSpeedRpm`).
 | `parts/archipelago.ts` | hub island, open machine hall + kit `turboSet`, 9 plant islands, world ring, island lines, picker | "wanted" fields: ring, lines, shaft |
 | `parts/plant-islands.ts`, `plant-dioramas*.ts`, `diorama-util.ts` | the nine toy dioramas (authored at 60 m, shown at 0,3) | one Builder per island |
 | `parts/island-picker.ts` | hover / select / open on the islands (steps 1 and 11) | `mode` is reset every frame |
+| `parts/energy-inflow.ts` | step 1: a stream of each island's primary energy (Sankey form colours) arcs into it | one flow per island |
+| `parts/plain-rotor.ts` | re-tints the kit rotor's N / S pole faces to steel (step 2 script; kit request) | call once after building |
 | `parts/*` (rigs) | `drives` + `exceptions-shelf` (2), `band` + `sankey` (3), `heat-engine` (4), `rankine-rig` (5, and the mini loop of 6), `brayton-rig` (6), `heat-sources` + `cooling` (7), `day-tiles` (8), `race-lanes` (9), `donut` (10) | no stage, no UI |
 | `sim-bindings/ts-diagram.ts`, `weather.ts` | illustrative T–s points (steam tables, ideal Brayton); deterministic weather of the race | no three.js |
 | `steps/NN-<id>.ts` | one `StepFactory` per step | |
 | `qa/interaction.mjs` | Playwright: every control once, asserted through `__app.read('step')` | production hooks only |
+| `qa/sound-offline.mjs` | renders each step's loops (`__app.read('sound')`) through the master chain; levels vs the mood pad, clipping, silence after leaving | no sound card needed |
 | `__tests__/manifest.test.ts` | manifest = content, quoted labels exist, hotspot ids, own labels | |
 
 ## Rules that keep it random-access safe and honest
@@ -47,5 +50,6 @@ export QA_ID=B-plants QA_PORT=5249
 node tools/qa/chapter-check.mjs plants --sizes all --no-perf-fail
 QA_PORT=5249 node app/src/volumes/electricity/chapters/plants/qa/interaction.mjs --size 1280x720   # also 1920x1080, 3840x2160
 QA_PORT=5349 node app/src/volumes/electricity/chapters/plants/qa/interaction.mjs                   # production preview
+QA_PORT=5249 node app/src/volumes/electricity/chapters/plants/qa/sound-offline.mjs
 pnpm vitest run src/volumes/electricity/chapters/plants                                             # in app/
 ```

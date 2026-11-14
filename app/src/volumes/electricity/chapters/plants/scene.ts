@@ -29,6 +29,8 @@ export default defineScene(async (ctx) => {
   const ui = stepUi(ctx);
   const sound = createSound();
   const turboSet = stage.actor(arch.turboGroup, { appear: 'grow', inDuration: 0.7, outDuration: 0.4 });
+  // the hall's busbars start at the turbo set's terminals: they leave with it (else they hang from nothing in step 2)
+  const busbars = stage.actor(arch.dress.busbars, { appear: (o, v) => void (o.visible = v > 0.5) });
   const lines = stage.actor(arch.lines, { appear: 'fade' });
   const hall = stage.actor(arch.hall.group, { appear: 'fade', inDuration: 0.8, outDuration: 0.6 });
   const hub: Hub = {
@@ -59,7 +61,7 @@ export default defineScene(async (ctx) => {
   for (const m of modules) {
     const own = m.stage.show.map((o) => ('isObject3D' in o ? stage.actor(o as Object3D) : (o as Actor)));
     actors.set(m.id, own);
-    const shared = [...(m.turboSet ? [turboSet] : []), ...(m.hall ? [hall] : []), ...(m.noLines ? [] : [lines])];
+    const shared = [...(m.turboSet ? [turboSet, busbars] : []), ...(m.hall ? [hall] : []), ...(m.noLines ? [] : [lines])];
     specs[m.id] = { ...m.stage, show: [...own, ...shared], camera: m.stage.camera ?? m.id };
     if (m.ui) uis[m.id] = m.ui;
   }
@@ -68,6 +70,8 @@ export default defineScene(async (ctx) => {
 
   // one probe for the interaction test: the current step's observable state (production builds too)
   ctx.qa.expose('step', () => ({ id: stage.current, ...(byId.get(stage.current ?? '')?.probe?.() ?? {}) }));
+  // the loop levels of the last frame (QA: `qa/sound-offline.mjs` renders them through the master chain)
+  ctx.qa.expose('sound', () => ({ hum: sound.hum, turbine: sound.turbine, turbinePitch: sound.turbinePitch, steam: sound.steam, water: sound.water, fire: sound.fire, wind: sound.wind }));
   // triangle budget per top-level group of the world and per step set (QA: `__app.read('cost')`)
   ctx.qa.expose('cost', () => Object.fromEntries([...world.children, ...stageRoot.children].map((o) => [o.name || o.type, triangles(o)])));
 

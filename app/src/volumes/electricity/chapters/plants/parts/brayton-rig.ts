@@ -28,6 +28,8 @@ export interface BraytonRig {
   toCompressor: Flow;
   toGenerator: Flow;
   shimmer: ReturnType<typeof createHeatShimmer>;
+  /** The open-cycle exhaust stack (hidden while the heat-recovery boiler takes the exhaust). */
+  openStack: Group;
   at: Record<'compressor' | 'combustor' | 'turbine' | 'exhaust' | 'generator', Vector3>;
   length: number;
 }
@@ -38,7 +40,9 @@ export function createBraytonRig(ctx: ChapterContext): BraytonRig {
   const group = new Group();
   group.name = 'brayton-rig';
   const gt = gasTurbine({ axisHeight: BR_AXIS });
-  gt.setOpen(1);
+  // cutaway: the upper casing is taken away entirely (lifted, it floated over the machine and hid the board)
+  gt.setOpen(0);
+  gt.part('casingTop').visible = false;
   const L = gt.length;
   const x0 = -L / 2;
   gt.group.position.x = x0;
@@ -53,7 +57,8 @@ export function createBraytonRig(ctx: ChapterContext): BraytonRig {
   const ex = at.exhaust.x;
   const air = createFlow(ctx, { kind: 'blob', color: 'sky', paths: path([[x0 - 1.5, ax + 3, 3], [x0 + 0.3, ax, 0.6], [at.combustor.x - 0.6, ax, 0.6]]), count: 60, radius: 0.18, speed: 5, spread: 0.9 });
   const hot = createFlow(ctx, { kind: 'blob', color: 'orange', paths: path([[at.combustor.x, ax, 0.6], [at.turbine.x, ax, 0.7], [ex + 0.5, ax, 0.6], [ex + 4, ax + 0.4, 0.6]]), count: 60, radius: 0.24, speed: 7, spread: 0.9 });
-  const exhaust = createFlow(ctx, { kind: 'blob', color: 'orange', paths: path([[ex + 4, ax + 0.4, 0.6], [ex + 7, ax + 3, 0.6], [ex + 8, ax + 9, 0.6]]), count: 40, radius: 0.32, speed: 4, spread: 1 });
+  // open cycle: the exhaust goes up a short stack and leaves as a calm warm haze (shimmer on top)
+  const exhaust = createFlow(ctx, { kind: 'blob', color: col('orange').lerp(col('mist'), 0.45), paths: path([[ex + 3.6, ax + 0.3, 0.4], [ex + 5.4, ax + 1.2, 0], [ex + 5.6, 8.4, 0], [ex + 5.8, 12.5, 0]]), count: 26, radius: 0.24, speed: 3, spread: 0.5, halo: false });
   const cooled = createFlow(ctx, { kind: 'blob', color: col('steel').lerp(col('blue'), 0.35), paths: path([[ex + 4, ax + 0.4, 0.6], [ex + 6.5, ax + 0.8, 0.6], [ex + 8.5, ax + 3, 0.6], [ex + 9, ax + 12, 0.6]]), count: 40, radius: 0.3, speed: 4, spread: 0.8 });
   const toCompressor = createFlow(ctx, { kind: 'pulse', color: 'yellow', paths: path([[at.turbine.x, ax + 1.4, 1.8], [at.combustor.x, ax + 2, 1.8], [at.compressor.x, ax + 1.4, 1.8]]), count: 30, radius: 0.2, speed: 4, spread: 0.05 });
   const toGenerator = createFlow(ctx, { kind: 'pulse', color: 'yellow', paths: path([[at.compressor.x - 1, ax + 1.2, 1.6], [x0 - 1, ax + 1.6, 1.6], [x0 - 3.5, ax + 1.4, 1]]), count: 20, radius: 0.2, speed: 4, spread: 0.05 });
@@ -65,9 +70,15 @@ export function createBraytonRig(ctx: ChapterContext): BraytonRig {
     return f;
   });
   void flames;
-  const shimmer = createHeatShimmer({ width: 2.6, height: 6 });
-  shimmer.position.set(ex + 8, ax + 6, 0.6);
+  const shimmer = createHeatShimmer({ width: 2, height: 3.5 });
+  shimmer.position.set(ex + 5.6, 10.4, 0);
   group.add(shimmer);
+  const sb = new Builder('open-stack');
+  sb.cyl(1.1, 8.6, { at: [ex + 5.6, 0, 0], seg: 24, c: ['steel.dark', 'steel'], slot: 'matte' });
+  sb.ring(1.12, 0.1, { axis: 'y', at: [ex + 5.6, 7.6, 0], seg: 24, tubeSeg: 6, c: 'coral', slot: 'gloss' });
+  sb.box(5.2, 2.6, 2.6, { r: 0.3, at: [ex + 2.9, ax - 1.3, 0], c: col('steel').lerp(col('orange'), 0.2), slot: 'glass' });
+  const openStack = sb.build().group;
+  group.add(openStack);
   // heat-recovery boiler + stack + a small Rankine loop behind it
   const hrsg = new Group();
   hrsg.name = 'hrsg';
@@ -76,11 +87,11 @@ export function createBraytonRig(ctx: ChapterContext): BraytonRig {
   b.cyl(0.9, 14, { at: [ex + 9, 0, -1], seg: 24, c: ['steel', 'white'], slot: 'matte' });
   b.box(4, 2.6, 2.6, { r: 0.3, at: [ex + 4.6, ax - 1.3, 0], c: 'steel', slot: 'matte' });
   hrsg.add(b.build().group);
-  const mini = createRankineRig(ctx, 0.5);
-  mini.group.scale.setScalar(0.42);
-  mini.group.position.set(ex + 15.5, 0, -2);
+  const mini = createRankineRig(ctx, 0.5, false);
+  mini.group.scale.setScalar(0.4);
+  mini.group.position.set(ex + 12.5, 0, -5);
   mini.vent.visible = false;
   hrsg.add(mini.group);
   group.add(hrsg);
-  return { group, gt, gen, hrsg, mini, air, hot, exhaust, cooled, toCompressor, toGenerator, shimmer, at, length: L };
+  return { group, gt, gen, hrsg, mini, air, hot, exhaust, cooled, toCompressor, toGenerator, shimmer, openStack, at, length: L };
 }

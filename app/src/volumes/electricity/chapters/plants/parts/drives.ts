@@ -6,6 +6,7 @@
  */
 import { Group } from 'three';
 import { Builder, G, gasTurbine, steamTurbine, turbogenerator, type GasTurbine, type KitModel, type SteamTurbine, type Turbogenerator } from '@/kit';
+import { plainRotor } from './plain-rotor';
 
 export const AXIS = 3.2;
 export type DriveId = 'steam' | 'gas' | 'water' | 'wind';
@@ -61,6 +62,7 @@ function windRotor(): KitModel {
 
 export function createDriveRig(): DriveRig {
   const generator = turbogenerator({ cut: 2.0 });
+  plainRotor(generator.part('rotor'));
   const steam = steamTurbine({ sections: ['hp', 'lp'] });
   const gas = gasTurbine({ axisHeight: AXIS });
   const water = waterWheel();
