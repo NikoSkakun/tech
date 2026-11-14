@@ -48,9 +48,21 @@ describe('generator-ac labels', () => {
     expect(splitAll(doc('synchronous-generator', 5))).toHaveLength(4);
   });
 
-  it('every step has the hotspots the scene binds by index', () => {
-    const bound: Record<string, number> = { 'rotating-loop': 2, 'ac-anatomy': 2, 'war-of-currents': 3, 'three-phase': 3, 'star-delta': 2, 'rotating-field': 3, 'synchronous-generator': 5, synchronization: 3, rlc: 3, 'ac-power': 3, 'to-transformer': 1 };
-    for (const s of raw.steps) expect(s.hotspots?.length ?? 0).toBe(bound[s.id]);
+  it('every hotspot the scene binds by content id exists in its step', () => {
+    const bound: Record<string, string[]> = {
+      'rotating-loop': ['loop-normal', 'phasor-trace'],
+      'ac-anatomy': ['rms-line', 'frequency-map'],
+      'war-of-currents': ['pole-transformer', 'edison-dynamo', 'hvdc-cable'],
+      'three-phase': ['coil-l1', 'neutral-ammeter', 'phasor-triangle'],
+      'star-delta': ['line-voltage-vector', 'terminal-box'],
+      'rotating-field': ['cage-bars', 'slip-indicator', 'stator'],
+      'synchronous-generator': ['stator-bars', 'rotor', 'hydrogen-cooler', 'voltage-regulator', 'hydro-poles'],
+      synchronization: ['synchroscope', 'sync-lamps', 'field-springs'],
+      rlc: ['inductor', 'capacitor', 'resonance-peak'],
+      'ac-power': ['meter', 'capacitor-bank', 'power-triangle'],
+      'to-transformer': ['core'],
+    };
+    for (const s of raw.steps) expect((s.hotspots ?? []).map((h: { id?: string }) => h.id)).toEqual(bound[s.id]);
   });
 
   it('own labels are plain Ukrainian text', () => {

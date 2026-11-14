@@ -18,7 +18,7 @@ import { OWN } from '../labels-own';
 import { createDial, createHoloScope, dialRadius } from '../parts/holo-scope';
 import { createSyncConsole } from '../parts/sync-console';
 import { createTurboGen } from '../parts/turbo-gen';
-import { PHASE, group, roomy, tag } from '../world';
+import { PHASE, group, narrow, roomy, tag } from '../world';
 
 const ID = 'synchronization';
 const SLOW = 50;
@@ -233,9 +233,9 @@ export const synchronization: StepFactory = (hall) => {
         { anchor: () => desk.panel.localToWorld(mid.set(1.4, -0.2, 0.1)), text: OWN.synchroDesk, side: 'right', visible: () => roomy(hall) },
       ],
       hotspots: [
-        { anchor: () => desk.panel.localToWorld(mid.copy(desk.scopeCentre).add(new Vector3(0.35, -0.2, 0.1))), content: 0 },
-        { anchor: () => desk.panel.localToWorld(mid.copy(desk.lampPoint).add(new Vector3(0.5, 0, 0))), content: 1 },
-        { anchor: () => spring.localToWorld(mid.set(0.4, 0.5, 0.1)), content: 2, visible: () => st.phase !== 'sync' },
+        { anchor: () => desk.panel.localToWorld(mid.copy(desk.scopeCentre).add(new Vector3(0.35, -0.2, 0.1))), content: 'synchroscope' },
+        { anchor: () => desk.panel.localToWorld(mid.copy(desk.lampPoint).add(new Vector3(0.5, 0, 0))), content: 'sync-lamps' },
+        { anchor: () => spring.localToWorld(mid.set(0.4, 0.5, 0.1)), content: 'field-springs', visible: () => st.phase !== 'sync' },
       ],
     },
     probe: () => ({
@@ -287,6 +287,8 @@ export const synchronization: StepFactory = (hall) => {
       desk.meters[3]!.setNeedle(0.5);
       meterTags[2]!.text = fmtUnit(50, 'Hz', { digits: 2 });
       meterTags[3]!.text = fmtUnit(24, 'kV', { digits: 1 });
+      // phone portrait: the four values cannot sit side by side — keep the frequencies (what the operator matches)
+      meterTags[1]!.visible = meterTags[3]!.visible = !narrow(hall);
 
       // stage 2: the swing of the rotor against the grid (real time)
       if (st.phase === 'online') {

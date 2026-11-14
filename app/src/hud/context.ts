@@ -53,8 +53,20 @@ export interface HudContext {
 }
 
 /** A HUD region: owns a node, reacts to chapter / step / resize. All hooks are optional. */
-export interface HudModule {
+export interface HudModule extends RegionHooks {
   readonly node: UiNode;
+}
+
+/**
+ * A region of the DOM interface (`@/hud-dom`, docs/HUD_DOM.md §6): an element placed in one of the layers of
+ * `#kd-hud`; `Hud.mountDom` measures its layout box for the camera insets like a WebGL region's node.
+ */
+export interface DomModule extends RegionHooks {
+  readonly el: HTMLElement;
+}
+
+/** Hooks of a region, whichever renderer draws it. */
+export interface RegionHooks {
   /** The chapter on screen belongs to another volume than before (fires before `onChapter`). */
   onVolume?(volume: VolumeManifest): void;
   /** A new chapter is on screen (content may still be null; `onContent` follows). */

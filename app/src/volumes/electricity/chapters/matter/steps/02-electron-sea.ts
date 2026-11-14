@@ -32,7 +32,12 @@ const FOLLOW_S = 6;
 /** The hall floats above the podium so that the view inside it shows only crystal. */
 const HALL_Y = HERO_Y + 1.6;
 const EYE = new Vector3(1.55, 0.12, 1.6);
-const ORIGIN = new Vector3();
+/** Where the marked electron is looked for (hall-local): the middle of the shot, a little in front of target. */
+const FOCUS = new Vector3(-0.6, -0.1, -0.55);
+const VIEW = new Vector3(-0.55, -0.12, -0.5).sub(EYE).normalize();
+/** Seconds the marked electron may be out of view before the mark moves on. */
+const LOST_S = 0.35;
+const PICK = new Vector3();
 
 export const seaStep: StepFactory = (lab) => {
   const { ctx, ui } = lab;
@@ -42,7 +47,7 @@ export const seaStep: StepFactory = (lab) => {
   const hall = createElectronHall(ctx, gas);
   hall.eye.copy(EYE);
   const halo = createHalo({ color: 'yellow', size: 0.9, intensity: 2.2 });
-  const trail = new RibbonLines({ capacity: 400, color: 'yellow', width: 0.05, intensity: 1.6 });
+  const trail = new RibbonLines({ capacity: 400, color: 'yellow', width: 0.075, intensity: 2.2 });
   // cross-section of the transfer counter: a thin amber frame across the window (plane x = const)
   const fb = new Builder('section');
   for (const [y, z, w, d] of [
@@ -60,16 +65,18 @@ export const seaStep: StepFactory = (lab) => {
     });
   const section = fb.build().group;
   const arrows = new Group();
+  // field arrows: a row across the top of the frame («зверху з'являються стрілки поля»); the drift arrow
+  // below them points the other way — direction of E and of the drift read at a glance
   const fieldArrows = [-1, 0, 1].map((k) => {
-    const ar = createVectorArrow({ color: SEMANTIC.fieldE });
-    ar.position.set(-1.9 + 0.3 * k, 0.75 + 0.3 * k, -0.6 - 0.7 * k);
-    ar.scale.setScalar(0.4);
+    const ar = createVectorArrow({ color: SEMANTIC.fieldE, intensity: 1.6 });
+    ar.position.set(-2.2, 1.45 + 0.12 * k, -0.9 - 0.8 * k);
+    ar.scale.setScalar(0.7);
     arrows.add(ar);
     return ar;
   });
-  const driftArrow = createVectorArrow({ color: SEMANTIC.electron });
-  driftArrow.position.set(0.2, -0.6, -1.1);
-  driftArrow.scale.setScalar(0.4);
+  const driftArrow = createVectorArrow({ color: SEMANTIC.electron, intensity: 1.6 });
+  driftArrow.position.set(-0.6, -1.15, -0.9);
+  driftArrow.scale.setScalar(0.7);
   arrows.add(driftArrow);
   set.add(hall.group, halo, trail, section, arrows);
   ctx.stage.actor(arrows);
@@ -79,6 +86,7 @@ export const seaStep: StepFactory = (lab) => {
   const tempC = (): number => ui.value<number>('T2');
   const drift = (): ReturnType<typeof driftVelocity> => driftVelocity(field(), tempC());
   let follow = 0; // seconds left of the drone ride
+  let lost = 0; // seconds the marked electron has been out of view
   let transfer = 0;
   let scatterRate = 0;
   const hero = new Vector3(); // unwrapped position of the highlighted electron, nm
@@ -89,6 +97,7 @@ export const seaStep: StepFactory = (lab) => {
 
   const resetView = (): void => {
     hall.centre.set(FOLD_NM / 2, FOLD_NM / 2, FOLD_NM / 2);
+    pickHero();
     const p = gas.positions;
     hero.set(p[3 * hall.hero]!, p[3 * hall.hero + 1]!, p[3 * hall.hero + 2]!);
     prev.copy(hero);
@@ -114,6 +123,11 @@ export const seaStep: StepFactory = (lab) => {
     ndc.copy(world).project(ctx.camera.camera);
     return ndc.z < 1 && Math.abs(ndc.x) < 0.8 && Math.abs(ndc.y) < 0.8;
   };
+  // the marked electron: the free part of the shot (left of the panel, above the step navigator)
+  const inShot = (world: Vector3): boolean => {
+    ndc.copy(world).project(ctx.camera.camera);
+    return ndc.z < 1 && ndc.x > -0.85 && ndc.x < 0.35 && ndc.y > -0.6 && ndc.y < 0.75;
+  };
   const flashShown = new Vector3(-0.6, 0.1, -0.9);
   const w = new Vector3();
   ctx.qa.probe('section2', section);
@@ -126,6 +140,8 @@ export const seaStep: StepFactory = (lab) => {
     follow,
     centre: hall.centre.toArray(),
     tauFs: scatteringTimeS(tempC()) * 1e15,
+    hero: hall.hero,
+    heroAt: halo.getWorldPosition(new Vector3()).toArray(),
   }));
 
   return {
@@ -215,6 +231,13 @@ export const seaStep: StepFactory = (lab) => {
           side: 'up',
           visible: () => field() > 0,
         },
+        {
+          anchor: () => driftArrow.getWorldPosition(v),
+          text: L.sea.driftArrow,
+          color: 'cyan',
+          side: 'down',
+          visible: () => field() > 0,
+        },
       ],
       hotspots: [
         { anchor: () => set.localToWorld(v.copy(flashShown)), content: 'scattering-flash' },
@@ -231,17 +254,49 @@ export const seaStep: StepFactory = (lab) => {
       hall.update(t);
       if (onScreen(set.localToWorld(v.copy(hall.lastFlash)))) flashShown.copy(hall.lastFlash);
       hall.electronAt(hall.hero, v);
+      lost = inShot(set.localToWorld(w.copy(v))) ? 0 : lost + dt;
+      if (lost > LOST_S && follow <= 0) {
+        lost = 0;
+        pickHero();
+        hall.electronAt(hall.hero, v);
+      }
       halo.position.copy(v);
       updateTrail(v);
       section.position.x = sectionX();
       const e = field();
-      for (const ar of fieldArrows) ar.set(ORIGIN, w.set(1.5 + 3 * e, 0, 0));
-      driftArrow.set(ORIGIN, w.set(-(0.8 + 2.2 * e), 0, 0));
+      for (const ar of fieldArrows) ar.set(ar.position, w.set(1.1 + 1.4 * e, 0, 0)); // set() also places the origin
+      driftArrow.set(driftArrow.position, w.set(-(0.6 + 1.6 * e), 0, 0));
       lab.live.crackle = 0.6;
       lab.live.crackleRate = Math.min(scatterRate / 120, 1);
       lab.live.buzz = e > 0 ? 0.3 + 0.5 * e : 0;
     },
   };
+
+  /**
+   * The marked electron flies ~50 units straight between collisions and leaves the 6-unit window every ~1,4 s,
+   * so the mark is handed over once it has been out of view for a moment: to the electron about to fly through the
+   * middle of the shot, across the screen (its trail then draws a long readable streak).
+   */
+  function pickHero(): void {
+    const dir = gas.directions;
+    let best = hall.hero;
+    let score = Infinity;
+    for (let i = 0; i < ELECTRON_GAS.count; i++) {
+      hall.electronAt(i, PICK);
+      const along = Math.abs(dir[3 * i]! * VIEW.x + dir[3 * i + 1]! * VIEW.y + dir[3 * i + 2]! * VIEW.z);
+      // upstream of the focus: it is about to fly through the middle of the shot, not out of it
+      PICK.x += 1.2 * dir[3 * i]!;
+      PICK.y += 1.2 * dir[3 * i + 1]!;
+      PICK.z += 1.2 * dir[3 * i + 2]!;
+      const s = PICK.distanceTo(FOCUS) + 2.5 * along;
+      if (s < score) [best, score] = [i, s];
+    }
+    hall.setHero(best);
+    const p = gas.positions;
+    hero.set(p[3 * best]!, p[3 * best + 1]!, p[3 * best + 2]!);
+    prev.copy(hero);
+    history.length = 0;
+  }
 
   function sectionX(): number {
     const c = hall.centre.x;
@@ -288,7 +343,7 @@ export const seaStep: StepFactory = (lab) => {
   /** The long trail: the unwrapped path of the electron, hung behind its current display position. */
   function updateTrail(at: Vector3): void {
     history.push(hero.clone());
-    if (history.length > 150) history.shift();
+    if (history.length > 260) history.shift();
     const pts = history.map((h) => h.clone().sub(hero).multiplyScalar(UNITS_PER_NM).add(at));
     trailLines[0] = { points: pts };
     trail.setLines(trailLines);

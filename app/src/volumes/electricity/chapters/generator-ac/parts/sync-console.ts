@@ -87,7 +87,8 @@ export function createSyncConsole(): SyncConsole {
     panel.add(m.group);
     return m;
   });
-  const meterTags = xs.map((x) => new Vector3(x, -0.5, 0.1));
+  // value tags under the meters; Hz and kV alternate in height so neighbours never touch at 720p
+  const meterTags = xs.map((x, i) => new Vector3(x, i % 2 ? -0.62 : -0.47, 0.1));
   // breaker key below the synchroscope
   const key = new Group();
   key.position.set(0, -0.48, 0.06);

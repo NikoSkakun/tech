@@ -22,9 +22,12 @@ import { PHASE, group, roomy, tag } from '../world';
 const ID = 'three-phase';
 const I_MAX = THREE_PHASE.loadRangeA.max;
 const SLOW = 50;
-const LX = [-0.1, 1.25, 2.6];
-const LZ = 1.95;
-const STATOR_AT = new Vector3(-2.2, 0, -0.1);
+const LX = [0.9, 2.1, 3.3];
+const LZ = 1.3;
+const STATOR_AT = new Vector3(-2.0, 0, 0.0);
+const MACHINE_SCALE = 1.35;
+/** Outer radius of the stator in the set. */
+const RIM = 1.62 * MACHINE_SCALE;
 const P_FULL = 3 * THREE_PHASE.phaseV * I_MAX; // 11 kW: top of the p(t) strip
 
 export const threePhaseStep: StepFactory = (hall) => {
@@ -35,7 +38,7 @@ export const threePhaseStep: StepFactory = (hall) => {
   const stator = createStator(1);
   const rotor = createMagnetRotor(1.5);
   machine.add(stator.group, rotor);
-  machine.scale.setScalar(1.25);
+  machine.scale.setScalar(MACHINE_SCALE);
   set.add(machine);
   const shake = createVibration(machine, { amplitude: 0.035, frequency: 2, reducedMotion: ctx.reducedMotion });
 
@@ -46,41 +49,44 @@ export const threePhaseStep: StepFactory = (hall) => {
     set.add(b.group);
     return b;
   });
-  const term = (k: number): Vector3 => new Vector3(STATOR_AT.x + 0.6 + k * 0.28, 0.3, STATOR_AT.z + 1.85);
   const wire = (pts: Vector3[], color: string): Wire => {
     const w = createWire(pts, { radius: 0.045, color, repeat: 1.4, speed: 1.0 });
     set.add(w);
     return w;
   };
-  const phaseWires = [0, 1, 2].map((k) => {
-    const zk = LZ + 0.45 + k * 0.13;
-    return wire([term(k), new Vector3(term(k).x, 0.3, zk), new Vector3(LX[k]! - 0.12, 0.3, zk), new Vector3(LX[k]! - 0.12, 0.3, LZ + 0.05)], PHASE[k]!);
-  });
-  const starPoint = new Vector3(STATOR_AT.x + 0.9, 0.3, STATOR_AT.z + 1.35);
-  const bus = 1.1;
+  // phase wires leave the stator's right side on three parallel tracks behind the lamps; the track nearest the
+  // lamps serves the nearest lamp, so no wire crosses another
+  const track = (k: number): number => LZ - 0.5 - k * 0.14;
+  const phaseWires = [0, 1, 2].map((k) =>
+    wire([new Vector3(STATOR_AT.x + RIM - 0.2, 0.3, track(k)), new Vector3(LX[k]! - 0.12, 0.3, track(k)), new Vector3(LX[k]! - 0.12, 0.3, LZ - 0.05)], PHASE[k]!),
+  );
+  // returns: one neutral bus in front of the lamps back to the star point at the stator's front
+  const starPoint = polar(RIM - 0.2, -0.9, 0.3).add(STATOR_AT);
+  const bus = LZ + 0.55;
   const neutralParts = [
-    ...LX.map((x) => wire([new Vector3(x, 0.3, LZ - 0.05), new Vector3(x, 0.3, bus)], 'blue')),
-    wire([new Vector3(3.5, 0.3, bus), new Vector3(starPoint.x, 0.3, bus), starPoint], 'blue'),
+    ...LX.map((x) => wire([new Vector3(x + 0.12, 0.3, LZ + 0.05), new Vector3(x + 0.12, 0.3, bus)], 'blue')),
+    wire([new Vector3(LX[2]! + 0.12, 0.3, bus), new Vector3(starPoint.x + 0.25, 0.3, bus), starPoint], 'blue'),
   ];
   const neutral = group('neutral', 0, 0, 0, neutralParts);
   set.add(neutral);
-  // «Шість дротів?»: three separate returns, one per lamp, back to the machine
+  // «Шість дротів?»: three separate returns, one per lamp, back to the machine (nearest lamp = innermost track)
   const sixReturns = group('returns', 0, 0, 0, LX.map((x, k) => {
-    const z = bus - 0.25 - k * 0.16;
-    const w = createWire([new Vector3(x + 0.12, 0.3, LZ - 0.05), new Vector3(x + 0.12, 0.3, z), new Vector3(starPoint.x - 0.1 * k, 0.3, z), new Vector3(starPoint.x - 0.1 * k, 0.3, STATOR_AT.z + 1.2)], { radius: 0.04, color: PHASE[k]!, repeat: 1.4, speed: -1.0 });
-    return w;
+    const z = bus - 0.12 + k * 0.15;
+    const end = polar(RIM - 0.2, -0.9 + 0.12 * k, 0.3).add(STATOR_AT);
+    return createWire([new Vector3(x + 0.12, 0.3, LZ + 0.05), new Vector3(x + 0.12, 0.3, z), new Vector3(end.x + 0.25, 0.3, z), end], { radius: 0.04, color: PHASE[k]!, repeat: 1.4, speed: -1.0 });
   }));
   set.add(sixReturns);
   ctx.stage.actor(sixReturns);
   const meter = createMeter({ ring: 'blue', size: 0.36, post: 0.55 });
-  meter.group.position.set(3.55, 0, bus + 0.05);
-  meter.group.rotation.y = -0.35;
+  // the ammeter sits in the neutral bus between the machine and the first lamp (in view, beside its wire)
+  meter.group.position.set(0.1, 0, bus + 0.12);
+  meter.group.rotation.y = 0.15;
   const inTag = tag('', 20, 'blue', 'mono');
   inTag.position.copy(meter.label).add(meter.group.position);
   set.add(meter.group, inTag);
   const coilTags = PHASE.map((c, k) => {
     const t = tag(`L${k + 1}`, 20, c);
-    t.position.copy(polar(2.05, stator.angles[k]!, BORE_Y + 0.55)).add(STATOR_AT);
+    t.position.copy(polar(RIM + 0.3, stator.angles[k]! + 0.25, (BORE_Y + 0.35) * MACHINE_SCALE)).add(STATOR_AT);
     set.add(t);
     return t;
   });
@@ -88,8 +94,8 @@ export const threePhaseStep: StepFactory = (hall) => {
 
   // the holographic rig behind: Σ plate, dial, scope, p(t)
   const rig = createPhasorRig({ sum: true, power: true });
-  rig.group.position.set(-0.5, 4.75, -3.4);
-  rig.group.rotation.y = 0.04;
+  rig.group.position.set(-1.25, 3.75, -2.7);
+  rig.group.scale.setScalar(0.82);
   set.add(rig.group);
   rig.scope.rangeTag.text = `±${fmtUnit(I_MAX * Math.SQRT2, 'A', { digits: 0 })}`;
   rig.scope.timeTag.text = `${OWN.window} 40 ms`;
@@ -141,7 +147,7 @@ export const threePhaseStep: StepFactory = (hall) => {
   return {
     id: ID,
     shots: {
-      [ID]: { position: [1.4, 5.4, 11.0], target: [0.0, 2.35, -0.6], fov: 34, fit: { center: [0, 2.4, -0.6], radius: 5.8 } },
+      [ID]: { position: [0.4, 5.2, 9.4], target: [-0.1, 1.9, -0.4], fov: 34, fit: { center: [-0.1, 1.9, -0.4], radius: 5.0 } },
     },
     stage: { show: [set, neutral], enter: () => reseed() },
     ui: {
@@ -192,9 +198,9 @@ export const threePhaseStep: StepFactory = (hall) => {
         { anchor: () => set.localToWorld(mid.set(0.4, 0.35, bus)), text: OWN.neutralWire, side: 'down', color: 'blue', visible: () => !noNeutral() && roomy(hall) },
       ],
       hotspots: [
-        { anchor: () => machine.localToWorld(polar(1.1, stator.angles[0]!, BORE_Y + 0.35, mid)), content: 0 },
-        { anchor: () => meter.group.localToWorld(mid.copy(meter.face)), content: 1 },
-        { anchor: () => rig.sumCentre(mid), content: 2 },
+        { anchor: () => machine.localToWorld(polar(1.1, stator.angles[0]!, BORE_Y + 0.35, mid)), content: 'coil-l1' },
+        { anchor: () => meter.group.localToWorld(mid.copy(meter.face)), content: 'neutral-ammeter' },
+        { anchor: () => rig.sumPlate!.localToWorld(mid.set(0.85, -0.85, 0.08)), content: 'phasor-triangle' },
       ],
     },
     probe: () => {

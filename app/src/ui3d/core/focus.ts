@@ -22,6 +22,11 @@ type Provider = () => Focusable[];
 
 class FocusManager {
   current: Focusable | null = null;
+  /**
+   * DOM interface (`?hud=dom`, docs/HUD_DOM.md §3): Tab belongs to the browser, which walks the DOM controls.
+   * The focus ring here is then limited to world surfaces holding the pointer's last click; Tab leaves them.
+   */
+  browserTab = false;
   private readonly providers = new Set<Provider>();
 
   provide(fn: Provider): Unsubscribe {
@@ -54,6 +59,10 @@ class FocusManager {
     if (e.ctrlKey || e.metaKey || e.altKey) return false;
     if (this.current && !this.current.interactive) this.set(null);
     if (e.code === 'Tab') {
+      if (this.browserTab) {
+        this.set(null);
+        return false;
+      }
       const all: Focusable[] = [];
       for (const p of this.providers) all.push(...p());
       if (all.length === 0) return false;

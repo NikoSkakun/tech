@@ -17,6 +17,9 @@ const D = 1.1;
 const CARRIERS = 34;
 const ION_COLS = 13;
 const ION_ROWS = 4;
+/** How far each bar starts from its place before the bars slide together, units; and the slide time, s. */
+const SPLIT = 1.1;
+const JOIN_S = 1.3;
 
 export interface PnBlock {
   group: Group;
@@ -28,6 +31,9 @@ export interface PnBlock {
   flow: number;
   ionAnchor: Vector3;
   hillTop: Vector3;
+  /** 0 = the p and n bars stand apart, 1 = joined (script: the bars slide together). Eases toward `joinTo`. */
+  join: number;
+  joinTo: number;
   update(dt: number, t: number): void;
 }
 
@@ -41,6 +47,7 @@ function tile(color: 'coral.dark' | 'cyan.dark', plus: boolean): Builder {
 
 export function createPnBlock(ctx: ChapterContext): PnBlock {
   const group = new Group();
+  const bars: Mesh[] = [];
   for (const [x, color] of [
     [-BAR / 2, 'pink'],
     [BAR / 2, 'teal'],
@@ -52,6 +59,7 @@ export function createPnBlock(ctx: ChapterContext): PnBlock {
     bar.position.x = x;
     bar.renderOrder = 2;
     group.add(bar);
+    bars.push(bar);
   }
   // metal contacts at both ends
   const cb = new Builder('contacts');
@@ -63,7 +71,8 @@ export function createPnBlock(ctx: ChapterContext): PnBlock {
       at: [s * (BAR + 0.07), 0, 0],
       mid: true,
     });
-  group.add(cb.build().group);
+  const contacts = cb.build().group;
+  group.add(contacts);
   const ionGeo = (c: 'coral.dark' | 'cyan.dark', plus: boolean) => tile(c, plus).geometry('toon');
   const n = ION_COLS * ION_ROWS;
   const minus = new InstancedMesh(ionGeo('cyan.dark', false), K.toon({ vertexColors: true }), n);
@@ -98,6 +107,7 @@ export function createPnBlock(ctx: ChapterContext): PnBlock {
   let acc = 0;
   const tmpA = new Vector3();
   const tmpB = new Vector3();
+  let wasJoined = true;
   const block: PnBlock = {
     group,
     width: 1,
@@ -105,7 +115,15 @@ export function createPnBlock(ctx: ChapterContext): PnBlock {
     flow: 0,
     ionAnchor: new Vector3(),
     hillTop: new Vector3(),
+    join: 1,
+    joinTo: 1,
     update(dt, t) {
+      // the bars slide together; the junction (ions, carriers, field, hill) appears once they touch
+      block.join +=
+        Math.sign(block.joinTo - block.join) * Math.min(dt / JOIN_S, Math.abs(block.joinTo - block.join));
+      const apart = SPLIT * (1 - block.join * block.join * (3 - 2 * block.join));
+      bars[0]!.position.x = -BAR / 2 - apart;
+      bars[1]!.position.x = BAR / 2 + apart;
       const w = block.width;
       // fixed ions: a grid over both bars, shown only inside the depletion region
       for (let c = 0; c < ION_COLS; c++)
@@ -177,6 +195,11 @@ export function createPnBlock(ctx: ChapterContext): PnBlock {
       hill.setLines([{ points: hillPts }]);
       block.hillTop.set(-BAR * 0.6, top + hgt, 0);
       flash.intensity = 2 + Math.sin(t * 9);
+      // last: the arrows' set() above re-shows them; nothing but the bars is visible until they touch
+      const joined = block.join > 0.98;
+      for (const c of group.children) if (!bars.includes(c as Mesh)) c.visible = joined && c.visible;
+      if (joined && !wasJoined) for (const c of group.children) c.visible = true;
+      wasJoined = joined;
     },
   };
   return block;

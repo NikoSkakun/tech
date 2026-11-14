@@ -17,7 +17,7 @@ import { docLabel } from '../content';
 import { DOC, L } from '../labels';
 import { createCircuit } from '../parts/circuit';
 import { BAR, createPnBlock } from '../parts/pn-block';
-import { HERO_Y } from '../world';
+import { HERO_Y, narrow, roomy } from '../world';
 
 const ID = 'pn-junction';
 /** Drawn depletion width per μm (not to scale: the real one is a fraction of a micrometre). */
@@ -59,7 +59,7 @@ export const pnStep: StepFactory = (lab) => {
   const at = (local: Vector3): Vector3 => block.group.localToWorld(v.copy(local));
   ctx.qa.probe('block8', block.group);
   ctx.qa.probe('lamp8', () => set.localToWorld(v.copy(circuit.lampAt)));
-  ctx.qa.expose(ID, () => ({ ...state(), flipped, width: block.width }));
+  ctx.qa.expose(ID, () => ({ ...state(), flipped, width: block.width, join: block.join }));
 
   return {
     id: ID,
@@ -75,7 +75,9 @@ export const pnStep: StepFactory = (lab) => {
     },
     stage: {
       show: [block.group, circuit.group],
-      enter() {
+      enter(info) {
+        // script: coming from doping, the p and n bars slide together into the junction
+        block.join = !info.instant && info.from === 'doping' && !ctx.reducedMotion ? 0 : 1;
         flipped = false;
         block.group.rotation.y = 0;
       },
@@ -162,6 +164,8 @@ export const pnStep: StepFactory = (lab) => {
         },
         {
           anchor: () => at(block.hillTop),
+          // on a phone the three top labels collide: the barrier value is in the dock
+          visible: () => block.join > 0.98 && !narrow(lab),
           text: () => `${L.pn.hill} ${fmtUnit(state().barrierV, 'V', { digits: 2 })}`,
           color: 'sky',
           side: 'up',
@@ -170,8 +174,15 @@ export const pnStep: StepFactory = (lab) => {
           anchor: () => set.localToWorld(v.copy(circuit.source)),
           text: () => `U_s = ${fmtUnit(us(), 'V', { digits: 2 })}`,
           side: 'down',
+          // secondary (the dock shows U_s too): only in a roomy window
+          visible: () => roomy(lab),
         },
-        { anchor: () => set.localToWorld(v.copy(circuit.resistor)), text: L.pn.resistor, side: 'down' },
+        {
+          anchor: () => set.localToWorld(v.copy(circuit.resistor)),
+          text: L.pn.resistor,
+          side: 'down',
+          visible: () => roomy(lab),
+        },
       ],
       hotspots: [
         { anchor: () => at(block.ionAnchor), content: 'fixed-ions' },

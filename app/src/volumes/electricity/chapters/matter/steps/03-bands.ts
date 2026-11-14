@@ -24,11 +24,29 @@ import { cap, docLabel, splitItems } from '../content';
 import { DOC, L } from '../labels';
 import { createBandTower, towerY } from '../parts/band-tower';
 import { createMaterialCrystal } from '../parts/material-crystal';
-import { HERO_Y } from '../world';
+import { HERO_Y, narrow } from '../world';
 
 const ID = 'bands';
 const IDS: BandMaterialId[] = ['Cu', 'Ge', 'Si', 'GaAs', 'diamond', 'SiO2'];
 const COUNT_LABELS = ['1', '2', '4', '16', '10²³'];
+
+/**
+ * The shot follows the height of the tower: copper is one low band, the semiconductors add a conduction band
+ * just above it, diamond and glass push it high — each framed so the tower stays the largest thing on screen.
+ */
+const SHOT = { semi: `${ID}-semi`, wide: `${ID}-wide` } as const;
+const regime = (m: BandMaterialId): string =>
+  BAND_MATERIALS[m].metal ? ID : BAND_MATERIALS[m].bandGapEv < 3 ? SHOT.semi : SHOT.wide;
+function shot(y: number, radius: number) {
+  const k = radius / 3.6;
+  return {
+    position: [0.15 + 0.65 * k, y + 1.0 * k, 13.4 * k] as [number, number, number],
+    target: [-0.5, y, 0] as [number, number, number],
+    fov: 32,
+    orbit: { azimuth: 0.7, polar: 0.3 },
+    fit: { center: [-0.5, y, 0] as [number, number, number], radius },
+  };
+}
 
 /** Plain notation for 0,01…1000, scientific outside. */
 function fmtRel(x: number): string {
@@ -42,7 +60,9 @@ export const bandsStep: StepFactory = (lab) => {
   const set = group(`set:${ID}`);
   lab.stand.add(set);
   const crystal = createMaterialCrystal(() => ctx.random.next());
-  crystal.group.position.set(-2.55, HERO_Y + 0.1, 0.4);
+  // the crystal is the companion: beside the valence band, close to the tower (the tower is the hero)
+  crystal.group.position.set(-2.25, HERO_Y - 0.75, 0.4);
+  crystal.group.scale.setScalar(0.85);
   const tower = createBandTower();
   tower.group.position.set(0.95, 0.1, 0);
   set.add(crystal.group, tower.group);
@@ -53,6 +73,7 @@ export const bandsStep: StepFactory = (lab) => {
   const ni = (): ReturnType<typeof intrinsicCarrierDensity> => intrinsicCarrierDensity(material(), kelvin());
   const rate = (): number => (BAND_MATERIALS[material()].metal ? 0 : hopRatePerS(ni().perCm3));
   let shown = '';
+  let framed: string = ID; // shot in use
   let acc = 0.5;
   const sync = (): void => {
     const key = `${material()}:${atoms()}`;
@@ -60,9 +81,20 @@ export const bandsStep: StepFactory = (lab) => {
     shown = key;
     tower.setTarget(bandTower(material(), atoms()), BAND_MATERIALS[material()].metal);
     crystal.setMaterial(material());
+    const r = regime(material());
+    if (r !== framed && lab.isCurrent(ID)) ctx.camera.go(r, { duration: 1.4 });
+    framed = r;
   };
   ui.onChange('mat3', () => audio.play('click'));
-  ui.onChange('N3', () => audio.play('tick', { pitch: 0.8 + 0.1 * ui.value<number>('N3') }));
+  let birth = false; // the entry animation is driving N (`set` without notify does not reach onChange)
+  const own = (k: number): void => {
+    ui.set('N3', k);
+    if (k === ATOM_COUNTS.length - 1) birth = false;
+  };
+  ui.onChange('N3', () => {
+    birth = false;
+    audio.play('tick', { pitch: 0.8 + 0.1 * ui.value<number>('N3') });
+  });
 
   const v = new Vector3();
   const at = (local: Vector3): Vector3 => tower.group.localToWorld(v.copy(local));
@@ -80,23 +112,19 @@ export const bandsStep: StepFactory = (lab) => {
 
   return {
     id: ID,
-    shots: {
-      [ID]: {
-        position: [0.2, 4.0, 13.4],
-        target: [-0.45, 3.0, 0],
-        fov: 32,
-        orbit: { azimuth: 0.7, polar: 0.3 },
-        fit: { center: [-0.45, 3.0, 0], radius: 3.6 },
-      },
-    },
+    shots: { [ID]: shot(1.85, 2.45), [SHOT.semi]: shot(2.35, 3.1), [SHOT.wide]: shot(3.55, 3.95) },
     stage: {
       show: [crystal.group, tower.group],
       enter(info) {
         shown = '';
-        if (info.instant) return;
-        // the birth of the bands: 1 → 2 → 4 → 16 → 10²³ atoms
-        ui.set('N3', 0);
-        for (let k = 1; k < ATOM_COUNTS.length; k++) info.scope.delay(0.9 + 1.1 * k, () => ui.set('N3', k));
+        framed = regime(material());
+        if (framed !== ID) ctx.camera.go(framed, { duration: info.instant ? 0 : 1.6 });
+        // the birth of the bands: 1 → 2 → 4 → 16 → 10²³ atoms — on every entry (next/back, map, deep link,
+        // chapter entry); only reduced motion opens merged. Touching the slider hands control to the learner.
+        if (ctx.reducedMotion) return;
+        birth = true;
+        own(0);
+        for (let k = 1; k < ATOM_COUNTS.length; k++) info.scope.delay(0.4 + 0.55 * k, () => birth && own(k)); // merged at 2,6 s
       },
     },
     ui: {
@@ -174,11 +202,12 @@ export const bandsStep: StepFactory = (lab) => {
           side: 'right',
           visible: () => !BAND_MATERIALS[material()].metal && tower.merged > 0.5,
         },
-        { anchor: () => at(new Vector3(-1.37, 6.2, 0)), text: L.bands.axis, side: 'left' },
+        { anchor: () => at(tower.axisTop), text: L.bands.axis, side: 'left' },
         {
-          anchor: () => crystal.group.getWorldPosition(v).add(new Vector3(0, 1.6, 0)),
+          anchor: () => crystal.group.getWorldPosition(v).add(new Vector3(-0.85, 0.75, 0)),
           text: () => splitItems(DOC.bandMaterials)[IDS.indexOf(material())]!,
-          side: 'up',
+          side: 'left',
+          visible: () => !narrow(lab), // on a phone the dock names the substance; the axis label keeps the corner
         },
       ],
       hotspots: [

@@ -1,103 +1,59 @@
 /**
- * `@/hud-dom` — the interface as DOM over the canvas (DECISIONS §59, design in docs/HUD_DOM.md).
+ * `@/hud-dom` — the interface as 2D HTML/CSS over the canvas (DECISIONS §59, design in docs/HUD_DOM.md).
  *
- * SPIKE (D0): with `?hud=dom` the header, the step panel and the step navigator are DOM; everything else is
- * still the WebGL HUD. The WebGL header and step panel stay in the layout but are transparent (the column and
- * the board are placed relative to them), the WebGL navigator is hidden. Each DOM region is a `HudModule`
- * whose node is an invisible phantom of its box, so the shell reports camera insets from the DOM boxes.
+ * Loaded by the HUD plugin under `?hud=dom` (`flags.hud`, default `DEFAULT_HUD`). Hybrid until the cut-over
+ * (D9): each area below mounts the regions it has ported and claims them; every other region is still drawn by
+ * the WebGL HUD. The core (`core/`) owns the layer root, tokens, fonts, icons, rich text, motion, region
+ * insets and the `__ui` DOM backend; every area owns one directory, so the packages D2–D7 never share files.
  */
-import type { HudMetrics } from '@/engine/api';
 import type { Hud } from '@/hud/shell';
-import type { UiNode } from '@/ui3d';
-import { h, setClass, setStyle } from './dom';
-import { loadWebFonts } from './fonts';
-import { createDomHeader } from './header';
-import { createDomNavigator } from './navigator';
-import { DomRegion, nodeRect } from './region';
-import { createDomStepPanel } from './step-panel';
-import { applyAccent, applyTokens } from './tokens';
-import './hud.css';
+import { setUiDomBackend } from '@/hud/debug';
+import { uiFocus } from '@/ui3d';
+import { mount as annotations } from './annotations';
+import { mount as board } from './board';
+import { mount as charts } from './charts';
+import { mount as chrome } from './chrome';
+import type { DomHud, WebglParts } from './core/context';
+import { loadWebFonts } from './core/fonts';
+import { initMotion } from './core/motion';
+import { domBackend } from './core/qa';
+import { createDomHud } from './core/regions';
+import { mount as custom } from './custom';
+import { mount as dock } from './dock';
+import { mount as map } from './map';
+import { mount as overlays } from './overlays';
+import { mount as step } from './step';
+import { mount as touch } from './touch';
+import './core/base.css';
 
-export interface WebglParts {
-  readonly header: UiNode;
-  readonly navigator: UiNode;
-}
+export type { DomHud, DomLayer, RegionName, RegionOptions, WebglParts } from './core/context';
 
-function findNode(root: UiNode, name: string): UiNode | undefined {
-  let hit: UiNode | undefined;
-  root.walk((n) => {
-    if (!hit && n.name === name) hit = n;
-  });
-  return hit;
-}
+/** Areas in mount order (the order of their regions in each layer = document and Tab order). */
+const AREAS: readonly ((dom: DomHud) => void)[] = [
+  step,
+  chrome,
+  dock,
+  board,
+  charts,
+  custom,
+  annotations,
+  overlays,
+  map,
+  touch,
+];
 
-export function mountDomHud(hud: Hud, webgl: WebglParts): void {
-  const root = h('div.kd-root', { id: 'kd-hud', lang: 'uk', 'data-hud': 'dom' });
-  applyTokens(root);
-  root.hidden = true; // until the web fonts are in: no flash of fallback text
-  document.getElementById('app')?.after(root);
-  void loadWebFonts().then(() => (root.hidden = false));
-
-  const header = createDomHeader(hud);
-  const panel = createDomStepPanel(hud);
-  const navigator = createDomNavigator(hud);
-  root.append(header.el, panel.el, navigator.el);
-  webgl.header.opacity = 0;
-  webgl.navigator.visible = false;
-
-  const headerRegion = new DomRegion(hud, header.el);
-  const navRegion = new DomRegion(hud, navigator.el);
-  let metrics: HudMetrics = hud.metrics;
-  let gl: UiNode | undefined;
-  const place = (m: HudMetrics): void => {
-    metrics = m;
-    const k = m.pxPerUnit;
-    setStyle(root, '--u', `${k}px`);
-    setStyle(root, '--safe', `${m.safeMargin * k}px`);
-    setClass(root, 'wide', m.layout === 'wide');
-    // centred in the area the step panel leaves free on wide screens (as hud/navigator.ts)
-    const shift = m.layout === 'wide' ? -(hud.engine.hud.insetFractions().right * m.cssWidth) / 2 : 0;
-    setStyle(navigator.el, '--shift', `${shift.toFixed(1)}px`);
-    headerRegion.sync();
-    navRegion.sync();
-  };
-
-  hud.mount(
-    {
-      node: headerRegion.node,
-      onChapter: (m) => {
-        applyAccent(root, m.theme.accent);
-        header.onChapter(m);
-        panel.onChapter(m);
-        navigator.onChapter(m);
-      },
-      onContent: (c) => panel.onContent(c),
-      onStep: (id, instant) => {
-        panel.onStep(id, instant);
-        navigator.sync();
-      },
-      onLayout: place,
-      update: () => {
-        // the chrome's reveal / conceal (transitions, full-screen views) drives the DOM layer too
-        const o = hud.chrome.visible ? hud.chrome.opacity : 0;
-        setStyle(root, 'opacity', o.toFixed(3));
-        setClass(root, 'inert', o < 0.5);
-        // spike: the DOM panel takes the box of the transparent WebGL panel (the WebGL dock stays under it)
-        gl ??= findNode(hud.surface.root, 'step-panel');
-        if (gl) {
-          gl.opacity = 0;
-          const r = nodeRect(hud, gl);
-          setStyle(panel.el, 'left', `${r.x.toFixed(1)}px`);
-          setStyle(panel.el, 'top', `${r.y.toFixed(1)}px`);
-          setStyle(panel.el, 'width', `${r.w.toFixed(1)}px`);
-          setStyle(panel.el, 'max-height', `${r.h.toFixed(1)}px`);
-          setClass(panel.el, 'off', !gl.visible);
-          panel.syncBadges(gl.children[2]);
-        }
-        if (metrics.cssWidth !== hud.metrics.cssWidth) place(hud.metrics);
-      },
-    },
-    { side: 'top', extra: 8 },
-  );
-  hud.mount({ node: navRegion.node }, { side: 'bottom', extra: 8 });
+/** Mount the DOM interface over the canvas (once). */
+export function mountDomHud(hud: Hud, webgl: WebglParts): DomHud {
+  const dom = createDomHud(hud, webgl);
+  initMotion(hud.engine, hud.host.tweens);
+  // Tab walks the DOM controls (the browser's focus order); world surfaces keep focus only after a click
+  uiFocus.browserTab = true;
+  // no flash of fallback text: the layer shows once the first-screen faces are in (`__app.settled` waits too)
+  dom.root.hidden = true;
+  void loadWebFonts()
+    .catch((e: unknown) => console.warn('hud-dom: web fonts did not load', e))
+    .then(() => (dom.root.hidden = false));
+  setUiDomBackend(domBackend(hud, dom.root));
+  for (const area of AREAS) area(dom);
+  return dom;
 }

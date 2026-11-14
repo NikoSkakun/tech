@@ -22,7 +22,7 @@ export {
   type StepManifest,
   type Viewport,
 } from './chapter';
-export type { Engine, EnginePlugin, FrameStats, UrlFlags } from './app';
+export type { Engine, EnginePlugin, FrameStats, HudRenderer, UrlFlags } from './app';
 export type {
   CameraDirector,
   FocusOptions,

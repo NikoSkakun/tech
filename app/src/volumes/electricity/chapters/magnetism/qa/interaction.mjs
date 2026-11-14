@@ -129,6 +129,9 @@ const steps = {
     await clickUi('ctl-t2', { fn: () => window.__ui.set('t2', 900, true) }, 0.97, 0.72, 20);
     s = await read('domains');
     check(s.aboveCurie && near(s.magnetization, 0, 0.01), `above the Curie point M = 0 (T ${s.temperatureC})`);
+    check(s.heatFocus, 'heating brings the burner and thermometer in (heat shot)');
+    await set('h2', 10, 10);
+    check(!(await read('domains')).heatFocus, 'touching H brings the magnifier back');
     await noOffscreen('domains');
   },
   oersted: async () => {
@@ -176,6 +179,8 @@ const steps = {
     await seg('part5', 'b', 60);
     await set('i5', 5, 150);
     check(near((await read('lorentz')).betaDeg, 37.4, 1), `5 A → β ≈ 37° (got ${(await read('lorentz')).betaDeg})`);
+    s = await read('lorentz');
+    check(s.drawnDeg > 15 && s.drawnDeg < 20, `the drawn swing stays inside the gap (≤ 19,3°; got ${s.drawnDeg})`);
     await toggle('flip5', 150);
     check((await read('lorentz')).betaDeg < -30, 'magnet turned over → the swing goes the other way');
     await noOffscreen('lorentz');
@@ -228,6 +233,7 @@ const steps = {
     check((await read('lenz')).distances[2] > 0, 'clicking a magnet releases it');
     await press('all8', 60);
     let s = await read('lenz');
+    check(s.eddyVisible[0] && s.eddyVisible[1], 'eddy rings ride with the magnets in the aluminium and copper windows');
     check(near(s.times[0], 0.452, 0.01) && Number.isNaN(s.times[2] ?? NaN) === false ? true : near(s.times[0], 0.452, 0.01), `PVC: 0,45 s (got ${s.times[0]})`);
     check(near(s.transit[1], 4.24, 0.03) && near(s.transit[2], 6.68, 0.03), 'Al 4,24 s, Cu 6,68 s');
     await toggle('slot8', 10);
@@ -277,10 +283,13 @@ const steps = {
     await seg('eq10', '3', 30);
     check((await read('maxwell')).eq === 3, 'equation 4 illustration');
     await seg('view10', 'wave', 90);
+    check((await read('maxwell')).riding, 'the wave view opens with the camera riding beside the wave');
     check((await read('maxwell')).band === 'visible', 'default 5×10¹⁴ Hz is visible light');
     await set('f10', 1e8, 10);
     let s = await read('maxwell');
     check(s.band === 'radio' && near(s.wavelengthM, 3, 0.01), `100 MHz → radio, 3 m (got ${s.wavelengthM})`);
+    await frames(330);
+    check(!(await read('maxwell')).riding, 'the ride ends in the wave overview');
     await seg('view10', 'energy', 90);
     await set('u10', 24, 5);
     await set('r10', 1, 5);
@@ -315,7 +324,9 @@ const steps = {
     await page.mouse.up();
     s = await read('to-generator');
     check(Math.abs(s.speedRpm) > 5, `cranking turns the frame (got ${s.speedRpm} rpm)`);
-    await press('next11', 90);
+    await press('next11', 40);
+    check((await read('to-generator'))?.morph > 0.3, 'the bridge grows the model into the generator silhouette');
+    await frames(50);
     const pos = await page.evaluate(() => window.__app.position());
     check(['magnetism', 'generator-ac'].includes(pos.chapterId), 'the bridge leaves the app in a valid place');
     await noOffscreen('to-generator');

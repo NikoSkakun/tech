@@ -1,20 +1,35 @@
 /**
- * QA hook `window.__ui` (inert unless called; used by `tools/qa/ui-check.mjs`): locate named UI nodes in CSS
- * pixels, read control values, list interactive nodes with their hit sizes, toggle the HUD for cost measurements.
+ * QA hook `window.__ui` (inert unless called; used by `tools/qa/ui-check.mjs`, chapter-check and chapter tests):
+ * locate named UI elements in CSS pixels, read control values, list interactive targets with their hit sizes,
+ * toggle the HUD for cost measurements. A facade over two backends (docs/HUD_DOM.md §12): the DOM interface
+ * (`@/hud-dom`, registered with `setUiDomBackend` under `?hud=dom`) answers first, the WebGL HUD
+ * (`debug-gl.ts`) for everything the DOM does not draw — so a half-ported interface answers every name.
  */
 import { Vector3 } from 'three';
-import { onUiSound, uiPointer, uiSurfaces, type UiNode } from '@/ui3d';
+import { onUiSound, uiSurfaces, type UiNode } from '@/ui3d';
 import type { OverlayName } from './context';
+import { glBackend } from './debug-gl';
+import {
+  CHROME_REGIONS,
+  type ChromeRegion,
+  type OffscreenNode,
+  type UiBackend,
+  type UiBox,
+  type UiOverlap,
+  type UiTextSize,
+} from './debug-types';
 import type { SheetSnap } from './touch/geometry';
 import type { SheetTab } from './touch/sheet';
 import type { JourneyMap } from './map/map';
 import type { Hud } from './shell';
 import { bindingOf, notifyChange, specOf } from './step-ui';
 
+export type { OffscreenNode, UiBackend, UiBox, UiOverlap, UiTextSize, ChromeRegion } from './debug-types';
+
 export interface UiDebug {
-  /** Centre and size (CSS px) of the first visible node with this name, or null. */
-  locate(name: string): { x: number; y: number; w: number; h: number } | null;
-  /** Names of all visible named nodes. */
+  /** Centre and size (CSS px) of the first visible element / node with this name, or null. */
+  locate(name: string): UiBox | null;
+  /** Names of all visible named elements / nodes. */
   names(): string[];
   overlay(): string | null;
   /** Open / close a full-screen view or modal (`library`, `map`, `home`, `glossary`, `settings`, `help`). */
@@ -23,12 +38,16 @@ export interface UiDebug {
   /** Value of a step control of the chapter on screen; `reading-level` = the reading level in effect. */
   value(id: string): number | boolean | string | undefined;
   /**
-   * Interactive nodes whose pointer target is smaller than 44 px-eq in either direction. With `minCssPx` (F5,
-   * touch profiles) the size is judged in real CSS px instead, as the pointer sees it on this device.
+   * Interactive targets smaller than 44 px-eq in either direction. With `minCssPx` (F5, touch profiles) the
+   * size is judged in real CSS px instead, as the pointer sees it on this device.
    */
   smallTargets(minCssPx?: number): string[];
   /** Visible text drawn smaller than `minCssPx` (default 14) real CSS px: `"<node>: <px> «text»"` (F5). */
   smallText(minCssPx?: number): string[];
+  /** Every visible piece of interface text: size in HUD units (px-eq) and real CSS px (D1). */
+  textSizes(): UiTextSize[];
+  /** Pairs of chrome regions (header, spine, system, column, board, navigator, sheet) whose boxes intersect. */
+  overlaps(): UiOverlap[];
   /**
    * Controls the step on screen declares (`stepUi`): id, type and where they live (F5; `mobile-check` picks a
    * slider and a button to operate by touch from this list).
@@ -50,7 +69,7 @@ export interface UiDebug {
   /** Show / hide everything the HUD draws (cost measurements). */
   setVisible(on: boolean): void;
   /**
-   * Interactive nodes on screen whose hit target leaves the viewport (or, with `clipped`, is cut by a scroll
+   * Interactive targets on screen whose hit target leaves the viewport (or, with `clipped`, is cut by a scroll
    * view it lives in). Empty = every control is reachable. Boxes in CSS px (centre + size).
    */
   offscreen(opts?: { clipped?: boolean; partial?: boolean; margin?: number }): OffscreenNode[];
@@ -60,48 +79,36 @@ export interface UiDebug {
   set(id: string, value: number | boolean | string, notify?: boolean): void;
 }
 
-export interface OffscreenNode {
-  name: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  reason: 'viewport' | 'clipped';
-}
-
 declare global {
   interface Window {
     __ui?: UiDebug;
   }
 }
 
+let dom: (UiBackend & { setVisible(on: boolean): void }) | null = null;
+
+/** The DOM interface registers its backend here when it mounts (`@/hud-dom`); null removes it. */
+export function setUiDomBackend(backend: (UiBackend & { setVisible(on: boolean): void }) | null): void {
+  dom = backend;
+}
+
+/** WebGL nodes of the chrome regions (for `overlaps`), supplied by the HUD plugin. */
+export type ChromeNodes = () => Partial<Record<ChromeRegion, UiNode | null>>;
+
 const _v = new Vector3();
 const _w = new Vector3();
 
-export function installUiDebug(hud: Hud, map: () => JourneyMap | null): void {
-  const toCss = (x: number, y: number, z: number): { x: number; y: number } => {
-    const m = hud.metrics;
-    _v.set(x, y, z).applyMatrix4(hud.surface.matrixWorld).project(hud.engine.hud.camera);
-    return { x: (_v.x * 0.5 + 0.5) * m.cssWidth, y: (0.5 - _v.y * 0.5) * m.cssHeight };
-  };
-  /** Drawn right now: a hidden ancestor (a closed overlay keeps its nodes) hides the node whatever it cached. */
-  const shown = (n: UiNode): boolean => {
-    if (n.slot < 0 || n.worldOpacity <= 0.5) return false;
-    for (let p: UiNode | null = n; p; p = p.parent) if (!p.visible) return false;
-    return true;
-  };
-  /** CSS box of a node (centre + size), from its world matrix. */
-  const box = (n: UiNode, hit = 0): { x: number; y: number; w: number; h: number } => {
-    const w = n.world;
-    const c = toCss(w[3]!, w[7]!, w[11]!);
-    const k = hud.metrics.pxPerUnit;
-    return {
-      x: c.x,
-      y: c.y,
-      w: Math.max(n.bw, hit) * Math.abs(w[0]!) * k,
-      h: Math.max(n.bh, hit) * Math.abs(w[5]!) * k,
-    };
-  };
+/** Intersection of two centre + size boxes (null when they only touch or are apart). */
+function intersect(a: UiBox, b: UiBox): { w: number; h: number } | null {
+  const w = Math.min(a.x + a.w / 2, b.x + b.w / 2) - Math.max(a.x - a.w / 2, b.x - b.w / 2);
+  const h = Math.min(a.y + a.h / 2, b.y + b.h / 2) - Math.max(a.y - a.h / 2, b.y - b.h / 2);
+  return w > 0.5 && h > 0.5 ? { w, h } : null;
+}
+
+export function installUiDebug(hud: Hud, map: () => JourneyMap | null, chrome: ChromeNodes = () => ({})): void {
+  const gl = glBackend(hud, chrome);
+  /** DOM first, WebGL for what the DOM does not draw; lists merge both. */
+  const both = <T>(fn: (b: UiBackend) => T[]): T[] => [...(dom ? fn(dom) : []), ...fn(gl)];
   const binding = () => {
     const s = hud.engine.store.get();
     return s.chapterId ? bindingOf(`${s.volumeId}/${s.chapterId}`) : undefined;
@@ -149,63 +156,27 @@ export function installUiDebug(hud: Hud, map: () => JourneyMap | null): void {
       }
       return out;
     },
-    locate(name) {
-      let hit: UiNode | null = null;
-      hud.surface.root.walk((n) => {
-        if (!hit && n.name === name && shown(n)) hit = n;
-      });
-      if (!hit) return null;
-      const n = hit as UiNode;
-      const w = n.world;
-      const c = toCss(w[3]!, w[7]!, w[11]!);
-      const k = hud.metrics.pxPerUnit;
-      return { x: c.x, y: c.y, w: n.bw * Math.abs(w[0]!) * k, h: n.bh * Math.abs(w[5]!) * k };
-    },
-    names() {
-      const out: string[] = [];
-      hud.surface.root.walk((n) => {
-        if (n.name && shown(n)) out.push(n.name);
-      });
-      return out;
-    },
+    locate: (name) => dom?.locate(name) ?? gl.locate(name),
+    names: () => [...new Set(both((b) => b.names()))],
     overlay: () => hud.overlay,
     open: (name, arg) => hud.open(name, arg),
     close: () => void hud.close(),
     value: (id) => (id === 'reading-level' ? hud.engine.readingLevel() : binding()?.values.get(id)),
-    smallTargets(minCssPx) {
-      const out: string[] = [];
-      const k = hud.metrics.pxPerUnit;
-      hud.surface.root.walk((n) => {
-        if (
-          !n.handlers?.click ||
-          !shown(n) ||
-          !n.interactive ||
-          (n as { clickable?: boolean }).clickable === false
-        )
-          return;
-        // the same rule as the pick test (`UiSurface.hitTest`): the kit minimum, raised on touch devices
-        const min = n.minHit > 0 && uiPointer.minHitPx > 0 ? Math.max(n.minHit, uiPointer.minHitPx / k) : n.minHit;
-        let w = Math.max(n.bw, min);
-        let h = Math.max(n.bh, min);
-        let limit = 43.5;
-        if (minCssPx !== undefined) {
-          w *= Math.abs(n.world[0]!) * k;
-          h *= Math.abs(n.world[5]!) * k;
-          limit = minCssPx - 0.5;
+    smallTargets: (minCssPx) => both((b) => b.smallTargets(minCssPx)),
+    smallText: (minCssPx = 14) => both((b) => b.smallText(minCssPx)),
+    textSizes: () => both((b) => b.textSizes()),
+    overlaps() {
+      const boxes: [ChromeRegion, UiBox][] = [];
+      for (const name of CHROME_REGIONS) {
+        const box = dom?.region(name) ?? gl.region(name);
+        if (box) boxes.push([name, box]);
+      }
+      const out: UiOverlap[] = [];
+      boxes.forEach(([a, ba], i) => {
+        for (const [b, bb] of boxes.slice(i + 1)) {
+          const cut = intersect(ba, bb);
+          if (cut) out.push({ a, b, ...cut });
         }
-        if (w < limit || h < limit)
-          out.push(`${n.constructor.name}:${n.name || '?'} ${w.toFixed(0)}x${h.toFixed(0)}`);
-      });
-      return out;
-    },
-    smallText(minCssPx = 14) {
-      const out: string[] = [];
-      const k = hud.metrics.pxPerUnit;
-      hud.surface.root.walk((n) => {
-        const label = n as UiNode & { style?: { size?: number }; text?: unknown };
-        if (typeof label.text !== 'string' || label.text === '' || !label.style || !shown(n)) return;
-        const px = (label.style.size ?? 19) * Math.abs(n.world[5]!) * k;
-        if (px < minCssPx - 0.05) out.push(`${n.name || n.parent?.name || '?'}: ${px.toFixed(1)} «${label.text.slice(0, 24)}»`);
       });
       return out;
     },
@@ -213,7 +184,7 @@ export function installUiDebug(hud: Hud, map: () => JourneyMap | null): void {
       const s = hud.touch.sheet;
       if (!s || hud.metrics.shell === 'desk') return null;
       const tabs: SheetTab[] = ['text'];
-      if (hud.surface.root && window.__ui?.locate('sheet-tabs:controls')) tabs.push('controls');
+      if (window.__ui?.locate('sheet-tabs:controls')) tabs.push('controls');
       if (window.__ui?.locate('sheet-tabs:board')) tabs.push('board');
       return { shell: hud.metrics.shell, snap: s.snap, tab: s.tab, tabs };
     },
@@ -234,45 +205,9 @@ export function installUiDebug(hud: Hud, map: () => JourneyMap | null): void {
     },
     setVisible(on) {
       hud.surface.visible = on;
+      dom?.setVisible(on);
     },
-    offscreen(opts = {}) {
-      const m = hud.metrics;
-      const margin = opts.margin ?? 0;
-      const out: OffscreenNode[] = [];
-      const visit = (n: UiNode, clips: UiNode[], owner: string): void => {
-        if (!n.visible) return;
-        const inner = n.clip ? [...clips, n] : clips;
-        const target =
-          n.interactive && !!n.handlers?.click && (n as { clickable?: boolean }).clickable !== false;
-        if (target && shown(n) && !(n as { disabled?: boolean }).disabled) {
-          // judge the part of the box its scroll views leave visible: scrolled out of a scroll view is not
-          // off-screen (the user scrolls to it), but a visible part outside the viewport is
-          const b = box(n);
-          // a slider's track or a tab segment reports the named control it belongs to
-          const name = n.name || (owner ? `${owner}>${n.constructor.name}` : `${n.constructor.name}?`);
-          let y0 = b.y - b.h / 2;
-          let y1 = b.y + b.h / 2;
-          for (const c of clips) {
-            const cb = box(c);
-            y0 = Math.max(y0, cb.y - cb.h / 2);
-            y1 = Math.min(y1, cb.y + cb.h / 2);
-          }
-          // `partial`: a target cut by its scroll view counts as clipped too (a tap at its centre may miss it)
-          if (y1 - y0 < (opts.partial ? b.h - 1 : 1)) {
-            if (opts.clipped) out.push({ name, ...b, reason: 'clipped' });
-          } else if (
-            b.x - b.w / 2 < -margin ||
-            b.x + b.w / 2 > m.cssWidth + margin ||
-            y0 < -margin ||
-            y1 > m.cssHeight + margin
-          )
-            out.push({ name, ...b, reason: 'viewport' });
-        }
-        for (const ch of n.children) visit(ch, inner, n.name || owner);
-      };
-      visit(hud.surface.root, [], '');
-      return out;
-    },
+    offscreen: (opts = {}) => both((b) => b.offscreen(opts)),
     press(id) {
       const b = binding();
       const spec = b ? specOf(b, id) : undefined;

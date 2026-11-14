@@ -15,7 +15,7 @@ import { doc } from '../labels';
 import { OWN } from '../labels-own';
 import { createHoloScope } from '../parts/holo-scope';
 import { createTurboGen } from '../parts/turbo-gen';
-import { COPPER, PHASE, group, roomy, tag } from '../world';
+import { COPPER, PHASE, group, narrow, roomy, tag } from '../world';
 
 const ID = 'to-transformer';
 const TARGET = 'electricity/transformer/mutual-induction';
@@ -137,10 +137,12 @@ export const toTransformer: StepFactory = (hall) => {
       ],
       callouts: [
         { anchor: () => machine.localToWorld(mid.set(0, 1.6, 0)), text: OWN.ourGenerator, side: 'up', visible: () => roomy(hall) },
-        { anchor: () => coilP.localToWorld(mid.set(-0.45, 0.3, 0)), text: OWN.primaryCoil, side: 'left', color: 'coral' },
-        { anchor: () => coilS.localToWorld(mid.set(0.55, 0.3, 0)), text: OWN.secondaryCoil, side: 'right', color: 'sky' },
+        // both labels go down to the free floor, beside the lower turns (at 720p the space above is the scope's
+        // and the right of the secondary is the dock's)
+        { anchor: () => coilP.localToWorld(mid.set(-0.45, -0.4, 0)), text: OWN.primaryCoil, side: 'left', color: 'coral', visible: () => !narrow(hall) },
+        { anchor: () => coilS.localToWorld(mid.set(0.5, -0.45, 0)), text: OWN.secondaryCoil, side: 'down', color: 'sky', visible: () => !narrow(hall) },
       ],
-      hotspots: [{ anchor: () => yokeT.localToWorld(mid.set(0, 0.22, 0.26)), content: 0 }],
+      hotspots: [{ anchor: () => yokeT.localToWorld(mid.set(0, 0.22, 0.26)), content: 'core' }],
     },
     probe: () => ({ k: ratio(), turns: turns.count, secondaryAmp: Math.max(...Array.from(bufS)), primaryAmp: Math.max(...Array.from(bufP)) }),
     update(dt) {

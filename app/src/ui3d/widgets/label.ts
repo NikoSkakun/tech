@@ -2,12 +2,11 @@
  * Label — a block of SDF text in the UI tree (rich mini-markup of `@/text`: **term**, _emphasis_,
  * `formula`, x^2, {token:colour}). Formula spans get a darker inset behind them (STYLE_GUIDE §6).
  */
-import { fontData, layoutText, type LayoutResult, type FaceId, type TextAlign } from '@/text';
+import { fontData, layoutRuns, richRuns, type LayoutResult, type FaceId, type TextAlign } from '@/text';
 import type { ColorLike } from '@/style';
 import { UiNode, type NodeProps } from '../core/node';
 import { rgba, type Painter } from '../core/painter';
 import { accentOf, TEXT_COLOR, UI } from '../theme';
-import { mathMarkup } from './math';
 
 export interface LabelStyle {
   font?: FaceId;
@@ -87,13 +86,9 @@ export class Label extends UiNode {
     const key = `${this.content}\u0001${wrap ?? ''}\u0001${this.fontSize}`;
     if (this.layout && key === this.layoutKey) return this.layout;
     this.layoutKey = key;
-    // short formulas stay on one line: their inner spaces must not become break points
-    const text =
-      (s.rich ?? true)
-        ? mathMarkup(this.content).replace(/`[^`\n]{1,28}`/g, (m) => m.replace(/ /g, '\u00a0'))
-        : this.content;
-    this.layout = layoutText(
-      text,
+    // one pipeline with the DOM interface (`richRuns` of `@/text`): short formulas stay on one line
+    this.layout = layoutRuns(
+      richRuns(this.content, s.rich ?? true),
       {
         font: s.font ?? 'body',
         size: this.fontSize,

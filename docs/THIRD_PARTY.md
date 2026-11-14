@@ -16,11 +16,15 @@ Versions are pinned exactly in `app/package.json`.
 | JetBrains Mono Medium | `@expo-google-fonts/jetbrains-mono` 0.4.1 | SIL OFL 1.1 — © 2020 The JetBrains Mono Project Authors | mono / formula face (`mono.png`) | `app/public/fonts/` |
 | Noto Sans Math Regular | `@expo-google-fonts/noto-sans-math` 0.4.2 | SIL OFL 1.1 — © 2022 The Noto Project Authors | fallback glyphs: arrows, math operators | `app/public/fonts/` |
 | Noto Sans Symbols 2 Regular | `@expo-google-fonts/noto-sans-symbols-2` 0.4.1 | SIL OFL 1.1 — © 2022 The Noto Project Authors | fallback glyphs: shapes, dingbats | `app/public/fonts/` |
+| Web fonts of the DOM interface: Nunito ExtraBold, Fira Sans Regular / **Italic** / Medium / SemiBold / Bold, JetBrains Mono Medium, Noto Sans Math, Noto Sans Symbols 2 | same packages and versions as above (Fira Sans Italic: `@expo-google-fonts/fira-sans` 0.4.1, `400Regular_Italic`) | SIL OFL 1.1 — same copyright lines as above; the `name` table with the copyright and licence is kept in every file | DOM interface text (`?hud=dom`, docs/HUD_DOM.md §5), private family names «K Display / K Body / K Mono / K Symbols» | `app/public/fonts/web/*.woff2` |
 
 The font files themselves are not shipped. `app/scripts/build-fonts.mjs` (`pnpm fonts`) rasterises the needed
 glyphs into signed-distance-field atlases (`app/public/fonts/*.png` + `fonts.json`); the OFL texts are shipped
-next to them in `app/public/fonts/licenses/`. The `@expo-google-fonts/*` packages (MIT packaging, OFL fonts)
-are build-time dependencies only.
+next to them in `app/public/fonts/licenses/`. The DOM interface ships the fonts themselves, subset to the same
+charset (`app/scripts/charset.mjs`) as WOFF2 by `app/scripts/build-webfonts.mjs` (`pnpm webfonts`); glyphs no
+font has (ᴬ ᵢ ₓ ⎓ …) are composed from the font's own glyphs, as in the atlases — a Modified Version under OFL
+§3/§5, distributed under the OFL with the original names kept (no Reserved Font Name is declared by these
+fonts). The `@expo-google-fonts/*` packages (MIT packaging, OFL fonts) are build-time dependencies only.
 
 ## Development / build / QA tooling (not shipped)
 
@@ -34,6 +38,7 @@ are build-time dependencies only.
 | playwright-core | 1.65.0 | Apache-2.0 | QA automation (drives the system Google Chrome; no bundled browser) |
 | fontkit | 3.0.0 | MIT | font parsing + kerning (shaping) in the atlas builder |
 | pngjs | 7.0.0 | MIT | PNG encoding in the atlas builder |
+| fontTools (Python, + brotli) | ≥ 4.40 (lenovo: 4.46.0) | MIT (brotli: MIT) | subsetting + WOFF2 of the web fonts (`app/scripts/build-webfonts.py`); system package, not in `package.json` |
 | `@types/three`, `@types/node` | 0.187.0 / 24.9.2 | MIT | typings |
 
 ## Algorithms implemented from publications (own code, no third-party source copied)

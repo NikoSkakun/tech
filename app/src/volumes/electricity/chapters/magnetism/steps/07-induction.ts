@@ -158,8 +158,8 @@ export const inductionStep: StepFactory = (bench) => {
     id: ID,
     shots: {
       [ID]: {
-        position: [0.9, 3.7, 6.6],
-        target: [0.15, 2.05, 0.1],
+        position: [0.9, 3.9, 6.8],
+        target: [0.15, 2.2, 0.1],
         fov: 34,
         frameAspect: 1.15,
         orbit: { azimuth: 0.6, polar: 0.3 },
@@ -234,16 +234,17 @@ export const inductionStep: StepFactory = (bench) => {
       ],
       callouts: [
         {
-          anchor: () => (coilMode() ? coilHolder : magnet).getWorldPosition(v).setX(v.x - 0.55),
+          // right of the drag axis, just under the magnet: on the left the label hid under the board at 720p
+          anchor: () => (coilMode() ? coilHolder : magnet).getWorldPosition(v).setX(v.x + 0.3).setY(v.y - 0.45),
           text: OWN.dragUpDown,
           color: 'cyan',
-          side: 'left',
+          side: 'right',
           visible: () => !st.dragging && !sim.state.autoDropping && Math.abs(sim.state.emfV) < 0.02,
         },
       ],
       hotspots: [
-        { anchor: galvo.face, content: 0 },
-        { anchor: () => coilHolder.getWorldPosition(v).setX(v.x + A * 0.5).setY(v.y + 0.02), content: 1 },
+        { anchor: galvo.face, content: 'galvanometer' },
+        { anchor: () => coilHolder.getWorldPosition(v).setX(v.x + A * 0.5).setY(v.y + 0.02), content: 'flux-disc' },
         { anchor: () => ledModel.group.getWorldPosition(v).setY(v.y + 0.35), content: 'led' },
       ],
     },

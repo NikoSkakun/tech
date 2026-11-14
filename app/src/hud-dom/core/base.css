@@ -1,0 +1,337 @@
+/* DOM interface core (docs/HUD_DOM.md §3, §5) — tokens come from tokens.ts (--c-*, --t-*, --r-*, --dur-*,
+   --ease-*; --u = CSS px per HUD unit). Every length is "units × --u", the same px-equivalent scale the WebGL
+   HUD uses (STYLE_GUIDE §6). Area CSS lives with its area (step/step.css, …). Flat 2D only: no perspective,
+   no rotateX/Y, no non-zero z (DECISIONS §59 p). */
+
+.kd-root {
+  --display: 'K Display', 'K Display Fallback', 'K Symbols', 'K Symbols 2', sans-serif;
+  --body: 'K Body', 'K Symbols', 'K Symbols 2', sans-serif;
+  --mono: 'K Mono', 'K Body', 'K Symbols', 'K Symbols 2', monospace;
+  --accent: var(--c-cyan);
+  --accent-rgb: var(--c-cyan-rgb);
+  position: fixed;
+  inset: 0;
+  z-index: 5; /* over #app (canvas), under #boot / #fatal (z-index 10) */
+  pointer-events: none; /* the scene gets every pointer the panels do not cover */
+  overflow: hidden;
+  color: var(--c-white);
+  font-family: var(--body);
+  font-size: calc(var(--t-body) * var(--u));
+  line-height: 1.46;
+  font-kerning: normal;
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-tap-highlight-color: transparent;
+}
+.kd-root[hidden],
+.kd-root.kd-off,
+.kd-root [hidden] {
+  display: none !important;
+}
+/* the five paint layers of the WebGL surface (UI.layer: world, base, popup, modal, tip) */
+.kd-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform-origin: 50% 50%;
+}
+/* plates take the pointer; everything else falls through to the canvas (#stage) */
+.kd-layer > * {
+  position: absolute;
+  pointer-events: auto;
+}
+.kd-layer[inert] > * {
+  pointer-events: none;
+}
+.kd-root button,
+.kd-root input,
+.kd-root [role='slider'],
+.kd-root [role='tab'],
+.kd-root [role='radio'],
+.kd-root [role='switch'] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.kd-root ::selection {
+  background: rgb(var(--accent-rgb) / 0.42);
+  color: var(--c-white);
+}
+.kd-root h1,
+.kd-root h2,
+.kd-root p,
+.kd-root ul,
+.kd-root ol {
+  margin: 0;
+  padding: 0;
+}
+.kd-root ul,
+.kd-root ol {
+  list-style: none;
+}
+
+/* ---- hologlass plates (ui3d/widgets/panel.ts) ------------------------------------------------------ */
+.kd {
+  --tone-rgb: var(--accent-rgb);
+  box-sizing: border-box;
+  border-radius: calc(var(--r-panel) * var(--u));
+  /* body as the shader (indigo → void); the accent wash over the upper part is calibrated against the WebGL
+     plate as it reaches the screen (sheen + scan band + the bloom of the bright top border), D1 crops */
+  background:
+    linear-gradient(to bottom, rgb(var(--tone-rgb) / 0.09), rgb(var(--tone-rgb) / 0.05) 20%, transparent 46%),
+    linear-gradient(to bottom, rgb(var(--c-bg-indigo-rgb) / var(--panel-opacity)), var(--c-bg-void));
+  box-shadow:
+    0 0 calc(16 * var(--u)) rgb(var(--tone-rgb) / 0.2),
+    0 calc(4 * var(--u)) calc(46 * var(--u)) rgb(var(--c-bg-void-rgb) / 0.5);
+}
+/* the swept 1.5-unit border: brightest at the top-left, fading toward the bottom-right */
+.kd::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: calc(1.5 * var(--u));
+  background: linear-gradient(
+    323deg,
+    rgb(var(--tone-rgb) / 0.14) 0%,
+    rgb(var(--tone-rgb) / 0.26) 50%,
+    rgb(var(--tone-rgb) / 0.62) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.kd.card {
+  border-radius: calc(var(--r-card) * var(--u));
+  background:
+    linear-gradient(to bottom, rgb(var(--tone-rgb) / 0.07), rgb(var(--tone-rgb) / 0.04)),
+    rgb(var(--c-bg-deep-rgb) / var(--panel-opacity));
+  box-shadow:
+    0 0 calc(10 * var(--u)) rgb(var(--tone-rgb) / 0.12),
+    0 calc(4 * var(--u)) calc(26 * var(--u)) rgb(var(--c-bg-void-rgb) / 0.36);
+}
+.kd.card::before {
+  background: linear-gradient(
+    323deg,
+    rgb(var(--tone-rgb) / 0.09) 0%,
+    rgb(var(--tone-rgb) / 0.17) 50%,
+    rgb(var(--tone-rgb) / 0.4) 100%
+  );
+}
+
+/* ---- type ------------------------------------------------------------------------------------------ */
+.kicker {
+  font: 600 calc(var(--t-caption) * var(--u)) / 1.3 var(--body);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-steel);
+  white-space: nowrap;
+}
+strong.term {
+  color: var(--accent);
+  font-weight: 600;
+}
+strong {
+  font-weight: 600;
+}
+code.f {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--c-yellow);
+  font-size: 0.95em;
+}
+code.f.nowrap,
+.nowrap {
+  white-space: nowrap;
+}
+sup,
+sub {
+  font-size: 0.68em;
+  line-height: 0;
+}
+
+/* ---- icons (icons.ts: SDF masks over currentColor) --------------------------------------------------- */
+.ic {
+  --ic: 17;
+  display: inline-block;
+  flex: none;
+  width: calc(var(--ic) * var(--u));
+  height: calc(var(--ic) * var(--u));
+  background-color: currentColor;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  font-style: normal;
+}
+
+/* ---- chips (ui3d/widgets/chip.ts) -------------------------------------------------------------------- */
+.chip {
+  --tone-rgb: var(--accent-rgb);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(7 * var(--u));
+  box-sizing: border-box;
+  min-height: calc(32 * var(--u));
+  padding: 0 calc(13 * var(--u)) 0 calc(11 * var(--u));
+  border: calc(1.3 * var(--u)) solid rgb(var(--tone-rgb) / 0.5);
+  border-radius: calc(16 * var(--u));
+  background: linear-gradient(to bottom, rgb(var(--c-bg-indigo-rgb) / 0.9), rgb(var(--c-bg-deep-rgb) / 0.94));
+  color: var(--c-white);
+  font: 400 calc(var(--t-caption) * var(--u)) / 1.34 var(--body);
+  white-space: nowrap;
+}
+.chip > .ic {
+  color: rgb(var(--tone-rgb));
+}
+.chip.scale {
+  --tone-rgb: var(--c-mist-rgb);
+  font-family: var(--mono);
+  font-weight: 500;
+}
+.chip.honesty {
+  --tone-rgb: var(--c-amber-rgb);
+  font-weight: 600;
+}
+.chip.term {
+  font-weight: 600;
+}
+.chip.fact {
+  --tone-rgb: var(--c-yellow-rgb);
+}
+.chip.multi {
+  align-items: start;
+  white-space: normal;
+  padding: calc(8 * var(--u)) calc(14 * var(--u)) calc(8 * var(--u)) calc(12 * var(--u));
+}
+.chip.multi > .ic {
+  margin-top: calc(2 * var(--u));
+}
+button.chip {
+  cursor: pointer;
+  min-height: calc(var(--hit) * var(--u));
+  transition: border-color var(--dur-hover), box-shadow var(--dur-hover), transform var(--dur-press);
+}
+button.chip:hover {
+  border-color: rgb(var(--tone-rgb));
+  box-shadow: 0 0 calc(8 * var(--u)) rgb(var(--tone-rgb) / 0.25);
+}
+
+/* ---- buttons (ui3d/widgets/button.ts: sm 36 / md 46 / lg 58, display face) ------------------------- */
+.btn {
+  --h: 46;
+  --fs: var(--t-small);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(8 * var(--u));
+  box-sizing: border-box;
+  height: calc(var(--h) * var(--u));
+  padding: 0 calc(20 * var(--u));
+  border: calc(1.6 * var(--u)) solid rgb(var(--accent-rgb) / 0.55);
+  border-radius: calc(var(--h) * var(--u) / 2);
+  background: linear-gradient(to bottom, rgb(var(--c-bg-indigo-rgb) / 0.96), rgb(var(--c-bg-deep-rgb) / 0.98));
+  box-shadow: 0 0 calc(10 * var(--u)) rgb(var(--accent-rgb) / 0.1);
+  color: var(--c-white);
+  font: 800 calc(var(--fs) * var(--u)) / 1 var(--display);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--dur-hover), border-color var(--dur-hover), box-shadow var(--dur-hover), transform var(--dur-press);
+}
+.btn.sm {
+  --h: 36;
+  --fs: var(--t-caption);
+  padding: 0 calc(14 * var(--u));
+}
+.btn .ic {
+  --ic: calc(var(--h) * 0.44);
+}
+.btn.icon {
+  width: calc(var(--h) * var(--u));
+  padding: 0;
+}
+.btn.icon .ic {
+  --ic: calc(var(--h) * 0.5);
+}
+.btn:hover:not(:disabled),
+.btn[aria-expanded='true'] {
+  background: linear-gradient(to bottom, var(--c-bg-violet), rgb(var(--c-bg-deep-rgb) / 0.98));
+  border-color: rgb(var(--accent-rgb));
+  box-shadow: 0 0 calc(10 * var(--u)) rgb(var(--accent-rgb) / 0.4);
+}
+.btn[aria-expanded='true'] {
+  border-color: var(--c-yellow);
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.btn:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+.btn.primary {
+  border-color: rgb(var(--accent-rgb));
+  background: linear-gradient(to bottom, rgb(var(--accent-rgb)), rgb(var(--accent-rgb) / 0.82));
+  box-shadow: 0 0 calc(14 * var(--u)) rgb(var(--accent-rgb) / 0.3);
+  color: var(--c-bg-void);
+}
+.btn.primary:hover:not(:disabled) {
+  background: linear-gradient(to bottom, rgb(var(--accent-rgb)), rgb(var(--accent-rgb) / 0.95));
+  box-shadow: 0 0 calc(22 * var(--u)) rgb(var(--accent-rgb) / 0.55);
+}
+.btn.ghost {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+/* ---- pointer targets: at least --hit units even when the control is drawn smaller (the WebGL `minHit`).
+   An invisible ::before reaches out to the hit size; `__ui.smallTargets()` measures it (core/qa.ts). Areas
+   keep ::before free on buttons. */
+/* zero specificity: a button placed directly in a layer keeps `position: absolute` (any position anchors ::before) */
+:where(.kd-root button) {
+  position: relative;
+}
+.kd-root button::before {
+  content: '';
+  position: absolute;
+  top: min(0px, calc((100% - var(--hit) * var(--u)) / 2));
+  bottom: min(0px, calc((100% - var(--hit) * var(--u)) / 2));
+  left: min(0px, calc((100% - var(--hit) * var(--u)) / 2));
+  right: min(0px, calc((100% - var(--hit) * var(--u)) / 2));
+}
+
+/* ---- focus ring (keyboard only), scroll areas, motion switches ---------------------------------------- */
+.kd-root :focus {
+  outline: none;
+}
+.kd-root :focus-visible {
+  outline: calc(2 * var(--u)) solid var(--c-yellow);
+  outline-offset: calc(3 * var(--u));
+}
+/* scroll areas (dom.ts scrollArea): vertical swipes scroll the plate, never the page or the camera */
+.kd-scroll {
+  overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+/* frozen clock (?freeze): CSS micro-interactions off so screenshots are deterministic (HUD_DOM §7) */
+html.kd-freeze .kd-root *,
+html.kd-freeze .kd-root *::before,
+html.kd-freeze .kd-root *::after {
+  transition: none !important;
+  animation: none !important;
+}
+/* reduced motion (setting or system): no hover lift / press squash, no pulsing */
+html.kd-reduced .kd-root *,
+html.kd-reduced .kd-root *::before,
+html.kd-reduced .kd-root *::after {
+  animation: none !important;
+  transition-duration: 0.01s !important;
+}
+html.kd-reduced .kd-root .btn:active:not(:disabled) {
+  transform: none;
+}

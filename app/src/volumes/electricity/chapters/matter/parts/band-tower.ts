@@ -18,6 +18,8 @@ const E_BASE = -8.4;
 const W = 2.7;
 const D = 1.3;
 const LEVELS = 16;
+/** Modelled length of the energy axis (it is scaled to the bands shown). */
+const AXIS = 6.4;
 const SEA = 44;
 
 export const towerY = (eV: number): number => (eV - E_BASE) * EV;
@@ -34,6 +36,8 @@ export interface Tower {
   fermi: Vector3;
   gapMid: Vector3;
   hole: Vector3;
+  /** Tip of the energy axis: it grows only a little above the highest band shown (no empty sky over copper). */
+  axisTop: Vector3;
   /** Number of holes currently open. */
   holes: number;
   update(dt: number, t: number): void;
@@ -81,9 +85,9 @@ export function createBandTower(): Tower {
   const gap = new Mesh(G.rbox(W * 0.94, 1, D * 0.94, 0.03, 1), K.toon({ color: 'bg.deep', rim: 0.4 }));
   // vertical energy axis on the left edge with an arrow tip
   const axis = new Group();
-  const rod = new Mesh(G.cyl(0.025, 6.4, { seg: 10 }), K.toon({ color: 'mist' }));
+  const rod = new Mesh(G.cyl(0.025, AXIS, { seg: 10 }), K.toon({ color: 'mist' }));
   const tip = new Mesh(G.cone(0.08, 0.22, { seg: 16 }), K.toon({ color: 'mist' }));
-  tip.position.y = 6.4;
+  tip.position.y = AXIS;
   axis.add(rod, tip);
   axis.position.set(-W / 2 - 0.22, 0, 0);
   // Fermi level: a dashed `yellow` line across the tower front
@@ -99,7 +103,7 @@ export function createBandTower(): Tower {
   const holeOrbs = createOrbs({ kind: 'hole', count: 6, radius: 0.08 });
   const flyer = createOrbs({ kind: 'electron', count: 6, radius: 0.065 });
   group.add(lower.bars, lower.slab, upper.bars, upper.slab, gap, axis, dashes, sea, holeOrbs, flyer);
-  return assemble(group, lower, upper, gap, dashes, sea, holeOrbs, flyer);
+  return assemble(group, lower, upper, gap, dashes, sea, holeOrbs, flyer, { rod, tip });
 }
 
 interface Hop {
@@ -125,7 +129,9 @@ function assemble(
   sea: Orbs,
   holeOrbs: Orbs,
   flyer: Orbs,
+  axis: { rod: Mesh; tip: Mesh },
 ): Tower {
+  let axisH = AXIS;
   let metal = true;
   let count = 1; // atoms in the chain (≤ 16 drawn as levels; more = slab)
   let fermiEv = BAND_LOWER_E0_EV;
@@ -163,6 +169,7 @@ function assemble(
     fermi: new Vector3(),
     gapMid: new Vector3(),
     hole: new Vector3(),
+    axisTop: new Vector3(-W / 2 - 0.22, AXIS, 0),
     holes: 0,
     setTarget(t, isMetal) {
       metal = isMetal;
@@ -230,6 +237,11 @@ function assemble(
       dashes.visible = tower.merged > 0.5;
       tower.fermi.set(W / 2 + 0.2, towerY(fermiShown), D / 2);
       tower.gapMid.set(W / 2 + 0.1, (g0 + g1) / 2, 0);
+      const topEv = lower.showTop + Math.max(upper.showTop - lower.showTop, 0) * upper.visible;
+      axisH += (towerY(topEv) + 1.1 - axisH) * Math.min(dt * 3, 1);
+      axis.rod.scale.y = axisH / AXIS;
+      axis.tip.position.y = axisH;
+      tower.axisTop.set(-W / 2 - 0.22, axisH, 0);
       // electrons of the sea: a gentle sideways shuffle (copper: they slide along the band)
       const busy = new Map(hops.map((hp, k) => [hp.sea, k]));
       for (let i = 0; i < SEA; i++) {

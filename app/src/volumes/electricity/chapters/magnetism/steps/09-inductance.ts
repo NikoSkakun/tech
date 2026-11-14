@@ -191,14 +191,17 @@ export const inductanceStep: StepFactory = (bench) => {
       ],
       callouts: [
         { anchor: l1.top, text: OWN.lamp1, side: 'up' },
-        { anchor: l2.top, text: OWN.lamp2, side: 'up' },
-        { anchor: () => neon.top.getWorldPosition(v), text: OWN.neon, side: 'up' },
-        { anchor: () => coil.group.getWorldPosition(v).setY(v.y + 0.45), text: OWN.coilL, color: SEMANTIC.fieldB, side: 'up' },
+        // L2 stands in front of the coil: its label goes left, over the empty board, not onto the coil
+        { anchor: l2.top, text: OWN.lamp2, side: 'left' },
+        // under the neon lamp, over the board's free right edge (above, it crowded the coil's label at 720p)
+        // (phones show three tags: the neon lamp's is the one dropped — it overlapped L2 in landscape)
+        { anchor: () => neon.top.getWorldPosition(v).setY(v.y - 0.45), text: OWN.neon, side: 'down', priority: 3 },
+        { anchor: () => coil.group.getWorldPosition(v).setY(v.y + 0.45), text: OWN.coilL, color: SEMANTIC.fieldB, side: 'up', priority: 0 },
       ],
       hotspots: [
-        { anchor: s2.gap, content: 0 },
-        { anchor: () => l1.top.getWorldPosition(v).setX(v.x - 0.3), content: 1 },
-        { anchor: () => set.localToWorld(v.set(2.15, 1.0, 0.75)), content: 2 },
+        { anchor: s2.gap, content: 'contact-spark' },
+        { anchor: () => l1.top.getWorldPosition(v).setX(v.x - 0.3), content: 'lamp-l1-off' },
+        { anchor: () => set.localToWorld(v.set(2.15, 1.0, 0.75)), content: 'ignition-coil' },
       ],
     },
     update(dt, t) {

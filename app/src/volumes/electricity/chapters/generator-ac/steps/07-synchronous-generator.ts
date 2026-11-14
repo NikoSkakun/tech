@@ -20,6 +20,7 @@ const SLOW_TURBO = 100;
 const SLOW_HYDRO = 10;
 const LAYERS = ['housing', 'stator', 'rotor', 'cooling'] as const;
 const GAP_SHOT = `${ID}-gap`;
+const GAP_HYDRO = `${ID}-gap-hydro`;
 
 export const synchronousGenerator: StepFactory = (hall) => {
   const { ctx, ui } = hall;
@@ -44,11 +45,23 @@ export const synchronousGenerator: StepFactory = (hall) => {
   nTag.position.set(0, 4.3, 0);
   set.add(emfTag, nTag);
 
-  const st = { angle: 0 };
+  const st = { angle: 0, flyT: -1, shot: ID as string };
   const isHydro = (): boolean => ui.value<string>('type7') === 'hydro';
   const p = (): number => (isHydro() ? Math.round(ui.value<number>('p7')) : SYNCHRONOUS_GENERATOR.polePairs.turbo);
   const n = (): number => generatorSpeedRpm(p());
   const emf = (): number => openCircuitEmfKV(ui.value<number>('if7') / 100);
+  /** The fly-through along the air gap (turbo or hydro), then back to the machine — on entry and on demand. */
+  const fly = (delay = 0): void => {
+    st.flyT = 0;
+    ctx.stage.scope.delay(delay, () => {
+      st.shot = isHydro() ? GAP_HYDRO : GAP_SHOT;
+      ctx.camera.go(st.shot, { duration: 2.2 });
+    });
+    ctx.stage.scope.delay(delay + 3.4, () => {
+      st.shot = ID;
+      ctx.camera.go(ID, { duration: 2.4 });
+    });
+  };
   const sync = (instant: boolean): void => {
     if (ctx.stage.shown(turbo) === isHydro()) ctx.stage.toggle(turbo, !isHydro(), { instant });
     if (ctx.stage.shown(hydroSet) !== isHydro()) ctx.stage.toggle(hydroSet, isHydro(), { instant });
@@ -65,16 +78,18 @@ export const synchronousGenerator: StepFactory = (hall) => {
     id: ID,
     shots: {
       [ID]: { position: [4.6, 5.4, 9.6], target: [0.3, 1.5, 0], fov: 34, fit: { center: [0.2, 1.6, 0], radius: 4.6 } },
+      // hydro: from the cut-away opening, low, along the exposed air gap between the pole shoes and the core
+      [GAP_HYDRO]: { position: [1.15, 0.95, 1.25], target: [-0.35, 0.8, 0.75], fov: 46, drift: 0.2, fit: { center: [0.6, 0.85, 0.9], radius: 1.0 } },
       [GAP_SHOT]: { position: [-3.4, AXIS_Y * 0.82 + 0.75, 0.55], target: [2.4, AXIS_Y * 0.82 + 0.35, 0.1], fov: 46, drift: 0.2, fit: { center: [0, 1.5, 0], radius: 2 } },
     },
     stage: {
       show: [set, ...layers],
       enter: (info) => {
         sync(true);
+        st.flyT = -1;
+        st.shot = ID;
         if (info.instant || isHydro()) return;
-        // the fly-through along the air gap, then back to the machine
-        ctx.stage.scope.delay(0.2, () => ctx.camera.go(GAP_SHOT, { duration: 2.2 }));
-        ctx.stage.scope.delay(3.6, () => ctx.camera.go(ID, { duration: 2.4 }));
+        fly(0.2);
       },
     },
     ui: {
@@ -97,6 +112,7 @@ export const synchronousGenerator: StepFactory = (hall) => {
           visible: () => !isHydro(),
           onChange: () => hall.sound.click(1.1),
         })),
+        { type: 'button', id: 'fly7', label: OWN.flyGap, icon: 'play', onClick: () => fly(), disabled: () => st.flyT >= 0 },
         {
           type: 'stats',
           id: 'read7',
@@ -113,11 +129,11 @@ export const synchronousGenerator: StepFactory = (hall) => {
         { anchor: () => at('term1'), text: OWN.statorTerminals, side: 'down', visible: () => !isHydro() },
       ],
       hotspots: [
-        { anchor: () => tg.part('stator').localToWorld(mid.copy(tg.anchorLocal('bars')).sub(new Vector3(0, AXIS_Y, 0))), content: 0, visible: () => !isHydro() && ui.value<boolean>('lay7stator') },
-        { anchor: () => tg.part('rotor').localToWorld(mid.set(-1.2, 0.75, 0)), content: 1, visible: () => !isHydro() && ui.value<boolean>('lay7rotor') },
-        { anchor: () => tg.part('cooling').localToWorld(mid.set(0.6, 0.5, 0.65)), content: 2, visible: () => !isHydro() && ui.value<boolean>('lay7cooling') },
-        { anchor: () => at('avr'), content: 3, visible: () => !isHydro() },
-        { anchor: () => hydro.group.localToWorld(mid.copy(hydro.anchorLocal('poles'))), content: 4, visible: () => isHydro() },
+        { anchor: () => tg.part('stator').localToWorld(mid.copy(tg.anchorLocal('bars')).sub(new Vector3(0, AXIS_Y, 0))), content: 'stator-bars', visible: () => !isHydro() && ui.value<boolean>('lay7stator') },
+        { anchor: () => tg.part('rotor').localToWorld(mid.set(-1.2, 0.75, 0)), content: 'rotor', visible: () => !isHydro() && ui.value<boolean>('lay7rotor') },
+        { anchor: () => tg.part('cooling').localToWorld(mid.set(0.6, 0.5, 0.65)), content: 'hydrogen-cooler', visible: () => !isHydro() && ui.value<boolean>('lay7cooling') },
+        { anchor: () => at('avr'), content: 'voltage-regulator', visible: () => !isHydro() },
+        { anchor: () => hydro.group.localToWorld(mid.copy(hydro.anchorLocal('poles'))), content: 'hydro-poles', visible: () => isHydro() },
       ],
     },
     probe: () => ({
@@ -127,10 +143,13 @@ export const synchronousGenerator: StepFactory = (hall) => {
       emfKV: emf(),
       layers: LAYERS.map((l) => (ctx.stage.shown(layers[LAYERS.indexOf(l)]!) ? 1 : 0)).join(''),
       angle: st.angle,
+      flying: st.flyT >= 0,
+      shot: st.shot,
     }),
     update(dt) {
       if (!hall.isCurrent(ID)) return;
       sync(false);
+      if (st.flyT >= 0 && (st.flyT += dt) > 5.9) st.flyT = -1;
       const slow = isHydro() ? SLOW_HYDRO : SLOW_TURBO;
       const w = (2 * Math.PI * (n() / 60)) / slow;
       st.angle += w * dt;

@@ -17,6 +17,7 @@ export {
   type AnchorX,
   type AnchorY,
 } from './layout';
+export { mathMarkup, richRuns, NOWRAP_FORMULA } from './markup';
 export { parseRich, stripRich, bindUnits, NBSP, type Run, type RunColor } from './rich';
 export {
   loadFonts,

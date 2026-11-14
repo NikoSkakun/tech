@@ -416,3 +416,32 @@ No new API. Behaviour where the two sides meet:
   `docs/requests/C7-hotspot-ids.md`).
 - Chapters that can switch to ids: `generator-ac` (30 index bindings), `magnetism` (24 index bindings),
   `transformer` (27 `hot(step, i)` name look-ups); per-step lists in `docs/reports/C7-hotspot-ids.md`.
+
+## D1-dom-core — foundation of the DOM interface (2026-11-14; docs/HUD_DOM.md, DECISIONS §59)
+
+Additive; `?hud=gl` (the default) is pixel-identical to before. Chapters need no change.
+- **Engine**: `UrlFlags.hud` (`?hud=dom|gl`), `HudRenderer`, `DEFAULT_HUD = 'gl'` (`engine/app.ts`; D9 flips it).
+  `Engine.settled()` also awaits `document.fonts.ready` under `?hud=dom`. `engine/input.ts`: keys whose target is a
+  DOM control of `#kd-hud` that keeps them (`[data-keys]`, Space / Enter on what they activate, scroll keys in a
+  `.kd-scroll`) or that called `preventDefault()` are not step keys.
+- **ui3d**: `uiFocus.browserTab` (set by the DOM interface: Tab belongs to the browser; world surfaces keep focus
+  only after a click). `mathMarkup` moved to `@/text` (re-exported from `@/ui3d` as before).
+- **text**: `richRuns(source, rich?)` and `NOWRAP_FORMULA` in `@/text` (`text/markup.ts`) — the one pipeline of the
+  SDF `Label` and the DOM (`mathMarkup` → short formulas unbreakable → `parseRich`); `Label` now calls it.
+- **HUD shell**: `Hud.mountDom(mod: DomModule, inset?: InsetSpec): () => void` — a DOM region's layout box counts
+  for the camera insets with the same code as a WebGL node (`offset*`, `ResizeObserver` → `relayout`).
+  `DomModule`, `RegionHooks` (`hud/context.ts`), `InsetSpec` (`hud/shell.ts`). Under `?hud=dom` focus returns to
+  where it was when an overlay closes.
+- **QA hook** `window.__ui`: facade over a DOM backend (`hud-dom/core/qa.ts`, answers first from `[data-ui]`) and
+  the WebGL backend (`hud/debug-gl.ts`); new `textSizes()` and `overlaps()`; `setUiDomBackend`, types in
+  `hud/debug-types.ts`. `installUiDebug(hud, map, chromeNodes?)`. QA lib: `QA_HUD=dom|gl` env → `?hud=`.
+- **`@/hud-dom`** (D2–D7 build on it): `mountDomHud(hud, webgl)`; `DomHud` context `{ hud, root, layers, webgl,
+  region(mod, { layer, inset, region }), claim(name), claimed(name) }`; areas `step/ chrome/ dock/ board/ charts/
+  custom/ overlays/ map/ annotations/ touch/` each export `mount(dom)`; core helpers `h`, `setText`, `setStyle`,
+  `setClass`, `bindVisible`, `scrollArea` (`core/dom.ts`), `presence(el)` (`core/motion.ts`), `setRich`,
+  `richFragment`, `richEl` (`core/rich.ts`), `icon`, `setIcon` (`core/icons.ts`), `applyAccent` (`core/tokens.ts`),
+  `findNode`, `nodeRect` (`core/webgl.ts`, hybrid only). CSS: `core/base.css` (tokens `--c-*`, `--t-*`, `--r-*`,
+  `--dur-*`, `--ease-*`, `--u`, `--safe`; classes `.kd`, `.kd.card`, `.chip`, `.btn`, `.kd-scroll`, `.ic`).
+- **Fonts**: `pnpm webfonts` (`app/scripts/build-webfonts.mjs` + `.py`, Python fontTools build dependency);
+  `app/scripts/charset.mjs` (charset + composed glyphs, shared with `pnpm fonts`); `pnpm fonts:check` also checks
+  the WOFF2 font stacks; Fira Sans Italic added.

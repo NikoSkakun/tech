@@ -67,13 +67,13 @@ export const rotatingField: StepFactory = (hall) => {
   const field = group('field', 0, BORE_Y, 0);
   machine.add(field);
   const lineSets = [1, 2, 3, 4].map((p) => {
-    const l = new RibbonLines({ capacity: 400, color: SEMANTIC.fieldB, width: 0.03, intensity: 1.0, dashRepeat: 3, dashStrength: 0.8, dashSpeed: 0.8, keepHue: true });
+    const l = new RibbonLines({ capacity: 400, color: SEMANTIC.fieldB, width: 0.045, intensity: 1.3, dashRepeat: 3, dashStrength: 0.8, dashSpeed: 0.8, keepHue: true });
     l.setLines(fieldLines(p));
     l.position.y = 0.42;
     field.add(l);
     return l;
   });
-  const lobeGeo = G.sphere(0.13, 16);
+  const lobeGeo = G.sphere(0.17, 16);
   const lobes = [1, 2, 3, 4].map((p) => {
     const g = new Group();
     for (let j = 0; j < p; j++) {
@@ -111,9 +111,10 @@ export const rotatingField: StepFactory = (hall) => {
   machine.add(cage.group);
   ctx.stage.actor(cage.group);
   const tags = { field: tag('', 20, SEMANTIC.fieldB, 'mono'), rotor: tag('', 20, 'orange', 'mono'), slip: tag('', 20, 'white', 'mono') };
-  tags.field.position.set(-1.6, 3.9, -0.6);
-  tags.rotor.position.set(1.6, 3.9, -0.6);
-  tags.slip.position.set(0, 4.25, -0.6);
+  // one row just beyond the far rim of the stator («над ротором … між ними — ковзання»), inside the close shot
+  tags.field.position.set(-1.9, 1.7, -2.55);
+  tags.rotor.position.set(1.9, 1.7, -2.55);
+  tags.slip.position.set(0, 1.7, -2.55);
   const tagGroup = group('indicators', 0, 0, 0, [tags.field, tags.rotor, tags.slip]);
   set.add(tagGroup);
   ctx.stage.actor(tagGroup, { appear: 'fade' });
@@ -149,7 +150,7 @@ export const rotatingField: StepFactory = (hall) => {
   return {
     id: ID,
     shots: {
-      [ID]: { position: [0.3, 8.6, 5.6], target: [0, 1.25, 0.25], fov: 34, fit: { center: [0, 1.3, 0.2], radius: 3.6 } },
+      [ID]: { position: [0.3, 8.0, 5.0], target: [0, 1.45, 0.3], fov: 34, fit: { center: [0, 1.45, 0.3], radius: 2.75 } },
     },
     stage: {
       show: [set, stators[0]!.group, compass],
@@ -224,9 +225,9 @@ export const rotatingField: StepFactory = (hall) => {
         { anchor: () => machine.localToWorld(polar(1.7, 0.4, BORE_Y + 0.3, mid)), text: OWN.statorCoils, side: 'right', visible: () => roomy(hall) },
       ],
       hotspots: [
-        { anchor: () => cage.group.localToWorld(mid.copy(cage.bar0)), content: 0, visible: () => cageMode() },
-        { anchor: () => tags.slip.getWorldPosition(mid), content: 1, visible: () => cageMode() },
-        { anchor: () => machine.localToWorld(polar(1.45, 2.2, BORE_Y + 0.4, mid)), content: 2 },
+        { anchor: () => cage.group.localToWorld(mid.copy(cage.bar0)), content: 'cage-bars', visible: () => cageMode() },
+        { anchor: () => tags.slip.getWorldPosition(mid).add(new Vector3(0, -0.3, 0.25)), content: 'slip-indicator', visible: () => cageMode() },
+        { anchor: () => machine.localToWorld(polar(1.45, 2.2, BORE_Y + 0.4, mid)), content: 'stator' },
       ],
     },
     probe: () => ({

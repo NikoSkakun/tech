@@ -283,6 +283,8 @@ const SPEED = 0.6;
 
 /** One frame of the carrier engine: free electrons wander and drift, holes hop, pairs meet and recombine. */
 function step(sheet: SiSheet, dt: number, ctx: ChapterContext): void {
+  // a frame without time (a re-render) must not draw random numbers: the walk stays a function of time only
+  if (dt <= 0) return;
   const { slots, free, holes } = sheet;
   const rnd = (): number => ctx.random.next();
   for (let i = free.length - 1; i >= 0; i--) {

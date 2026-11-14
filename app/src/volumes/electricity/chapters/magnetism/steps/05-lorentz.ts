@@ -14,7 +14,7 @@ import { AMPERE_SWING, BEAM, ampereSwingAngle, electronBeam } from '@electricity
 import type { StepFactory } from '../chapter';
 import { DOC } from '../labels';
 import { OWN } from '../labels-own';
-import { BULB_R, COIL_R, beamPath, createBeamTube } from '../parts/beam-tube';
+import { COIL_R, beamPath, createBeamTube } from '../parts/beam-tube';
 import { createBLines } from '../parts/b-lines';
 import { createLeftHand } from '../parts/hand';
 import { GAP_Y, createSwing } from '../parts/swing';
@@ -24,6 +24,8 @@ import { S, group } from '../world';
 const ID = 'lorentz';
 const TUBE = new Vector3(-1.45, 1.5, -0.1);
 const SWING = new Vector3(1.55, 0, -0.1);
+/** Largest drawn swing angle (rad): the bar, 1,2 units below the pivot, keeps 0,4 units of gap each way. */
+const SWING_MAX = Math.asin(0.33);
 
 export const lorentzStep: StepFactory = (bench) => {
   const { ctx, ui } = bench;
@@ -100,8 +102,8 @@ export const lorentzStep: StepFactory = (bench) => {
   const gapSet = (down: boolean) =>
     [-0.15, 0, 0.15].flatMap((z) =>
       [-0.25, 0.05, 0.35].map((x) => {
-        const a = new Vector3(SWING.x + x - 0.15, GAP_Y + 0.3, SWING.z + z);
-        const b = new Vector3(SWING.x + x - 0.15, GAP_Y - 0.3, SWING.z + z);
+        const a = new Vector3(SWING.x + x + 0.1, GAP_Y + 0.3, SWING.z + z);
+        const b = new Vector3(SWING.x + x + 0.1, GAP_Y - 0.3, SWING.z + z);
         return { points: down ? [a, b] : [b, a] };
       }),
     );
@@ -116,20 +118,24 @@ export const lorentzStep: StepFactory = (bench) => {
   ctx.qa.probe('bar5', swing.bar);
   ctx.qa.expose(ID, () => {
     const e = beamNow();
-    return { radiusCm: e.radiusM * 100, closed: path.closed, speed: e.speedMPerS, energyEv: e.energyEv, turn: e.turnSign, betaDeg: (st.beta * 180) / Math.PI, flipped: st.flip > 0.5, part: partB() ? 'b' : 'a' };
+    return { radiusCm: e.radiusM * 100, closed: path.closed, speed: e.speedMPerS, energyEv: e.energyEv, turn: e.turnSign, betaDeg: (st.beta * 180) / Math.PI, flipped: st.flip > 0.5, part: partB() ? 'b' : 'a', drawnDeg: (swing.pendulum.rotation.z * 180) / Math.PI };
   });
   const v = new Vector3();
+  // the part label sits left of the front coil (upper-left of the ring), beside the apparatus
+  const partAOffset = new Vector3(-COIL_R * 0.78, COIL_R * 0.62, COIL_R / 2);
 
   return {
     id: ID,
     shots: {
       [ID]: {
-        position: [-0.45, 2.5, 5.6],
-        target: [-1.3, 1.35, -0.1],
+        // nearly along the coils' axis: both coils ring the bulb instead of crossing it, the beam circle is
+        // the hero; a slight angle keeps the B lines (along z) readable as lines
+        position: [-0.85, 2.45, 4.9],
+        target: [-1.45, 2.0, -0.1],
         fov: 32,
         frameAspect: 1.2,
         orbit: { azimuth: 0.6, polar: 0.3 },
-        fit: { center: [-1.4, 1.2, 0], radius: 1.8 },
+        fit: { center: [-1.45, 1.95, -0.1], radius: 1.45 },
       },
       [`${ID}:b`]: {
         position: [2.9, 2.7, 4.6],
@@ -197,7 +203,7 @@ export const lorentzStep: StepFactory = (bench) => {
         },
       ],
       callouts: [
-        { anchor: () => tube.group.getWorldPosition(v).setY(v.y + BULB_R + 0.25), text: OWN.partA, side: 'up', visible: () => !partB() },
+        { anchor: () => tube.group.getWorldPosition(v).add(partAOffset), text: OWN.partA, side: 'left', visible: () => !partB() },
         {
           anchor: () => beam.localToWorld(v.copy(path.end)),
           text: DOC.positive,
@@ -209,18 +215,20 @@ export const lorentzStep: StepFactory = (bench) => {
       ],
       hotspots: [
         { anchor: () => tube.group.getWorldPosition(v).add(new Vector3(COIL_R * 0.72, COIL_R * 0.72, COIL_R / 2)), content: 'helmholtz-coils', visible: () => !partB() },
-        { anchor: () => beam.localToWorld(v.copy(path.points[Math.floor(path.points.length / 2)]!)), content: 1, visible: () => !partB() },
-        { anchor: () => swing.bar.getWorldPosition(v).setZ(v.z + 0.35), content: 2, visible: partB },
+        { anchor: () => beam.localToWorld(v.copy(path.points[Math.floor(path.points.length / 2)]!)), content: 'electron-beam', visible: () => !partB() },
+        { anchor: () => swing.bar.getWorldPosition(v).setZ(v.z + 0.35), content: 'crossbar', visible: partB },
       ],
     },
     update(dt, t) {
       retrace();
       flow.speed = 0.9 * (proton() ? 0.4 : 1);
       spot.intensity = 1.2 + 0.2 * Math.sin(t * 9);
-      // the swing: damped pendulum toward β (a stage-sized 0,25 s settle; no physics beyond the angle)
+      // the swing: damped pendulum toward β (a stage-sized 0,25 s settle; no physics beyond the angle). The
+      // drawn angle saturates smoothly at SWING_MAX so the bar stays in the gap (true β up to 37° at 5 A is
+      // in the readout; small angles are drawn true): β_drawn = β_max·tanh(β/β_max)
       const target = ampereSwingAngle(swingI(), st.flip > 0.5);
       st.beta += (target - st.beta) * Math.min(dt * 3, 1);
-      swing.pendulum.rotation.z = st.beta + Math.sin(t * 3.1) * 0.01 * Math.min(Math.abs(swingI()), 1);
+      swing.pendulum.rotation.z = SWING_MAX * Math.tanh(st.beta / SWING_MAX) + Math.sin(t * 3.1) * 0.01 * Math.min(Math.abs(swingI()), 1);
       swing.magnet.rotation.x = st.flip * Math.PI;
       const down = st.flip < 0.5;
       const gk = `${down}`;

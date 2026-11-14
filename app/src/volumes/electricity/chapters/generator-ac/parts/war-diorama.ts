@@ -1,10 +1,11 @@
 /**
  * Diorama of step 3 «Війна струмів»: two toy streets of the 1880s on the turntable. Left (x < 0): Edison's DC
  * station (brick, sign «1882») feeding its neighbourhood through two thick copper wires. Right (x > 0):
- * Westinghouse's AC station with a step-up transformer, a high-voltage line on poles running to the edge and a
- * step-down "barrel" transformer at the neighbourhood; the line continues to a far city silhouette. Each
- * neighbourhood (houses + street lamps) slides along its street to the chosen distance (`setDistance`).
- * Streets run along −Z from the stations at the front. Origin = centre of the turntable.
+ * Westinghouse's AC station with a step-up transformer, a high-voltage line on poles and a step-down "barrel"
+ * transformer at the neighbourhood; the line continues to a far city silhouette.
+ * The comparison is the subject, so the two neighbourhoods (houses + street lamps) stand at the FRONT and stay
+ * put; the stations sit up the streets behind them and slide back to the chosen distance (`setDistance`) — the
+ * farther the station, the dimmer the DC lamps. Origin = centre of the turntable; the streets run along −Z.
  */
 import { CylinderGeometry, Group, Mesh } from 'three';
 import { Builder, house, instanced, type KitModel } from '@/kit';
@@ -12,16 +13,19 @@ import { K } from '@/style';
 import { COPPER } from '../world';
 
 export const STREET_X = 2.25;
-/** z of the stations' doors and of the far end of the streets. */
-export const Z_NEAR = 1.55;
-export const Z_FAR = -3.7;
+/** z of the neighbourhoods (front) and of the far end of the streets. */
+export const Z_NEAR = 1.6;
+export const Z_FAR = -3.4;
 const D_MIN = 0.2;
 const D_MAX = 10;
+/** Gap between the neighbourhood and the nearest station position. */
+const HOME_GAP = 1.75;
+const LAMP_Z = [0.45, -0.25, -0.95];
 
-/** Position along a street (z) for a distance in km (log scale: 0,2 km near the station … 10 km at the far end). */
+/** Station position along a street (z) for a distance in km (log scale: 0,2 km just behind the houses … 10 km). */
 export function streetZ(km: number): number {
   const f = Math.log(Math.max(D_MIN, Math.min(D_MAX, km)) / D_MIN) / Math.log(D_MAX / D_MIN);
-  return Z_NEAR - 0.5 - f * (Z_NEAR - 0.5 - Z_FAR);
+  return Z_NEAR - HOME_GAP - f * (Z_NEAR - HOME_GAP - Z_FAR);
 }
 
 export interface Street {
@@ -58,21 +62,21 @@ function station(kind: 'dc' | 'ac'): KitModel {
 function neighbourhood(side: -1 | 1, glowColor: 'yellow'): Street {
   const cluster = new Group();
   const homes = instanced(house({ seed: side < 0 ? 3 : 8, lit: 1 }), [
-    { at: [side * 0.9, 0, 0.1], ry: side * Math.PI / 2, s: 0.075 },
-    { at: [side * 0.95, 0, -0.75], ry: side * Math.PI / 2, s: 0.07 },
-    { at: [-side * 0.85, 0, -0.4], ry: -side * Math.PI / 2, s: 0.068 },
+    { at: [side * 1.0, 0, 0.2], ry: side * Math.PI / 2, s: 0.1 },
+    { at: [side * 1.05, 0, -0.8], ry: side * Math.PI / 2, s: 0.094 },
+    { at: [-side * 0.95, 0, -0.35], ry: -side * Math.PI / 2, s: 0.09 },
   ]);
   cluster.add(homes);
   const lampGlow = K.glow({ color: glowColor, intensity: 1.6, keepHue: true, whiten: 0.2 });
   const b = new Builder('lamps');
-  for (const z of [0.35, -0.3, -0.95]) {
-    b.cyl(0.035, 0.75, { c: 'ink', slot: 'metal', at: [side * 0.35, 0, z] });
-    b.box(0.2, 0.05, 0.05, { r: 0.01, c: 'ink', at: [side * 0.27, 0.75, z] });
+  for (const z of LAMP_Z) {
+    b.cyl(0.045, 0.95, { c: 'ink', slot: 'metal', at: [side * 0.38, 0, z] });
+    b.box(0.26, 0.06, 0.06, { r: 0.01, c: 'ink', at: [side * 0.28, 0.95, z] });
   }
   cluster.add(b.build().group);
-  for (const z of [0.35, -0.3, -0.95]) {
-    const head = new Mesh(new CylinderGeometry(0.07, 0.11, 0.12, 16), lampGlow);
-    head.position.set(side * 0.2, 0.72, z);
+  for (const z of LAMP_Z) {
+    const head = new Mesh(new CylinderGeometry(0.09, 0.15, 0.16, 16), lampGlow);
+    head.position.set(side * 0.18, 0.9, z);
     cluster.add(head);
   }
   return { cluster, lampGlow };
@@ -88,47 +92,65 @@ function barrel(b: Builder, at: [number, number, number], size = 1): void {
   });
 }
 
+
+/** x of the AC high-voltage line (between the street and the divider, so it passes the station). */
+export const LINE_X = STREET_X - 0.85;
+const STREET_FRONT = Z_NEAR + 1.0;
+const STREET_BACK = Z_FAR - 0.3;
+
 export function createWarDiorama(): WarDiorama {
   const group = new Group();
   group.name = 'war-diorama';
   const ground = new Builder('streets');
+  const len = STREET_FRONT - STREET_BACK;
   for (const side of [-1, 1] as const) {
-    ground.box(1.25, 0.04, Z_NEAR - Z_FAR + 0.4, { r: 0.02, c: 'ink', at: [side * STREET_X, 0, (Z_NEAR + Z_FAR) / 2 - 0.2] });
-    for (let z = Z_NEAR - 0.6; z > Z_FAR; z -= 0.45) ground.box(0.05, 0.01, 0.22, { r: 0, c: 'mist', at: [side * STREET_X, 0.04, z] });
+    ground.box(1.25, 0.04, len, { r: 0.02, c: 'ink', at: [side * STREET_X, 0, (STREET_FRONT + STREET_BACK) / 2] });
+    for (let z = STREET_FRONT - 0.3; z > STREET_BACK; z -= 0.45) ground.box(0.05, 0.01, 0.22, { r: 0, c: 'mist', at: [side * STREET_X, 0.04, z] });
   }
-  ground.box(0.14, 0.18, Z_NEAR - Z_FAR + 1.2, { r: 0.06, c: 'bg.violet', at: [0, 0, (Z_NEAR + Z_FAR) / 2] });
+  ground.box(0.14, 0.18, len, { r: 0.06, c: 'bg.violet', at: [0, 0, (STREET_FRONT + STREET_BACK) / 2] });
   group.add(ground.build().group);
 
-  // --- DC street
+  // --- DC street: two thick copper wires on short posts from the station to the houses
   const dcStation = station('dc');
-  dcStation.group.position.set(-STREET_X, 0, Z_NEAR + 0.75);
   const dcStreet = neighbourhood(-1, 'yellow');
+  dcStreet.cluster.position.set(-STREET_X, 0.02, Z_NEAR);
   const wireMat = K.metal({ color: COPPER, specular: 0.8 });
+  const wireEnd = Z_NEAR - 0.5;
   const wire = [-0.18, 0.18].map((dx) => {
     const m = new Mesh(new CylinderGeometry(0.05, 0.05, 1, 12).rotateX(Math.PI / 2).translate(0, 0, -0.5), wireMat);
-    m.position.set(-STREET_X + 0.62 + dx, 0.42, Z_NEAR);
+    m.position.set(-STREET_X + 0.62 + dx, 0.42, wireEnd);
     m.castShadow = true;
     return m;
   });
-  const dcPoles = new Builder('dc-poles');
-  for (let z = Z_NEAR - 0.3; z > Z_FAR; z -= 0.9) dcPoles.cyl(0.04, 0.42, { c: 'wireBrown', at: [-STREET_X + 0.62, 0, z] });
-  group.add(dcStation.group, dcStreet.cluster, ...wire, dcPoles.build().group);
-
-  // --- AC street: step-up transformer, HV line on poles to the edge, step-down barrel at the neighbourhood
-  const acStation = station('ac');
-  acStation.group.position.set(STREET_X, 0, Z_NEAR + 0.75);
-  const acStreet = neighbourhood(1, 'yellow');
-  const lb = new Builder('hv-line');
-  barrel(lb, [STREET_X - 0.62, 0, Z_NEAR + 0.15], 1);
-  for (let z = Z_NEAR - 0.55; z > Z_FAR - 0.3; z -= 0.75) {
-    lb.cyl(0.035, 1.25, { c: 'wireBrown', at: [STREET_X - 0.62, 0, z] });
-    lb.box(0.36, 0.04, 0.04, { r: 0.01, c: 'wireBrown', at: [STREET_X - 0.62, 1.2, z] });
+  const postGeo = new CylinderGeometry(0.04, 0.04, 0.42, 8).translate(0, 0.21, 0);
+  const postMat = K.toon({ color: 'wireBrown' });
+  const posts: Mesh[] = [];
+  for (let z = wireEnd - 0.3; z > Z_FAR; z -= 0.9) {
+    const p = new Mesh(postGeo, postMat);
+    p.position.set(-STREET_X + 0.62, 0, z);
+    posts.push(p);
   }
-  for (const dx of [-0.15, 0.15]) lb.rod([STREET_X - 0.62 + dx, 1.25, Z_NEAR + 0.15], [STREET_X - 0.62 + dx, 1.25, Z_FAR - 1.4], 0.012, { c: 'ink' });
+  group.add(dcStation.group, dcStreet.cluster, ...wire, ...posts);
+
+  // --- AC street: step-up barrel at the station, HV line on poles (on to the far city), step-down barrel at the
+  // houses
+  const acStation = station('ac');
+  const stepUp = new Builder('step-up');
+  barrel(stepUp, [LINE_X - STREET_X - 0.12, 0, 0.75], 1);
+  acStation.group.add(stepUp.build().group);
+  const acStreet = neighbourhood(1, 'yellow');
+  acStreet.cluster.position.set(STREET_X, 0.02, Z_NEAR);
+  const lb = new Builder('hv-line');
+  const lineFrom = Z_NEAR - 1.3;
+  for (let z = lineFrom - 0.6; z > STREET_BACK; z -= 0.75) {
+    lb.cyl(0.035, 1.25, { c: 'wireBrown', at: [LINE_X, 0, z] });
+    lb.box(0.36, 0.04, 0.04, { r: 0.01, c: 'wireBrown', at: [LINE_X, 1.2, z] });
+  }
+  for (const dx of [-0.15, 0.15]) lb.rod([LINE_X + dx, 1.25, lineFrom], [LINE_X + dx, 1.25, Z_FAR - 1.0], 0.012, { c: 'ink' });
   const line = lb.build().group;
   const poleTransformer = new Group();
   const pt = new Builder('pole-transformer');
-  barrel(pt, [-0.62, 0, 0.75], 1);
+  barrel(pt, [LINE_X - STREET_X - 0.12, 0, lineFrom - Z_NEAR], 1);
   poleTransformer.add(pt.build().group);
   acStreet.cluster.add(poleTransformer);
   // the far city the line runs to (lit windows)
@@ -140,15 +162,17 @@ export function createWarDiorama(): WarDiorama {
   }
   const city = cb.build();
   city.night = 1;
-  city.group.position.set(STREET_X + 0.6, 0, Z_FAR - 1.15);
+  city.group.position.set(STREET_X + 0.1, 0, Z_FAR - 1.0);
+  city.group.scale.setScalar(0.85);
   group.add(acStation.group, acStreet.cluster, line, city.group);
 
   const setDistance = (km: number): void => {
     const z = streetZ(km);
-    dcStreet.cluster.position.set(-STREET_X, 0.02, z);
-    acStreet.cluster.position.set(STREET_X, 0.02, z);
-    const len = Math.max(0.05, Z_NEAR - (z + 0.4));
-    for (const m of wire) m.scale.set(1, 1, len);
+    dcStation.group.position.set(-STREET_X, 0, z);
+    acStation.group.position.set(STREET_X, 0, z);
+    const front = z + 0.55;
+    for (const m of wire) m.scale.set(1, 1, Math.max(0.05, wireEnd - front));
+    for (const p of posts) p.visible = p.position.z > front;
   };
   setDistance(1);
   return {

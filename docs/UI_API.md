@@ -375,6 +375,19 @@ assert it is empty in your chapter's QA at 1280×720 —, `overlay()`, `open(nam
 electricity: the full 25-chapter / 684-term fixture). A node counts as visible only if no ancestor is hidden.
 A missing glyph logs one warning (it fails `chapter-check`): ask F1 to add it to the atlas.
 
+**DOM interface (`?hud=dom`, D1 — `docs/HUD_DOM.md`).** The interface is moving to HTML/CSS over the canvas.
+`?hud=dom|gl` picks the renderer (default `gl` until the cut-over, `DEFAULT_HUD` in `engine/app.ts`); under `dom`
+every region whose DOM view exists is drawn by `@/hud-dom`, the rest stays WebGL (hybrid). QA scripts follow the
+environment variable `QA_HUD=dom|gl` (`tools/qa/lib.mjs appUrl`; `--hud` comes with D8). `window.__ui` is a
+facade over two backends: the DOM one answers first from `[data-ui]` elements (the same names as above; boxes
+from `getBoundingClientRect`, CSS px, centre + size), the WebGL one answers for what the DOM does not draw, so a
+chapter test never needs to know which renderer drew a control. New members: **`textSizes()`** — every visible
+piece of interface text `{ name, text, units, px }` (units = px-eq at 1080p; DOM and WebGL HUD) — and
+**`overlaps()`** — pairs of chrome regions (`header`, `spine`, `system`, `column`, `board`, `navigator`, `sheet`)
+whose boxes intersect `{ a, b, w, h }`. `smallTargets()` counts a DOM control's invisible hit extension (≥ 44
+units like the WebGL `minHit`). `__app.settled()` also waits for the web fonts under `?hud=dom`. Chapter code
+is unchanged: keep declaring `stepUi`; never query the DOM interface by class names.
+
 ## 14. Do / don't
 
 **Do** declare step UI with `stepUi`; put all text in `content.ts`; label every interactive object with a tooltip;

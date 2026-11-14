@@ -56,6 +56,15 @@ export function roomy(hall: { ctx: { viewport: { height: number } } }): boolean 
 }
 
 /**
+ * True when the window is narrow (phone portrait, ~ < 700 CSS px): pairs of side-by-side labels (two lamps, two
+ * stations, two coils) cannot sit beside their subjects there, so the chapter drops them — the short world tags
+ * next to the subjects still tell them apart. Reads the engine viewport, not the device (DECISIONS §57 f).
+ */
+export function narrow(hall: { ctx: { viewport: { width: number } } }): boolean {
+  return hall.ctx.viewport.width < 700;
+}
+
+/**
  * Invisible pick proxy (writes neither colour nor depth): a generous one-finger target (≥ 44 px on screen)
  * around a small or moving part. Register it with `ctx.input.register(proxy, …)`.
  */

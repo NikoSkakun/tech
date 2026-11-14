@@ -1,7 +1,8 @@
 /**
  * Font-atlas coverage of the course copy: every character that can reach the screen from the chapter exports
  * (`docs/volumes/<volume>/chapters/_export/*.json`, on-screen fields only — see `docs/CONTENT_EXPORT.md`) must have a glyph in every
- * face of `public/fonts/fonts.json`. Exit 1 and a list of missing code points otherwise.
+ * face of `public/fonts/fonts.json`, and in every font stack of the DOM interface's web fonts
+ * (`public/fonts/web/*.woff2`, `scripts/webfaces.mjs`). Exit 1 and a list of missing code points otherwise.
  *
  *   node scripts/font-coverage.mjs            # (from app/) or: pnpm fonts:check
  *   node scripts/font-coverage.mjs --list     # also print every non-ASCII character in use
@@ -9,7 +10,11 @@
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { SYMBOL_RANGES, WEB_FACES, WEB_STACKS, inSymbolRange, isSymbolFace } from './webfaces.mjs';
+
+const fontkit = createRequire(import.meta.url)('fontkit');
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), '..');
 const VOLUMES = join(APP, '../docs/volumes');
@@ -108,4 +113,41 @@ for (const cp of missing) {
 console.log(
   missing.length ? `FAIL: ${missing.length} missing` : 'OK: every character has a glyph in every face',
 );
-process.exit(missing.length ? 1 : 0);
+
+// The web fonts of the DOM interface (public/fonts/web/*.woff2, `pnpm webfonts`): every character must be in
+// some face of each font stack it can be drawn with (symbol faces only inside their `unicode-range`).
+const webFaces = new Map(
+  Object.keys(WEB_FACES).map((f) => [f, fontkit.openSync(join(APP, 'public/fonts/web', `${f}.woff2`))]),
+);
+const webMissing = [];
+for (const [stack, files] of Object.entries(WEB_STACKS))
+  for (const cp of used.keys()) {
+    const covered = files.some(
+      (f) => (!isSymbolFace(f) || inSymbolRange(cp)) && webFaces.get(f).hasGlyphForCodePoint(cp),
+    );
+    if (!covered) webMissing.push([stack, cp]);
+  }
+for (const [stack, cp] of webMissing.sort((a, b) => a[1] - b[1]))
+  console.log(
+    `  MISSING ${hex(cp)} '${String.fromCodePoint(cp)}' in web font stack «${stack}» — used in ${[...used.get(cp)].slice(0, 4).join(', ')}`,
+  );
+// the runtime (src/hud-dom/core/fonts.ts) must register the same files and the same symbol range
+const runtime = readFileSync(join(APP, 'src/hud-dom/core/fonts.ts'), 'utf8');
+const u = (cp) => cp.toString(16).toUpperCase();
+const range = SYMBOL_RANGES.map(([a, b]) => (a === b ? `U+${u(a)}` : `U+${u(a)}-${u(b)}`)).join(', ');
+const runtimeProblems = [
+  ...(/const SYMBOL_RANGE = '([^']*)'/.exec(runtime)?.[1] === range
+    ? []
+    : [`SYMBOL_RANGE differs from webfaces.mjs (expected '${range}')`]),
+  ...Object.keys(WEB_FACES)
+    .filter((f) => !runtime.includes(`'${f}'`))
+    .map((f) => `${f} is not registered`),
+];
+for (const p of runtimeProblems) console.log(`  src/hud-dom/core/fonts.ts: ${p}`);
+const webFails = webMissing.length + runtimeProblems.length;
+console.log(
+  webFails
+    ? `FAIL: ${webFails} problems with the web fonts`
+    : `OK: every character is in every web font stack (${webFaces.size} WOFF2 faces)`,
+);
+process.exit(missing.length || webFails ? 1 : 0);

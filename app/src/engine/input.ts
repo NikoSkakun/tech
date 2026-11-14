@@ -182,6 +182,23 @@ const KEY_MAP: Record<string, KeyAction> = {
   KeyF: 'fullscreen',
 };
 
+/** Elements a focused Space / Enter activates (the browser's own activation, not «next step»). */
+const ACTIVATES =
+  'button, a[href], summary, [role="button"], [role="tab"], [role="radio"], [role="switch"], [role="checkbox"]';
+
+/**
+ * Keys a focused element of the DOM interface (`#kd-hud`) keeps from step navigation: everything inside a
+ * `[data-keys]` control (sliders, radio groups, search fields declare it), Space / Enter on what they
+ * activate, and the scrolling keys inside a scroll area. Step keys (←/→, M, L, Esc) still work on a plain
+ * button. The canvas and the page body never keep anything.
+ */
+function domControlKeeps(t: HTMLElement, code: string): boolean {
+  if (!t.closest('#kd-hud')) return false;
+  if (t.closest('[data-keys]')) return true;
+  if ((code === 'Space' || code === 'Enter' || code === 'NumpadEnter') && t.closest(ACTIVATES)) return true;
+  return /^(Space|Page|Home|End|ArrowUp|ArrowDown)/.test(code) && t.closest('.kd-scroll') !== null;
+}
+
 const DRAG_THRESHOLD_PX = 4;
 /** A finger wobbles more than a mouse: a touch becomes a drag only after this many CSS px. */
 const TOUCH_DRAG_THRESHOLD_PX = 9;
@@ -676,6 +693,8 @@ export class InputSystem implements ScopedInput {
       (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
     )
       return;
+    // DOM interface (docs/HUD_DOM.md §3): a control that handled the key, or keeps it for itself, wins
+    if (e.defaultPrevented || (t instanceof HTMLElement && domControlKeeps(t, e.code))) return;
     for (const capture of [...this.keyCaptures]) {
       if (capture.fn(e)) {
         e.preventDefault();

@@ -33,6 +33,21 @@ probes, `stage.toggle` / `setParam`, `manifestText`, quoted labels from the expo
   parts), `toy-generator.ts` (horseshoe + loop + slip rings + crank), `war-diorama.ts`, `dc-shelf.ts`,
   `star-delta-board.ts` (Y ⇄ Δ morph), `terminal-box.ts` (jumper slots), `sync-console.ts`, `rlc-board.ts`,
   `canal.ts`, `world-map.ts`, `meter.ts`, `bulb.ts`, `turntable.ts`.
+- `stator.ts` keeps the yoke low and winds each coil as separate turns, so the three coloured windings read from the
+  usual ~30° camera (steps 4 and 6).
+- `war-diorama.ts`: the neighbourhoods stand at the front and stay put; the stations slide up the streets with the
+  distance (the comparison of the lamps is the subject).
+- `canal.ts`: the horse walks an arc path of fixed rope length around the bow; the canal ends in land ahead of the
+  barge, so the drawn rope keeps the exact angle φ for every value 0…80° (probe `ropeDeg`).
+
+## Composition (refinement P-generator-ac)
+
+- One mise-en-scène at a time where a step has two: step 10 shows the canal analogy (default; rope-angle control,
+  horse drag) or the real circuit with the motor's power triangle beside it (cos φ / capacitor controls) — the
+  other set fades out and the camera moves (`ac-power` / `ac-power:circuit`).
+- Step 7: «Пролетіти вздовж зазору» replays the gap fly-through on demand (turbo and hydro shots), so deep links and
+  hydro mode reach it.
+- Every shot declares `fit`; callouts that carry the point are listed first (phones show three).
 
 ## Rules that keep it random-access safe and honest
 
@@ -49,9 +64,9 @@ probes, `stage.toggle` / `setParam`, `manifestText`, quoted labels from the expo
 ## QA
 
 ```bash
-export QA_ID=B-generator-ac QA_PORT=5247
-node tools/qa/chapter-check.mjs generator-ac --sizes all
-QA_PORT=5247 node app/src/volumes/electricity/chapters/generator-ac/qa/interaction.mjs --size 1280x720   # also 1920x1080, 3840x2160
-QA_PORT=5347 node app/src/volumes/electricity/chapters/generator-ac/qa/interaction.mjs                   # production preview
+export QA_ID=P-generator-ac QA_PORT=5258
+node tools/qa/chapter-check.mjs generator-ac --sizes all --mobile
+QA_PORT=5258 node app/src/volumes/electricity/chapters/generator-ac/qa/interaction.mjs --size 1280x720   # also 1920x1080, 3840x2160
+QA_PORT=5358 node app/src/volumes/electricity/chapters/generator-ac/qa/interaction.mjs                   # production preview
 pnpm vitest run src/volumes/electricity/chapters/generator-ac                                             # in app/
 ```

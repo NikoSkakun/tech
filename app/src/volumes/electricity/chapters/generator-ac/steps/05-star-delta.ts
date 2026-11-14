@@ -18,7 +18,7 @@ import { createDial } from '../parts/holo-scope';
 import { createMeter } from '../parts/meter';
 import { createStarDeltaBoard } from '../parts/star-delta-board';
 import { SLOTS, createTerminalBox, type Layout } from '../parts/terminal-box';
-import { PHASE, group, pickBox, roomy, tag } from '../world';
+import { PHASE, group, narrow, pickBox, roomy, tag } from '../world';
 
 const ID = 'star-delta';
 const NET_V = 400;
@@ -35,15 +35,16 @@ export const starDelta: StepFactory = (hall) => {
 
   // voltmeters: phase–neutral and phase–phase, in front of the board
   const vPN = createMeter({ ring: 'blue', size: 0.36, post: 0.5 });
-  vPN.group.position.set(-3.4, 0, 0.75);
+  vPN.group.position.set(-3.45, 0, 1.45);
   vPN.group.rotation.y = 0.3;
   const vPP = createMeter({ ring: 'teal', size: 0.36, post: 0.5 });
-  vPP.group.position.set(-1.9, 0, 0.95);
+  vPP.group.position.set(-1.85, 0, 1.6);
   vPP.group.rotation.y = 0.2;
   const tPN = tag('', 19, 'white', 'mono');
-  tPN.position.copy(vPN.label).add(vPN.group.position);
+  // the two readings are long and the meters stand close: pull them apart sideways so they never overlap (720p)
+  tPN.position.copy(vPN.label).add(vPN.group.position).add(new Vector3(-0.4, 0, 0));
   const tPP = tag('', 19, 'white', 'mono');
-  tPP.position.copy(vPP.label).add(vPP.group.position);
+  tPP.position.copy(vPP.label).add(vPP.group.position).add(new Vector3(0.3, 0, 0));
   set.add(vPN.group, vPP.group, tPN, tPP);
 
   // phasor plate: U1, U2, U3 and U12 = U1 − U2 (static construction)
@@ -194,8 +195,8 @@ export const starDelta: StepFactory = (hall) => {
         { anchor: () => drive.group.localToWorld(mid.set(0, 1.3, 0)), text: OWN.motor400, side: 'up' },
       ],
       hotspots: [
-        { anchor: () => lineArrow.tip.getWorldPosition(mid), content: 0 },
-        { anchor: () => box.group.localToWorld(mid.set(0.9, 0.55, 0.2)), content: 1 },
+        { anchor: () => lineArrow.tip.getWorldPosition(mid), content: 'line-voltage-vector' },
+        { anchor: () => box.group.localToWorld(mid.set(0.9, 0.55, 0.2)), content: 'terminal-box' },
       ],
     },
     probe: () => ({
@@ -214,9 +215,9 @@ export const starDelta: StepFactory = (hall) => {
       drawPhasors();
       const y = conn() === 'star';
       vPN.setNeedle(y ? uPh() / 450 : 0);
-      tPN.text = `${OWN.phaseNeutral}: ${y ? fmtUnit(uPh(), 'V', { digits: 0 }) : '—'}`;
+      tPN.text = `${narrow(hall) ? '' : `${OWN.phaseNeutral}: `}${y ? fmtUnit(uPh(), 'V', { digits: 0 }) : '—'}`;
       vPP.setNeedle(uLine() / 450);
-      tPP.text = `${OWN.phasePhase}: ${fmtUnit(uLine(), 'V', { digits: 0 })}`;
+      tPP.text = `${narrow(hall) ? '' : `${OWN.phasePhase}: `}${fmtUnit(uLine(), 'V', { digits: 0 })}`;
       const m = motorState();
       drive.speed = m ? (m.ok ? 9 : 5 + Math.sin(t * 30) * 0.5) : 0;
       drive.update?.(dt, t);

@@ -68,3 +68,13 @@ export function createPodium(ctx: ChapterContext): Podium {
     },
   };
 }
+
+/** A window with room for secondary labels (at 1280×720 or in portrait they are thinned by priority). */
+export function roomy(lab: { ctx: { viewport: { width: number; height: number } } }): boolean {
+  return lab.ctx.viewport.height >= 860 && lab.ctx.viewport.width >= 1400;
+}
+
+/** A phone-wide window: labels that repeat a dock value or crowd the top are dropped there. */
+export function narrow(lab: { ctx: { viewport: { width: number } } }): boolean {
+  return lab.ctx.viewport.width < 700;
+}

@@ -1,38 +1,34 @@
 /**
- * A holographic hand for the right- / left-hand rules: a softly glowing glass hand built from rounded
- * primitives. `createGripHand` — the right-hand grip rule: the thumb points up the local +y axis (along the
- * conventional current), the four fingers curl around the axis counter-clockwise seen from above (the sense
- * of **B**). The hand wraps a conductor of radius ≈ `r` at the origin.
+ * Cues for the right- / left-hand rules. `createCurlCue` — the right-hand grip rule as the textbook icon: a
+ * bold `magenta` curl arrow round the wire whose sense is **B** when the current (the step's `yellow` arrow,
+ * the "thumb") points up local +y; counter-clockwise seen from above. (A glass grip hand built from
+ * primitives read as a blob at the step's camera distance — P-magnetism punch list item 4.)
+ * `createLeftHand` — a holographic open left hand for the Ampère force.
  */
-import { Group, Mesh, TorusGeometry } from 'three';
+import { ConeGeometry, Group, Mesh, TorusGeometry, Vector3 } from 'three';
 import { Builder } from '@/kit';
-import { K } from '@/style';
+import { K, SEMANTIC } from '@/style';
 
 export function handMaterial() {
   return K.glass({ color: 'sky', opacity: 0.38, edgeOpacity: 0.95 });
 }
 
-export function createGripHand(r = 0.12): Group {
+/** Curl arrow of radius `r` round the local y axis. */
+export function createCurlCue(r = 0.3): Group {
   const g = new Group();
-  g.name = 'grip-hand';
-  const mat = handMaterial();
-  const b = new Builder('hand');
-  // palm: a rounded block hugging the conductor from the back (−x side), thumb up along +y
-  b.box(r * 1.5, r * 3.2, r * 2.6, { at: [-r * 1.9, -r * 1.6, 0], r: r * 0.6 });
-  b.capsule(r * 0.42, r * 2.6, { at: [-r * 1.15, r * 1.6, 0] });
-  b.sphere(r * 0.5, { at: [-r * 1.2, r * 0.25, 0] });
-  b.box(r * 1.1, r * 1.6, r * 1.8, { at: [-r * 2.5, -r * 4.0, 0], r: r * 0.4 });
-  g.add(new Mesh(b.geometry('toon'), mat));
-  // four curled fingers: partial tori around the axis, stacked under the thumb
-  for (let k = 0; k < 4; k++) {
-    const f = new Mesh(new TorusGeometry(r * 1.35, r * 0.36, 10, 28, Math.PI * 1.45), mat);
-    f.rotation.x = -Math.PI / 2;
-    // start behind the conductor (palm side) and curl counter-clockwise seen from +y
-    f.rotation.z = Math.PI * 0.8;
-    f.position.y = -r * (0.2 + k * 0.78);
-    f.scale.setScalar(1 - k * 0.05);
-    g.add(f);
-  }
+  g.name = 'curl-cue';
+  const mat = K.glow({ color: SEMANTIC.fieldB, intensity: 1.6, falloff: 0, whiten: 0.15, keepHue: true });
+  const arc = Math.PI * 1.55;
+  const start = Math.PI * 0.2;
+  const end = start + arc;
+  // TorusGeometry draws its arc in XY from angle 0; laid flat (x = −π/2) it runs counter-clockwise from +y
+  const ring = new Mesh(new TorusGeometry(r, r * 0.09, 8, 48, arc), mat);
+  ring.rotation.set(-Math.PI / 2, 0, start, 'XYZ');
+  // arrowhead at the end of the arc, along the counter-clockwise tangent (−sin a, 0, −cos a)
+  const head = new Mesh(new ConeGeometry(r * 0.27, r * 0.62, 16), mat);
+  head.position.set(Math.cos(end) * r, 0, -Math.sin(end) * r);
+  head.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), new Vector3(-Math.sin(end), 0, -Math.cos(end)));
+  g.add(ring, head);
   return g;
 }
 

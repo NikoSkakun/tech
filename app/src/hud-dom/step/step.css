@@ -1,0 +1,248 @@
+/* Step regions of the DOM interface (D1 moved them from the D0 spike; D2 completes them): header, step panel,
+   sections, «Див. також», navigator. Tokens and plates: ../core/base.css. */
+
+/* ---- header (hud/header.ts) ------------------------------------------------------------------------- */
+.hd {
+  left: var(--safe);
+  top: var(--safe);
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--u));
+  padding: calc(12 * var(--u)) calc(18 * var(--u)) calc(12 * var(--u)) calc(14 * var(--u));
+}
+.hd-text {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--u));
+  min-width: 0;
+}
+.hd-title {
+  max-width: calc(430 * var(--u));
+  font: 800 calc(var(--t-h2) * var(--u)) / 1.16 var(--display);
+}
+.ring {
+  position: relative;
+  flex: none;
+  width: calc(46 * var(--u));
+  height: calc(46 * var(--u));
+}
+.ring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+.ring circle {
+  fill: none;
+  stroke-width: 5.5;
+}
+.ring .track {
+  stroke: rgb(var(--c-bg-void-rgb) / 0.8);
+}
+.ring .arc {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 2px rgb(var(--accent-rgb) / 0.4));
+}
+.ring-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 500 calc(var(--t-caption) * var(--u)) / 1 var(--mono);
+  color: var(--c-white);
+}
+
+/* ---- step panel (hud/step-panel.ts) ------------------------------------------------------------------ */
+.sp {
+  display: flex;
+  flex-direction: column;
+  gap: calc(12 * var(--u));
+  padding: calc(26 * var(--u));
+}
+.sp.off {
+  display: none;
+}
+.sp-title {
+  font: 800 calc(var(--t-h1) * var(--u)) / 1.14 var(--display);
+  text-wrap: pretty;
+}
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(8 * var(--u));
+}
+.badges[hidden] {
+  display: none;
+}
+.sp-scroll {
+  flex: 0 1 auto;
+  min-height: calc(60 * var(--u));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--accent-rgb) / 0.5) transparent;
+  display: flex;
+  flex-direction: column;
+  gap: calc(14 * var(--u));
+}
+.page {
+  font-size: calc(var(--t-body) * var(--u));
+  line-height: 1.46;
+  hyphens: manual;
+}
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(10 * var(--u));
+}
+.pager[hidden] {
+  display: none;
+}
+.page-count {
+  font: 500 calc(var(--t-caption) * var(--u)) / 1 var(--mono);
+  color: var(--c-steel);
+}
+.sp-extra,
+.sections,
+.sec-col {
+  display: flex;
+  flex-direction: column;
+  gap: calc(10 * var(--u));
+}
+.sec-bar,
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(8 * var(--u));
+}
+.sec-body[hidden] {
+  display: none;
+}
+.sp-extra .kd {
+  position: relative;
+  padding: calc(18 * var(--u));
+}
+.card-title {
+  font: 800 calc(var(--t-h3) * var(--u)) / 1.2 var(--display);
+}
+.card-body,
+.note,
+.intl {
+  font-size: calc(var(--t-small) * var(--u));
+}
+.intl,
+.note {
+  color: var(--c-steel);
+}
+.myth {
+  --tone-rgb: var(--c-amber-rgb);
+}
+.myth .kicker {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  color: var(--c-amber);
+}
+.formula {
+  font: 500 calc(var(--t-h3) * var(--u)) / 1.4 var(--mono);
+  padding: calc(8 * var(--u)) calc(12 * var(--u));
+  border-radius: calc(var(--r-inset) * var(--u));
+  background: rgb(var(--c-bg-void-rgb) / 0.66);
+}
+.formula.long {
+  font-size: calc(var(--t-small) * var(--u));
+}
+.table-wrap {
+  overflow-x: auto;
+}
+.kd-table {
+  border-collapse: collapse;
+  font-size: calc(var(--t-small) * var(--u));
+}
+.kd-table th {
+  color: var(--c-mist);
+  font-weight: 600;
+  text-align: left;
+}
+.kd-table th,
+.kd-table td {
+  padding: calc(4 * var(--u)) calc(10 * var(--u)) calc(4 * var(--u)) 0;
+  border-bottom: 1px solid rgb(var(--c-slate-rgb) / 0.6);
+}
+
+/* ---- navigator (hud/navigator.ts) -------------------------------------------------------------------- */
+.nav {
+  left: 50%;
+  bottom: var(--safe);
+  transform: translateX(calc(-50% + var(--shift, 0px)));
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--u));
+  padding: calc(8 * var(--u)) calc(12 * var(--u));
+  border-radius: calc(34 * var(--u));
+}
+.nav-mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.dots {
+  display: flex;
+}
+.dot {
+  --w: 14;
+  display: grid;
+  place-items: center;
+  width: calc(44 * var(--u));
+  height: calc(var(--hit) * var(--u));
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.dot::after {
+  content: '';
+  width: calc(var(--w) * var(--u));
+  height: calc(8 * var(--u));
+  border-radius: calc(4 * var(--u));
+  border: 1px solid rgb(var(--c-mist-rgb) / 0.4);
+  background: rgb(var(--c-slate-rgb) / 0.85);
+  transition: width 0.25s, background 0.2s, box-shadow 0.2s;
+}
+.dot.seen::after {
+  background: color-mix(in srgb, var(--c-bg-indigo) 38%, var(--accent));
+}
+.dot.on::after {
+  --w: 36;
+  height: calc(11 * var(--u));
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 calc(10 * var(--u)) rgb(var(--accent-rgb) / 0.42);
+}
+.dot:hover::after {
+  border-color: rgb(var(--c-mist-rgb) / 0.9);
+}
+.nav-count {
+  font: 500 calc(var(--t-caption) * var(--u)) / 1 var(--mono);
+  color: var(--c-steel);
+  height: calc(22 * var(--u));
+}
+
+/* ---- «Див. також» (hud/step-links.ts) ---------------------------------------------------------------- */
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--u));
+}
+.chip.link {
+  --tone-rgb: var(--c-mist-rgb);
+  max-width: 100%;
+  min-height: calc(32 * var(--u));
+  padding-block: calc(5 * var(--u));
+  text-align: left;
+}
+.chip.link.dim {
+  opacity: 0.55;
+}

@@ -39,7 +39,18 @@ export interface UrlFlags {
   formFactor: FormFactor | null;
   /** `?safe=top,right,bottom,left` — emulate safe-area insets, CSS px (QA). */
   safeArea: EdgeInsets | null;
+  /** `?hud=dom|gl` — which renderer draws the interface (docs/HUD_DOM.md §16); default `DEFAULT_HUD`. */
+  hud: HudRenderer;
 }
+
+/**
+ * Interface renderers during the migration to the DOM interface (DECISIONS §59): `gl` = the WebGL HUD,
+ * `dom` = hybrid — every region whose DOM view is registered is HTML over the canvas, the rest stays WebGL.
+ */
+export type HudRenderer = 'dom' | 'gl';
+
+/** The renderer used without `?hud=` (D9 flips it to `'dom'` at cut-over). */
+export const DEFAULT_HUD: HudRenderer = 'gl';
 
 export function parseFlags(search: string): UrlFlags {
   const q = new URLSearchParams(search);
@@ -48,7 +59,9 @@ export function parseFlags(search: string): UrlFlags {
   const level = q.get('level');
   const freezeValue = freeze === null ? null : Number(freeze === '' ? 0 : freeze);
   const ff = q.get('ff');
+  const hud = q.get('hud');
   return {
+    hud: hud === 'dom' || hud === 'gl' ? hud : DEFAULT_HUD,
     formFactor: isFormFactor(ff) ? ff : null,
     safeArea: parseSafeArea(q.get('safe')),
     quality: isQualityTier(tier) ? tier : null,
@@ -460,10 +473,13 @@ export class Engine {
 
   /** Resolves once `idle` and one more frame has been presented. */
   async settled(): Promise<void> {
+    if (this.flags.hud === 'dom') await document.fonts.ready;
     for (let guard = 0; guard < 100000; guard++) {
       await this.runtime.settled();
       await this.nextFrame();
       if (this.idle) {
+        // DOM interface: web fonts requested by the last layout must be in before a screenshot
+        if (this.flags.hud === 'dom') await document.fonts.ready;
         await this.nextFrame();
         if (this.idle) return;
       }

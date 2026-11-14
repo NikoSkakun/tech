@@ -30,7 +30,7 @@ export interface PhasorRig {
   dialCentre(out: Vector3): Vector3;
 }
 
-export const RIG = { dialSize: 2.5, scopeW: 5.0, scopeH: 2.5, sumSize: 1.9, gap: 0.12 } as const;
+export const RIG = { dialSize: 2.5, scopeW: 5.0, scopeH: 2.5, sumSize: 2.3, gap: 0.12 } as const;
 
 export function createPhasorRig(o: { sum?: boolean; power?: boolean } = {}): PhasorRig {
   const g = group('phasor-rig');
@@ -109,7 +109,7 @@ export function createPhasorRig(o: { sum?: boolean; power?: boolean } = {}): Pha
       }
       if (!sumPlate || !gapArrow) return;
       // tail to head: 0 → v1 → v1+v2 → v1+v2+v3; centred on the triangle's centroid
-      const L = sumSize * 0.5;
+      const L = sumSize * 0.62; // a full triangle (amp 1) fills the plate: legible at 720p
       points[0]!.set(0, 0, 0);
       for (let k = 0; k < 3; k++) {
         const ang = wt - (k * 2 * Math.PI) / 3;

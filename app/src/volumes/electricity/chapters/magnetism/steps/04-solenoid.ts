@@ -221,11 +221,11 @@ export const solenoidStep: StepFactory = (bench) => {
           })),
         ),
         { anchor: () => crane.magnet.getWorldPosition(v).setY(v.y + 0.3), text: OWN.crane, side: 'right' },
-        { anchor: () => rod.getWorldPosition(v).setY(v.y + 0.2), text: OWN.coreRod, color: 'cyan', side: 'down', visible: () => st.insert < 0.5 && !st.dragging },
+        { anchor: () => rod.getWorldPosition(v).setY(v.y - 0.22), text: OWN.coreRod, color: 'cyan', side: 'down', visible: () => st.insert < 0.5 && !st.dragging },
       ],
       hotspots: [
-        { anchor: () => rod.getWorldPosition(v).setY(v.y + 0.18).setX(v.x - 0.2), content: 0 },
-        { anchor: end(1), content: 1 },
+        { anchor: () => rod.getWorldPosition(v).setY(v.y + 0.18).setX(v.x - 0.2), content: 'core' },
+        { anchor: end(1), content: 'coil-end-n' },
       ],
     },
     update(dt, t) {

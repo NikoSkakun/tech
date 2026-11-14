@@ -1,8 +1,9 @@
 /**
  * Step 2 `domains` — where magnetism comes from. A big «crystal» of iron split into 40 domains (model М2:
  * Preisach-like switching thresholds, soft / hard domains, Curie point 770 °C). Left: a coil whose field H
- * sweeps the slab (`magenta` lines, density ∝ |H|); right: a burner and a thermometer. The magnifier upper
- * left shows one electron spinning with its magnetic moment. In front: copper and aluminium bars with small
+ * sweeps the slab (`magenta` lines, density ∝ |H|). In front of the slab's right corner one side hero at a
+ * time: the magnifier with one electron spinning with its magnetic moment, or — once the temperature is
+ * raised — a burner and a thermometer (the camera moves closer). In front: copper and aluminium bars with small
  * compasses that keep pointing north (they are not ferromagnetic). Board: the hysteresis loop B(H).
  */
 import { Group, Mesh, TorusGeometry, Vector3 } from 'three';
@@ -48,26 +49,31 @@ export const domainsStep: StepFactory = (bench) => {
   burner.cyl(0.26, 0.12, { seg: 28, slot: 'metal', c: 'steel' });
   burner.cyl(0.08, 0.3, { at: [0, 0.12, 0], seg: 16, slot: 'metal', c: 'mist' });
   const burnerModel = burner.build();
-  burnerModel.group.position.set(W / 2 + 0.5, 0, 0.45);
-  const flame = createGasFlame({ height: 0.7, width: 0.28 });
-  flame.position.set(W / 2 + 0.5, 0.42, 0.45);
-  const thermo = levelTube({ height: 1.3, radius: 0.08, color: 'orange', level: 0, ticks: 9 });
-  thermo.group.position.set(W / 2 + 0.5, 0, -0.65);
+  // one hero at a time: burner + thermometer and the magnifier share the spot in front of the slab's right
+  // corner (the burner used to stand behind the step panel). Heating brings the burner in (and the camera
+  // closer); touching H or cooling to room temperature brings the magnifier back.
+  const heatSpot = group('heat-spot', W / 2 - 0.45, 0, D / 2 + 0.45);
+  const flame = createGasFlame({ height: 0.95, width: 0.38 });
+  flame.position.set(0, 0.55, 0);
+  const thermo = levelTube({ height: 1.7, radius: 0.12, color: 'orange', level: 0, ticks: 9 });
+  thermo.group.position.set(0.75, 0, -0.35);
+  burnerModel.group.scale.setScalar(1.3);
+  heatSpot.add(burnerModel.group, flame, thermo.group);
   // copper and aluminium bars that do not care
   const bars = new Builder('bars');
   bars.box(0.9, 0.14, 0.28, { at: [-0.65, 0, 0], r: 0.04, slot: 'metal', c: COPPER });
   bars.box(0.9, 0.14, 0.28, { at: [0.65, 0, 0], r: 0.04, slot: 'metal', c: 'mist' });
   const barModel = bars.build();
-  barModel.group.position.set(-0.75, 0, 1.55);
-  const smallCompasses = [-1.25, 0.05].map((x) => {
+  barModel.group.position.set(-1.0, 0, 1.55);
+  const smallCompasses = [-1.5, -0.2].map((x) => {
     const c = createCompass(0.18);
     c.group.position.set(x - 0.15, 0, 2.05);
     return c;
   });
   // the magnifier with one spinning electron
   const lupa = new Group();
-  lupa.position.set(1.05, 0.95, 1.55);
-  lupa.scale.setScalar(0.72);
+  lupa.position.set(W / 2 - 0.95, 0.72, D / 2 + 1.2);
+  const LUPA = 0.95;
   const rim = new Mesh(new TorusGeometry(0.55, 0.05, 12, 64), K.metal({ color: 'amber', specular: 0.8 }));
   const lens = new Mesh(new Builder('lens').cyl(0.53, 0.02, { seg: 48, axis: 'z' }).geometry('toon'), K.glass({ color: 'sky', opacity: 0.1, edgeOpacity: 0.5 }));
   lens.position.z = -0.01;
@@ -81,7 +87,7 @@ export const domainsStep: StepFactory = (bench) => {
   spinner.rotation.set(0.3, 0, -0.25);
   lupa.add(rim, lens, spinner);
   lupa.lookAt(new Vector3(0, 6, 9));
-  set.add(crystal, coil.group, hLines.mesh, burnerModel.group, flame, thermo.group, barModel.group, ...smallCompasses.map((c) => c.group), lupa);
+  set.add(crystal, coil.group, hLines.mesh, heatSpot, barModel.group, ...smallCompasses.map((c) => c.group), lupa);
 
   /* ------------------------------------------------------------------------------------- state */
   const model = createDomains(5);
@@ -109,6 +115,16 @@ export const domainsStep: StepFactory = (bench) => {
       return { points: sign < 0 ? pts.reverse() : pts };
     });
   const v = new Vector3();
+  /** 0 = the magnifier is the side hero, 1 = the burner and thermometer are (eased in update). */
+  let heatK = 0;
+  let heatFocus = false;
+  const focusHeat = (on: boolean): void => {
+    if (on === heatFocus) return;
+    heatFocus = on;
+    void ctx.camera.go(on ? `${ID}:heat` : ID, { duration: 1.3 });
+  };
+  ui.onChange('t2', (tc) => focusHeat(Number(tc) > 21));
+  ui.onChange('h2', () => focusHeat(false));
 
   ctx.qa.probe('slab2', slab.group);
   ctx.qa.expose(ID, () => ({
@@ -118,6 +134,7 @@ export const domainsStep: StepFactory = (bench) => {
     aligned: Array.from(state.aligned).filter((a) => a !== 0).length,
     aboveCurie: state.aboveCurie,
     trail: trail.xs.length,
+    heatFocus,
   }));
 
   return {
@@ -131,6 +148,15 @@ export const domainsStep: StepFactory = (bench) => {
         orbit: { azimuth: 0.6, polar: 0.3 },
         fit: { center: [0, 0.6, 0.3], radius: 2.9 },
       },
+      // heating: the slab's right half, the flame and the thermometer fill the frame
+      [`${ID}:heat`]: {
+        position: [1.9, 3.3, 5.0],
+        target: [0.9, 0.75, 0.55],
+        fov: 34,
+        frameAspect: 1.25,
+        orbit: { azimuth: 0.6, polar: 0.3 },
+        fit: { center: [0.9, 0.8, 0.55], radius: 2.0 },
+      },
     },
     stage: {
       show: [set],
@@ -142,6 +168,8 @@ export const domainsStep: StepFactory = (bench) => {
         pushTrail(0, 0);
         lastAligned = 0;
         lastKey = '';
+        heatFocus = false;
+        heatK = 0;
       },
     },
     ui: {
@@ -183,11 +211,12 @@ export const domainsStep: StepFactory = (bench) => {
       ],
       callouts: [
         { anchor: () => coil.group.getWorldPosition(v).setY(v.y + 0.55), text: OWN.coil, color: SEMANTIC.fieldB, side: 'up' },
-        { anchor: thermo.anchor('top'), text: OWN.burner, color: 'orange', side: 'up' },
-        { anchor: () => barModel.group.getWorldPosition(v).setZ(v.z + 0.05), text: OWN.copperAl, side: 'right' },
+        { anchor: thermo.anchor('top'), text: OWN.burner, color: 'orange', side: 'up', visible: () => heatK > 0.6 },
+        // below the pair of compasses, in the free front of the table (above, it ran into the board at 720p)
+        { anchor: () => barModel.group.getWorldPosition(v).setZ(v.z + 0.6), text: OWN.copperAl, side: 'down' },
       ],
       hotspots: [
-        { anchor: () => lupa.getWorldPosition(v).setY(v.y - 0.62), content: 'electron-spin' },
+        { anchor: () => lupa.getWorldPosition(v).setY(v.y - 0.62), content: 'electron-spin', visible: () => heatK < 0.4 },
         { anchor: () => slab.group.localToWorld(v.copy(slab.wallPoint).setY(0.06)), content: 'domain-wall' },
         { anchor: () => slab.group.localToWorld(v.set(W / 2 - 0.25, 0.06, D / 2 - 0.2)), content: 'hysteresis-loop' },
       ],
@@ -211,6 +240,11 @@ export const domainsStep: StepFactory = (bench) => {
         hLines.set(hLineSet(Math.sign(hv)));
         hLines.mesh.userData.sign = Math.sign(hv);
       }
+      heatK += ((heatFocus ? 1 : 0) - heatK) * Math.min(dt * 5, 1);
+      heatSpot.scale.setScalar(Math.max(heatK, 0.001));
+      heatSpot.visible = heatK > 0.01;
+      lupa.scale.setScalar(Math.max(LUPA * (1 - heatK), 0.001));
+      lupa.visible = heatK < 0.99;
       flame.power = Math.min(heat * 1.2, 1);
       flame.visible = tc > 25;
       thermo.level = (tc - 20) / (DOMAINS.temperatureRange.max - 20);

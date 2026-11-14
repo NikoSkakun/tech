@@ -62,7 +62,11 @@ export const latticeStep: StepFactory = (lab) => {
   });
 
   const v = new Vector3();
-  const ionAnchor = (): Vector3 => set.localToWorld(v.copy(block.sites[block.sites.length - 40]!));
+  // the named ion sits on the left face, front, mid-height: its label (side left) then stands beside the block
+  const ionSite = block.sites.reduce((a, b) =>
+    b.x - 0.6 * b.z + 0.8 * Math.abs(b.y) < a.x - 0.6 * a.z + 0.8 * Math.abs(a.y) ? b : a,
+  );
+  const ionAnchor = (): Vector3 => set.localToWorld(v.copy(ionSite));
   ctx.qa.probe('cell1', cell.group);
   ctx.qa.probe('block1', block.group);
   ctx.qa.expose(ID, () => ({
@@ -111,7 +115,8 @@ export const latticeStep: StepFactory = (lab) => {
       callouts: [
         { anchor: ionAnchor, text: L.lattice.ion, side: 'left', color: 'coral' },
         {
-          anchor: () => cell.group.getWorldPosition(v).add(new Vector3(0, A * 1.1, 0)),
+          // above the exploded top-face atom, so the label never sits on the cell
+          anchor: () => cell.group.getWorldPosition(v).add(new Vector3(0, A * 1.6, 0)),
           text: L.lattice.count,
           color: 'yellow',
           side: 'up',

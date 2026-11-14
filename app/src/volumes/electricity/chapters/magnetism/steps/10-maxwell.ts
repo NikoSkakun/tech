@@ -13,7 +13,7 @@ import { DOC } from '../labels';
 import { OWN } from '../labels-own';
 import { createEqViews } from '../parts/eq-views';
 import { createPoyntingView } from '../parts/poynting-view';
-import { createWaveView } from '../parts/wave-view';
+import { createWaveView, STRIP } from '../parts/wave-view';
 import { group } from '../world';
 
 const ID = 'maxwell';
@@ -40,22 +40,35 @@ export const maxwellStep: StepFactory = (bench) => {
   const circuit = () => poyntingCircuit(ui.value<number>('u10'), ui.value<number>('r10'));
   const show = (): string => ui.value<string>('show10');
   const bandName = (): string => OWN.bands[BANDS.indexOf(emWave(freq()).band)] ?? '';
-  ui.onChange('view10', (v) => void ctx.camera.go(v === 'eq' ? ID : `${ID}:${v}`, { duration: 1.5 }));
+  // «Хвиля»: the wave is born at the antenna and runs out over the spectrum strip while the camera rides beside
+  // it (behind the antenna → alongside the front → the overview); reduced motion goes straight to the overview.
+  let ride = -1;
+  ui.onChange('view10', (v) => {
+    ride = v === 'wave' && !ctx.reducedMotion ? 0 : -1;
+    void ctx.camera.go(v === 'eq' ? ID : v === 'wave' && ride === 0 ? `${ID}:ride` : `${ID}:${v}`, { duration: ride === 0 ? 1.3 : 1.5 });
+  });
+  const RIDE = [
+    { at: 1.0, shot: `${ID}:ride2`, duration: 2.4 },
+    { at: 3.3, shot: `${ID}:wave`, duration: 1.8 },
+  ];
   ctx.qa.probe('resistor10', poy.group);
   ctx.qa.expose(ID, () => {
     const c = circuit();
-    return { view: view(), eq: eqIndex(), frequency: freq(), wavelengthM: emWave(freq()).wavelengthM, band: emWave(freq()).band, powerW: c.powerW, currentA: c.currentA, show: show() };
+    return { view: view(), eq: eqIndex(), frequency: freq(), wavelengthM: emWave(freq()).wavelengthM, band: emWave(freq()).band, powerW: c.powerW, currentA: c.currentA, show: show(), riding: ride >= 0 };
   });
   const v = new Vector3();
   const strip = new Vector3();
-  const eqShot = { position: [-0.7, 3.0, 4.6] as [number, number, number], target: [-1.6, 0.7, 0.8] as [number, number, number] };
+  // world y = table-local y + 0.61 (the table top); the wave axis is at world y ≈ 1.39, z = −1.3
+  const orbit = { azimuth: 0.6, polar: 0.3 };
 
   return {
     id: ID,
     shots: {
-      [ID]: { ...eqShot, fov: 32, frameAspect: 1.2, orbit: { azimuth: 0.6, polar: 0.3 }, fit: { center: [-1.9, 0.7, 0.9], radius: 1.5 } },
-      [`${ID}:wave`]: { position: [0.8, 3.6, 4.0], target: [0.5, 0.6, -1.3], fov: 34, frameAspect: 1.3, orbit: { azimuth: 0.6, polar: 0.3 }, fit: { center: [0.5, 0.6, -1.3], radius: 2.7 } },
-      [`${ID}:energy`]: { position: [1.0, 3.3, 5.2], target: [0.7, 0.5, 1.3], fov: 34, frameAspect: 1.3, orbit: { azimuth: 0.6, polar: 0.3 }, fit: { center: [0.7, 0.5, 1.4], radius: 2.2 } },
+      [ID]: { position: [-1.15, 2.45, 4.75], target: [-1.9, 1.5, 0.9], fov: 32, frameAspect: 1.2, orbit, fit: { center: [-1.9, 1.35, 0.9], radius: 1.3 } },
+      [`${ID}:ride`]: { position: [-3.0, 1.8, 0.4], target: [-0.6, 1.35, -1.3], fov: 40, frameAspect: 1.5, orbit, drift: 0, fit: { center: [-1.2, 1.39, -1.3], radius: 1.2 } },
+      [`${ID}:ride2`]: { position: [2.3, 1.75, 0.7], target: [3.7, 1.25, -1.6], fov: 40, frameAspect: 1.5, orbit, drift: 0, fit: { center: [3.2, 1.2, -1.6], radius: 1.4 } },
+      [`${ID}:wave`]: { position: [1.0, 3.3, 4.6], target: [0.95, 1.05, -0.8], fov: 34, frameAspect: 1.4, orbit, fit: { center: [0.95, 1.05, -0.8], radius: 2.9 } },
+      [`${ID}:energy`]: { position: [1.0, 3.2, 5.6], target: [0.75, 1.05, 1.4], fov: 34, frameAspect: 1.4, orbit, fit: { center: [0.75, 1.05, 1.4], radius: 2.2 } },
     },
     stage: {
       show: [set],
@@ -109,9 +122,9 @@ export const maxwellStep: StepFactory = (bench) => {
         { anchor: () => wave.group.localToWorld(wave.stripAt(Math.log10(freq()), strip)), text: bandName, color: 'yellow', side: 'down', visible: () => view() === 'wave' },
       ],
       hotspots: [
-        { anchor: () => eq.group.localToWorld(v.copy(eq.gap)), content: 0, visible: () => view() === 'eq' && eqIndex() === 3 },
-        { anchor: () => poy.group.localToWorld(v.copy(poy.resistor)), content: 1, visible: () => view() === 'energy' },
-        { anchor: () => wave.group.localToWorld(v.set(-1.6, 0.25, -1.35)), content: 2, visible: () => view() === 'wave' },
+        { anchor: () => eq.group.localToWorld(v.copy(eq.gap)), content: 'displacement-current', visible: () => view() === 'eq' && eqIndex() === 3 },
+        { anchor: () => poy.group.localToWorld(v.copy(poy.resistor)), content: 'poynting-arrows', visible: () => view() === 'energy' },
+        { anchor: () => wave.group.localToWorld(v.set(-1.6, 0.25, STRIP.z)), content: 'spectrum-band', visible: () => view() === 'wave' },
       ],
     },
     update(dt, t) {
@@ -126,7 +139,14 @@ export const maxwellStep: StepFactory = (bench) => {
         g.visible = k > 0.01;
       }
       eq.update(t, view() === 'eq' ? eqIndex() : -1);
-      wave.update(t, Math.log10(freq()));
+      if (ride >= 0) {
+        const before = ride;
+        ride += dt;
+        for (const r of RIDE) if (before < r.at && ride >= r.at && view() === 'wave') void ctx.camera.go(r.shot, { duration: r.duration });
+        if (ride > 6) ride = -1;
+      }
+      // the wave front leaves the antenna at 2 units/s (slowed: the chip says so); Infinity = fully grown
+      wave.update(t, Math.log10(freq()), ride >= 0 ? ride * 2 : Infinity);
       const c = circuit();
       const fields = show() !== 'electrons';
       poy.e.mesh.visible = fields && c.fieldDensity > 0.001;

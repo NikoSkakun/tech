@@ -226,8 +226,8 @@ export const rotatingLoop1: StepFactory = (hall) => {
         { anchor: () => rig.localToWorld(mid.set(DIAL_X, SCOPE_H / 2 + 0.1, 0)), text: OWN.phasors, side: 'up', visible: () => roomy(hall) },
       ],
       hotspots: [
-        { anchor: () => normal.tip.getWorldPosition(tip), content: 0 },
-        { anchor: () => guide.localToWorld(mid.copy(tipA).lerp(curveP, 0.75)), content: 1 },
+        { anchor: () => normal.tip.getWorldPosition(tip), content: 'loop-normal' },
+        { anchor: () => guide.localToWorld(mid.copy(tipA).lerp(curveP, 0.75)), content: 'phasor-trace' },
       ],
     },
     probe: () => ({

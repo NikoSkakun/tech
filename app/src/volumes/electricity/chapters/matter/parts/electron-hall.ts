@@ -9,7 +9,7 @@
  */
 import { Group, Vector3 } from 'three';
 import type { ChapterContext } from '@/engine/api';
-import { createOrbs, createParticles, RibbonLines, sphereEmitter } from '@/fx';
+import { createOrbs, createParticles, ORB_STYLES, RibbonLines, sphereEmitter } from '@/fx';
 import { ELECTRON_GAS, type ElectronGas } from '@electricity/sim/matter';
 import { fccSites } from './fcc-block';
 
@@ -20,6 +20,11 @@ export const FOLD_NM = FOLD * CELL_NM;
 /** World units per nm (a = 0,5 units). */
 export const UNITS_PER_NM = 0.5 / CELL_NM;
 const TAIL_S = 0.11;
+/** Brightness of the unmarked electrons (1 = as styled). */
+const CROWD = 0.55;
+/** The marked electron: scale relative to the crowd. */
+const HERO_SCALE = 1.7;
+const HERO = 17;
 
 export interface ElectronHall {
   group: Group;
@@ -30,7 +35,9 @@ export interface ElectronHall {
   /** Camera position in the group's local space (near objects are hidden). */
   eye: Vector3;
   /** Index of the highlighted electron. */
-  readonly hero: number;
+  hero: number;
+  /** Hand the mark to electron i (the crowd keeps its dim tint). */
+  setHero(i: number): void;
   /** Display position of electron i (group-local). */
   electronAt(i: number, out: Vector3): Vector3;
   /** Last scattering flash (group-local), for the hotspot. */
@@ -46,22 +53,35 @@ export function createElectronHall(ctx: ChapterContext, gas: ElectronGas): Elect
   group.name = 'electron-hall';
   const a = CELL_NM * UNITS_PER_NM;
   const sites = fccSites(FOLD, a);
+  // the ion cores are the backdrop here, not the subject: smaller, matte, no gloss or rim highlight and no
+  // additive halo (≈ 7000 instances — the halo was most of the 4K fill)
   const ions = createOrbs({
-    kind: 'ion',
-    color: 'coral.dark',
+    kind: {
+      ...ORB_STYLES.ion,
+      color: 'coral.dark',
+      shade: 'coral.dark',
+      selfLit: 0.04,
+      intensity: 0.65,
+      gloss: 0.15,
+      rim: 0.4,
+    },
     glyph: 'none',
     count: sites.length,
-    radius: 0.048,
+    radius: 0.036,
+    halo: false,
   });
   const ionGroup = new Group();
   ionGroup.add(ions);
   const n = ELECTRON_GAS.count;
-  const electrons = createOrbs({ kind: 'electron', count: n, radius: 0.046 });
+  // the crowd is dimmed so that the one marked electron (yellow, larger) reads first
+  const electrons = createOrbs({ kind: 'electron', count: n, radius: 0.046, instanceColors: true });
+  for (let i = 0; i < n; i++) electrons.setInstanceColor(i, 'cyan', CROWD);
+  electrons.setInstanceColor(HERO, 'yellow', 1.6);
   const tails = new RibbonLines({
     capacity: n * 2 + 8,
     color: 'cyan',
     width: 0.024,
-    intensity: 1.2,
+    intensity: 0.75,
     endFade: [1, 0],
   });
   const lines = Array.from({ length: n }, () => ({
@@ -87,7 +107,13 @@ export function createElectronHall(ctx: ChapterContext, gas: ElectronGas): Elect
     centre: new Vector3(FOLD_NM / 2, FOLD_NM / 2, FOLD_NM / 2),
     jitter: 0.01,
     eye: new Vector3(0, 0, 3),
-    hero: 17,
+    setHero(i) {
+      electrons.setInstanceColor(hall.hero, 'cyan', CROWD);
+      hall.hero = i;
+      electrons.setInstanceColor(i, 'yellow', 1.6);
+      electrons.commit();
+    },
+    hero: HERO,
     lastFlash: new Vector3(0.6, 0.2, -0.8),
     electronAt(i, out) {
       const pos = gas.positions;
@@ -110,7 +136,8 @@ export function createElectronHall(ctx: ChapterContext, gas: ElectronGas): Elect
         const s = sites[i]!;
         p.copy(s).add(ionGroup.position);
         const d = p.distanceTo(hall.eye);
-        const near = ramp(d, 0.9, 1.7) * (1 - ramp(d, 2.5, 3.6));
+        // far rows dissolve early: the wall of ions behind the subject was the busiest part of the frame
+        const near = ramp(d, 0.9, 1.7) * (1 - ramp(d, 2.2, 3.2));
         ions.setPosition(
           i,
           s.x + j * Math.sin(t * 11.3 + i * 1.7),
@@ -125,7 +152,7 @@ export function createElectronHall(ctx: ChapterContext, gas: ElectronGas): Elect
       for (let i = 0; i < n; i++) {
         hall.electronAt(i, p);
         const near = ramp(p.distanceTo(hall.eye), 0.5, 1.1);
-        electrons.setPosition(i, p.x, p.y, p.z, near);
+        electrons.setPosition(i, p.x, p.y, p.z, i === hall.hero ? HERO_SCALE * Math.max(near, 0.5) : near);
         const ln = lines[i]!;
         ln.points[1]!.copy(p);
         ln.points[0]!.set(
@@ -133,7 +160,7 @@ export function createElectronHall(ctx: ChapterContext, gas: ElectronGas): Elect
           p.y - dir[3 * i + 1]! * tailLen * UNITS_PER_NM,
           p.z - dir[3 * i + 2]! * tailLen * UNITS_PER_NM,
         );
-        ln.brightness[1] = near;
+        ln.brightness[1] = i === hall.hero ? 0 : near; // the marked one draws its own long yellow trail
         const turned =
           primed &&
           (prevDir[3 * i] !== dir[3 * i] ||

@@ -247,8 +247,8 @@ export const magnetFieldStep: StepFactory = (bench) => {
       hotspots: [
         { anchor: () => (st.cut ? halves[0].n : magA.n).getWorldPosition(v), content: 'n-pole' },
         { anchor: () => (st.cut ? halves[1].s : magA.s).getWorldPosition(v), content: 's-pole' },
-        { anchor: compass.top, content: 2 },
-        { anchor: () => globe.group.getWorldPosition(v).setY(v.y + 0.45), content: 3 },
+        { anchor: compass.top, content: 'table-compass' },
+        { anchor: () => globe.group.getWorldPosition(v).setY(v.y + 0.45), content: 'globe-keychain' },
       ],
     },
     update(dt, t) {

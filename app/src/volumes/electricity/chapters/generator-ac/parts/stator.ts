@@ -3,10 +3,13 @@
  * every tooth in its phase colour (L1 `yellow`, L2 `green`, L3 `red`, repeating), on four feet. The coil k sits
  * at angle φ_k = k·360°/(3p) measured in the XZ plane from +X toward −Z (counter-clockwise seen from above), so a
  * rotor turning counter-clockwise passes L1 → L2 → L3. Coil materials are per coil (emissive ∝ current).
- * Origin = centre of the stator on the floor; the bore centre is at `BORE_Y`.
+ * Origin = centre of the stator on the floor; the bore centre is at `BORE_Y`. The yoke is kept low and the coils
+ * stand above it, so from the usual ~30° camera the teeth and the three coloured windings read clearly (a tall
+ * yoke wall hid them).
  */
-import { Group, Mesh, Vector3 } from 'three';
+import { Group, Mesh, Vector3, type BufferGeometry } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { G } from '@/kit';
 import { K, SEMANTIC } from '@/style';
 import { PHASE } from '../world';
@@ -38,7 +41,7 @@ export function createStator(polePairs = 1): Stator {
   const n = 3 * polePairs;
   const steel = K.metal({ color: 'steel', specular: 0.6 });
   // yoke: thick ring (closed lathe profile, bottom → top, outer wall first)
-  const h = 0.7;
+  const h = 0.42;
   const r0 = 1.3;
   const r1 = STATOR_R;
   const yoke = new Mesh(
@@ -48,7 +51,7 @@ export function createStator(polePairs = 1): Stator {
   yoke.castShadow = yoke.receiveShadow = true;
   group.add(yoke);
   // lamination grooves (thin dark rings)
-  for (const dy of [-0.2, 0, 0.2]) {
+  for (const dy of [-0.1, 0.1]) {
     const ring = new Mesh(G.ring(r1 + 0.005, 0.012, 96, 4), K.toon({ color: 'slate' }));
     ring.position.y = BORE_Y + dy;
     group.add(ring);
@@ -56,9 +59,9 @@ export function createStator(polePairs = 1): Stator {
   const coilMats: ReturnType<typeof K.toon>[] = [];
   const phaseOf: number[] = [];
   const angles: number[] = [];
-  const tooth = new RoundedBoxGeometry(r0 - TOOTH_TIP + 0.1, 0.5, 0.3, 2, 0.05);
-  const coilGeo = new RoundedBoxGeometry(0.3, 0.62, 0.5, 3, 0.1);
-  const shoe = new RoundedBoxGeometry(0.1, 0.52, 0.5, 2, 0.04);
+  const tooth = new RoundedBoxGeometry(r0 - TOOTH_TIP + 0.1, 0.4, 0.3, 2, 0.05);
+  const coilGeo = woundCoil(Math.min(0.56, (2 * Math.PI * 1.0) / n - 0.08));
+  const shoe = new RoundedBoxGeometry(0.1, 0.46, Math.min(0.56, (2 * Math.PI * TOOTH_TIP) / n - 0.06), 2, 0.04);
   for (let k = 0; k < n; k++) {
     const a = (k * 2 * Math.PI) / n;
     const phase = k % 3;
@@ -93,6 +96,21 @@ export function createStator(polePairs = 1): Stator {
     angles,
     rim: (a, out = new Vector3()) => polar(r1 + 0.05, a, BORE_Y, out),
   };
+}
+
+/** A coil as separate turns stacked along the tooth (one merged geometry): reads as a winding, not a block. */
+function woundCoil(depth: number): BufferGeometry {
+  const turns: BufferGeometry[] = [];
+  const n = 5;
+  const w = 0.34;
+  for (let i = 0; i < n; i++) {
+    const g = new RoundedBoxGeometry(w / n - 0.014, 0.7, depth, 2, 0.03);
+    g.translate(-w / 2 + (w / n) * (i + 0.5), 0, 0);
+    turns.push(g);
+  }
+  const merged = mergeGeometries(turns);
+  for (const g of turns) g.dispose();
+  return merged!;
 }
 
 /** Two-pole bar magnet rotor on a vertical shaft (N `coral` toward local +X). Rotate `group.rotation.y`. */

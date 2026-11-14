@@ -68,6 +68,7 @@ export const OWN = {
   exciter: 'Збудник',
   statorTerminals: 'Виводи статора → до блочного трансформатора',
   avrTag: 'ЕРС',
+  flyGap: 'Пролетіти вздовж зазору',
   // 8 synchronization
   generatorSide: 'Генератор',
   gridSide: 'Мережа',

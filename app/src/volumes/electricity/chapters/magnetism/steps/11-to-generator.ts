@@ -4,7 +4,8 @@
  * centre-zero galvanometer and a lamp. Model М8 (`createRotatingCoil`, shared with `generator-ac`): the user
  * turns the crank (drag around the axle — the flywheel follows, ≤ 600 rpm, Lenz braking under load) or presses
  * «Крутити рівно» (120 rpm). ℰ = N·B·A·ω·sin ωt; the board draws ℰ(t) and Φ(t). Electrons only swing to and
- * fro in the frame. «До генератора →» flies out and opens `generator-ac/rotating-loop`.
+ * fro in the frame. «До генератора →» flies out while the model grows into a ghost generator (stator + rotor)
+ * and the meters clear away, then opens `generator-ac/rotating-loop`.
  */
 import { Vector3 } from 'three';
 import { audio } from '@/audio';
@@ -18,6 +19,7 @@ import { DOC } from '../labels';
 import { OWN } from '../labels-own';
 import { createBLines } from '../parts/b-lines';
 import { createGalvanometer } from '../parts/galvanometer';
+import { createGenSilhouette } from '../parts/gen-silhouette';
 import { GEN, createGeneratorModel } from '../parts/generator-model';
 import { createLamp } from '../parts/lamp';
 import { group } from '../world';
@@ -54,11 +56,14 @@ export const toGeneratorStep: StepFactory = (bench) => {
     wire([new Vector3(-2.0, 0.05, 1.15), new Vector3(-1.4, 0.05, 1.9), new Vector3(1.2, 0.05, 1.9), new Vector3(1.55, 0.05, 0.6)]),
     wire([new Vector3(1.85, 0.05, 0.3), new Vector3(1.6, 0.05, -1.0), brush(1)]),
   ];
-  set.add(gen.group, galvo.group, lamp.group, ...leads);
+  // the bridge morph: the magnet and frame grow into the silhouette of a real generator during the fly-out
+  const ghost = createGenSilhouette();
+  ghost.group.position.copy(AXIS);
+  set.add(gen.group, galvo.group, lamp.group, ...leads, ghost.group);
 
   /* ------------------------------------------------------------------------------------- state */
   const sim = createRotatingCoil({ drive: 'speed', speedRpm: 0 });
-  const st = { t: 0, dragging: false, lastA: 0, rate: 0, steady: false };
+  const st = { t: 0, dragging: false, lastA: 0, rate: 0, steady: false, morph: 0 };
   const commutator = (): boolean => ui.value<string>('out11') === 'commutator';
   ui.onChange('out11', () => sim.set({ output: commutator() ? 'commutator' : 'slipRings' }));
   const steady = (on: boolean): void => {
@@ -100,10 +105,11 @@ export const toGeneratorStep: StepFactory = (bench) => {
   const goOn = (): void => {
     audio.play('whooshUp');
     void ctx.camera.go(`${ID}:out`, { duration: 1.4 });
+    ctx.stage.scope.to(st, { morph: 1 }, { duration: ctx.reducedMotion ? 0.3 : 1.1, ease: 'power2.inOut' });
     ctx.stage.scope.delay(1.1, () => (bridge && ctx.nav.locate(bridge) ? void ctx.nav.open(bridge) : ui.toast(OWN.notBuilt, { tone: 'info' })));
   };
   ctx.qa.probe('crank11', gen.anchors.hub);
-  ctx.qa.expose(ID, () => ({ ...sim.state, steady: st.steady, output: commutator() ? 'commutator' : 'slipRings', dragging: st.dragging }));
+  ctx.qa.expose(ID, () => ({ ...sim.state, steady: st.steady, output: commutator() ? 'commutator' : 'slipRings', dragging: st.dragging, morph: st.morph }));
   const v = new Vector3();
 
   return {
@@ -126,6 +132,7 @@ export const toGeneratorStep: StepFactory = (bench) => {
         sim.set({ drive: 'speed', speedRpm: 0, output: 'slipRings' });
         steady(ui.value<boolean>('steady11'));
         st.t = 0;
+        st.morph = 0;
       },
     },
     ui: {
@@ -174,11 +181,11 @@ export const toGeneratorStep: StepFactory = (bench) => {
       ],
       callouts: [
         { anchor: () => gen.crank.getWorldPosition(v), text: OWN.crank, color: 'cyan', side: 'right', visible: () => !st.dragging && Math.abs(sim.state.speedRpm) < 5 },
-        { anchor: () => galvo.face.getWorldPosition(v), text: OWN.galvanometer, side: 'up' },
+        { anchor: () => galvo.face.getWorldPosition(v), text: OWN.galvanometer, side: 'up', visible: () => st.morph < 0.05 },
       ],
       hotspots: [
-        { anchor: gen.anchors.rings, content: 'slip-rings' },
-        { anchor: () => gen.crank.getWorldPosition(v).setY(v.y + 0.25), content: 1 },
+        { anchor: gen.anchors.rings, content: 'slip-rings', visible: () => st.morph < 0.05 },
+        { anchor: () => gen.crank.getWorldPosition(v).setY(v.y + 0.25), content: 'crank', visible: () => st.morph < 0.05 },
       ],
     },
     update(dt, t) {
@@ -204,6 +211,14 @@ export const toGeneratorStep: StepFactory = (bench) => {
       for (const w of leads) {
         w.material.speed = 3 * 1.5 * Math.max(-1, Math.min(1, s.currentA / 0.4));
         w.material.power = Math.min(Math.abs(s.currentA) / 0.5, 1);
+      }
+      // bridge morph: the table model grows ×1.6 into the ghost generator, the meters clear the stage
+      const m = st.morph;
+      gen.group.scale.setScalar(K * (1 + 0.6 * m));
+      ghost.set(m);
+      for (const g of [galvo.group, lamp.group, ...leads]) {
+        g.scale.setScalar(Math.max(1 - m, 0.001));
+        g.visible = m < 0.99;
       }
       bench.live.whir = Math.min(Math.abs(s.speedRpm) / 600, 1) * 0.6;
       bench.live.whirPitch = 0.4 + Math.min(Math.abs(s.speedRpm) / 600, 1) * 0.6;

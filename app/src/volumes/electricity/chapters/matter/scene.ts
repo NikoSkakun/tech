@@ -3,7 +3,7 @@
  * `steps/` (see `chapter.ts` for the contract and `README.md` for the layout of this directory).
  */
 import type { Object3D } from 'three';
-import { defineScene, type Actor, type StepSpec } from '@/engine/api';
+import { defineScene, type Actor, type QaApi, type StepSpec } from '@/engine/api';
 import { stepUi, type StepUiSpec } from '@/hud';
 import type { Lab, StepId, StepModule } from './chapter';
 import { group } from './chapter';
@@ -41,12 +41,26 @@ export default defineScene(async (ctx) => {
   };
 
   // build the sets one by one, yielding to the outgoing chapter's frames in between
+  // QA probes belong to their step: each is registered only while its step is current. A hidden set's probe
+  // projects far off screen, where sub-pixel camera sway grows into a false layout difference (DPR 2 check).
   const modules: StepModule[] = [];
+  const probes = new Map<StepId, Parameters<QaApi['probe']>[]>();
+  const register = ctx.qa.probe.bind(ctx.qa);
+  const live: (() => void)[] = [];
   for (const make of STEPS) {
-    modules.push(make(lab));
+    const own: Parameters<QaApi['probe']>[] = [];
+    ctx.qa.probe = (...args) => (own.push(args), () => undefined);
+    const m = make(lab);
+    probes.set(m.id, own);
+    modules.push(m);
     ctx.progress(modules.length / STEPS.length);
     await ctx.breathe();
   }
+  ctx.qa.probe = register;
+  const bindProbes = (id: StepId): void => {
+    for (const off of live.splice(0)) off();
+    for (const args of probes.get(id) ?? []) live.push(register(...args));
+  };
 
   camera.shots(Object.assign({}, ...modules.map((m) => m.shots)));
   const actors = new Map<StepId, Actor[]>();
@@ -55,7 +69,16 @@ export default defineScene(async (ctx) => {
   for (const m of modules) {
     const own = m.stage.show.map((o) => ('isObject3D' in o ? stage.actor(o as Object3D) : (o as Actor)));
     actors.set(m.id, own);
-    specs[m.id] = { ...m.stage, show: own, camera: m.stage.camera ?? m.id };
+    const enter = m.stage.enter?.bind(m.stage);
+    specs[m.id] = {
+      ...m.stage,
+      show: own,
+      camera: m.stage.camera ?? m.id,
+      enter(info) {
+        bindProbes(m.id);
+        enter?.(info);
+      },
+    };
     if (m.ui) uis[m.id] = m.ui;
   }
   stage.define(specs);

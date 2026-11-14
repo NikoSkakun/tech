@@ -151,9 +151,9 @@ export const rlc: StepFactory = (hall) => {
         { anchor: () => board.parts.source.localToWorld(mid.set(0, 0.7, 0)), text: OWN.acSource, side: 'left', visible: () => roomy(hall) },
       ],
       hotspots: [
-        { anchor: () => board.parts.L.localToWorld(mid.set(0.3, 0.45, 0.2)), content: 0 },
-        { anchor: () => board.parts.C.localToWorld(mid.set(0.3, 0.45, 0.2)), content: 1 },
-        { anchor: () => diagram.localToWorld(mid.set(1.2, 1.2, 0.1)), content: 2 },
+        { anchor: () => board.parts.L.localToWorld(mid.set(0.3, 0.45, 0.2)), content: 'inductor' },
+        { anchor: () => board.parts.C.localToWorld(mid.set(0.3, 0.45, 0.2)), content: 'capacitor' },
+        { anchor: () => diagram.localToWorld(mid.set(1.2, 1.2, 0.1)), content: 'resonance-peak' },
       ],
     },
     probe: () => {

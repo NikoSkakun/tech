@@ -173,7 +173,7 @@ export const insulatorsStep: StepFactory = (lab) => {
           audio.play('zap');
         } else if (!solid() && sparkIn <= 0) {
           // air and oil heal: the spark comes back as long as the voltage stays
-          sparkIn = 0.7;
+          sparkIn = 1.6;
           cell.strike();
           audio.play('zap', { gain: 0.8 });
         }

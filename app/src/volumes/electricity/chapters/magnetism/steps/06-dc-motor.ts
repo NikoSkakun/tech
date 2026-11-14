@@ -124,9 +124,9 @@ export const dcMotorStep: StepFactory = (bench) => {
       ],
       callouts: [{ anchor: supply.knobAnchor, text: OWN.supply, side: 'left' }],
       hotspots: [
-        { anchor: motor.anchors.commutator, content: 0 },
-        { anchor: motor.anchors.brush, content: 1 },
-        { anchor: motor.anchors.drum, content: 2 },
+        { anchor: motor.anchors.commutator, content: 'commutator' },
+        { anchor: motor.anchors.brush, content: 'brush' },
+        { anchor: motor.anchors.drum, content: 'tachometer' },
       ],
     },
     update(dt, t) {

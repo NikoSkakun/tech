@@ -3,7 +3,7 @@
  * with two rings of compasses (8 at 6 cm, 12 at 12 cm). Each needle follows B_wire + B_Earth (model М3,
  * B_E = 20 μT north); a probe needle rides a rail due north of the wire (r slider or drag) and reads
  * B = μ₀I/(2πr) and tan α = B_wire/B_E. Electrons run down the wire (`cyan`), the conventional current up
- * (`yellow` arrow); `magenta` rings show B (brightness ∝ I). A holographic right hand shows the grip rule.
+ * (`yellow` arrow); `magenta` rings show B (brightness ∝ I). A `magenta` curl arrow round the wire shows the right-hand grip rule.
  * On a non-instant entry the step opens with the memory of `current/dc-ac`: the wire lies horizontally
  * over a compass, then stands up through the disc.
  */
@@ -19,7 +19,7 @@ import { OWN } from '../labels-own';
 import { createBLines } from '../parts/b-lines';
 import { COPPER } from '../parts/coil';
 import { addCompassBody, createNeedles } from '../parts/compass';
-import { createGripHand } from '../parts/hand';
+import { createCurlCue } from '../parts/hand';
 import { createMemory } from '../parts/memory';
 import { createSupply } from '../parts/supply';
 import { S, group } from '../world';
@@ -90,8 +90,9 @@ export const oerstedStep: StepFactory = (bench) => {
     spread: 0.0,
   });
   const arrow = createVectorArrow({ color: SEMANTIC.current, radius: 0.03, headLength: 0.16, headRadius: 0.07, intensity: 1.5 });
-  const hand = createGripHand(0.15);
-  hand.position.y = 1.95;
+  // right-hand grip rule as the textbook icon: the yellow current arrow is the thumb, the curl arrow the fingers
+  const hand = createCurlCue(0.34);
+  hand.position.y = 1.6;
   set.add(rig.group, supply.group, needles.mesh, probe.mesh, cart.group, rings.mesh, electrons, arrow, hand);
   // the memory of `current/dc-ac`: a horizontal wire over a compass, needle swung ≈ 79° (5 A at 1 cm)
   const memory = createMemory();
@@ -241,8 +242,8 @@ export const oerstedStep: StepFactory = (bench) => {
         { anchor: supply.knobAnchor, text: OWN.supply, side: 'right' },
       ],
       hotspots: [
-        { anchor: () => cart.group.getWorldPosition(v).setY(v.y + 0.25), content: 0 },
-        { anchor: () => hand.getWorldPosition(v).setY(v.y + 0.35), content: 1, visible: () => Math.abs(current()) > 0.01 },
+        { anchor: () => cart.group.getWorldPosition(v).setY(v.y + 0.25), content: 'probe-compass' },
+        { anchor: () => hand.getWorldPosition(v).setY(v.y + 0.35), content: 'hand-rule', visible: () => Math.abs(current()) > 0.01 },
       ],
     },
     update(dt, t) {
@@ -266,7 +267,8 @@ export const oerstedStep: StepFactory = (bench) => {
       arrow.visible = Math.abs(i) > 0.01;
       arrow.set([0.2, 1.75 - 0.35 * s, 0], up.set(0, 0.7 * s, 0));
       hand.visible = Math.abs(i) > 0.01;
-      hand.rotation.set(s > 0 ? 0 : Math.PI, 0.6 + t * 0.15, 0);
+      // turned so the arrowhead sits in front of the wire and is seen side-on (not end-on) from the camera
+      hand.rotation.set(s > 0 ? 0 : Math.PI, -Math.PI / 4, 0);
       supply.level = i / 20;
       supply.update(t);
       memory.update(t);

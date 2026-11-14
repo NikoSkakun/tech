@@ -157,10 +157,10 @@ const steps = {
   'war-of-currents': async () => {
     let a = await probe();
     check(near(a.dcV, 98.59, 0.05) && near(a.acV, 109.96, 0.05), `d = 1 km: DC 98,6 V, AC 110 V (${a.dcV}, ${a.acV})`);
-    const z0 = a.clusterZ;
+    const z0 = a.stationZ;
     await set('d3', 5);
     a = await probe();
-    check(near(a.dcV, 69.7, 0.2) && a.acV > 109.5 && a.clusterZ < z0 && a.dcGlow < a.acGlow, `d = 5 km: DC lamps dim to 69,7 V, AC stays (${a.dcV})`);
+    check(near(a.dcV, 69.7, 0.2) && a.acV > 109.5 && a.stationZ < z0 - 1 && a.dcGlow < a.acGlow, `d = 5 km: the stations move away, DC lamps dim to 69,7 V, AC stays (${a.dcV})`);
     await click3d('bead-1891');
     a = await probe();
     check(a.milestone === 1891 && a.ping, `tapping the 1891 bead selects it (${a.milestone})`);
@@ -245,6 +245,16 @@ const steps = {
     check(a.type === 'hydro' && a.p === 40 && near(a.n, 75, 1e-6) && a.angle !== t0, 'hydrogenerator: 40 pole pairs, 75 rpm');
     await set('p7', 28);
     check(near((await probe()).n, 107.14, 0.01), '28 pole pairs → 107 rpm');
+    // the gap fly-through is reachable on a deep link and in hydro mode (not only on animated entry)
+    await press('fly7', 60);
+    a = await probe();
+    check(a.flying && a.shot === 'synchronous-generator-gap-hydro', `«Пролетіти вздовж зазору» flies along the hydro gap (${a.shot})`);
+    await frames(330);
+    a = await probe();
+    check(!a.flying && a.shot === 'synchronous-generator', `…and returns to the machine (${a.shot})`);
+    await clickUi('ctl-type7:turbo', 60);
+    await press('fly7', 60);
+    check((await probe()).shot === 'synchronous-generator-gap', 'turbogenerator: the same button flies along its gap');
   },
   synchronization: async () => {
     let a = await probe();
@@ -299,7 +309,15 @@ const steps = {
     await set('cap10', 80);
     check((await probe()).capacitive, 'overcompensation is capacitive');
     await set('pf10', 0.6);
-    check((await probe()).I > 7, 'a worse cos φ raises the current');
+    a = await probe();
+    check(a.I > 7 && a.view === 'circuit', `a worse cos φ raises the current; the camera shows the circuit (${a.view})`);
+    await set('phi10', 30, 100);
+    check((await probe()).view === 'canal', 'the rope-angle control brings the barge analogy back');
+    for (const deg of [0, 5, 80]) {
+      await set('phi10', deg, 2);
+      check(near((await probe()).ropeDeg, deg, 0.05), `the drawn rope keeps the true angle at ${deg}° (${(await probe()).ropeDeg})`);
+    }
+    await set('phi10', 37, 2);
     const p0 = (await probe()).phi;
     await drag3d('horse', 'rope-90');
     a = await probe();

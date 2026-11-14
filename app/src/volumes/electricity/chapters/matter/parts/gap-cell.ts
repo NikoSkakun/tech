@@ -108,13 +108,17 @@ export function createGapCell(ctx: ChapterContext): GapCell {
     branches: 2,
     continuous: false,
     color: 'violet.light',
+    width: 0.075,
+    intensity: 4,
   });
   const flash = createFlash({ size: 2.2, color: 'violet.light' });
   const burnMat = K.toon({ color: 'ink', rim: 0.3 });
   const burn = new Mesh(G.box(0.01, 0.01, 0.01), burnMat);
   burn.visible = false;
-  group.add(slab, atoms, bound, lines, sparks, free, arc, flash, burn);
-  return wire(group, slab, atoms, bound, lines, sparks, free, arc, flash, burn);
+  // the path of each avalanche glows on and fades slowly, so a chain can be read after it has run
+  const trails = new RibbonLines({ capacity: 64, color: 'cyan', width: 0.055, intensity: 2.6 });
+  group.add(slab, atoms, bound, lines, sparks, free, arc, flash, burn, trails);
+  return wire(group, slab, atoms, bound, lines, sparks, free, arc, flash, burn, trails);
 }
 
 interface Chain {
@@ -122,7 +126,10 @@ interface Chain {
   age: number;
 }
 
-const STEP_S = 0.07;
+/** One multiplication step of an avalanche on screen (slow enough to follow), s. */
+const STEP_S = 0.16;
+/** Steps a finished chain stays as a fading trail. */
+const LINGER = 9;
 
 function wire(
   group: Group,
@@ -135,6 +142,7 @@ function wire(
   arc: ReturnType<typeof createArc>,
   flash: ReturnType<typeof createFlash>,
   burn: Mesh,
+  trails: RibbonLines,
 ): GapCell {
   let material: InsulatorId = 'air';
   let seedN = 1;
@@ -202,7 +210,7 @@ function wire(
       const y = (rnd() - 0.5) * 0.6;
       arc.from.set(-GAP / 2, y, (rnd() - 0.5) * 0.4);
       arc.to.set(GAP / 2, y + (rnd() - 0.5) * 0.4, (rnd() - 0.5) * 0.4);
-      arc.strike(0.4);
+      arc.strike(1.4); // held long enough to be seen (a real spark lasts microseconds)
       flash.fire();
       sparks.burst([0, y, 0], 30);
     },
@@ -258,7 +266,7 @@ function wire(
         c.age += dt;
         const now = Math.floor(c.age / STEP_S);
         if (now !== before && now < c.points.length) sparks.burst(c.points[now]!.toArray(), 3 + now);
-        if (now >= c.points.length + 3) chains.splice(k, 1);
+        if (now >= c.points.length + LINGER) chains.splice(k, 1);
       }
       for (let k = 0; k < 8; k++) {
         const c = chains[k >> 1];
@@ -274,6 +282,16 @@ function wire(
         free.setPosition(k, p.x, p.y, p.z, f < 1 ? 1 : 0);
       }
       free.commit();
+      trails.setLines(
+        chains.map((c) => {
+          const n = Math.min(Math.floor(c.age / STEP_S) + 1, c.points.length);
+          const fade = 1 - Math.max(c.age / STEP_S - c.points.length, 0) / LINGER;
+          return {
+            points: c.points.slice(0, Math.max(n, 2)),
+            brightness: c.points.slice(0, Math.max(n, 2)).map(() => fade),
+          };
+        }),
+      );
     },
   };
   cell.setMaterial('air');

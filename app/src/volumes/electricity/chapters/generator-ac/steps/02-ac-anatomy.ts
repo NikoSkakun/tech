@@ -19,7 +19,7 @@ import { OWN } from '../labels-own';
 import { createBulb } from '../parts/bulb';
 import { createHoloScope, VALUE_H } from '../parts/holo-scope';
 import { createWorldMap } from '../parts/world-map';
-import { group, pickBox, roomy, tag } from '../world';
+import { group, narrow, pickBox, roomy, tag } from '../world';
 
 const ID = 'ac-anatomy';
 const W = 6.4;
@@ -245,13 +245,13 @@ export const acAnatomy: StepFactory = (hall) => {
         { type: 'button', id: 'led2', label: doc(ID, 3), icon: 'play', onClick: wave3 },
       ],
       callouts: [
-        { anchor: () => dcLamp.group.localToWorld(mid.copy(dcLamp.centre)), text: OWN.dcLamp, side: 'left', color: 'coral' },
-        { anchor: () => acLamp.group.localToWorld(mid.copy(acLamp.centre)), text: OWN.acLamp, side: 'right', color: 'yellow' },
+        { anchor: () => dcLamp.group.localToWorld(mid.copy(dcLamp.centre)), text: OWN.dcLamp, side: 'left', color: 'coral', visible: () => !narrow(hall) },
+        { anchor: () => acLamp.group.localToWorld(mid.copy(acLamp.centre)), text: OWN.acLamp, side: 'right', color: 'yellow', visible: () => !narrow(hall) },
         { anchor: () => map.japan.getWorldPosition(mid), text: OWN.japan, side: 'down', visible: () => roomy(hall) },
       ],
       hotspots: [
-        { anchor: () => rig.localToWorld(mid.set(HALF_W - 1.7, yOf(ui.value<number>('U2')), 0.05)), content: 0 },
-        { anchor: () => map.group.localToWorld(mid.set(-0.4, 0.35, 0.1)), content: 1 },
+        { anchor: () => rig.localToWorld(mid.set(HALF_W - 1.7, yOf(ui.value<number>('U2')), 0.05)), content: 'rms-line' },
+        { anchor: () => map.group.localToWorld(mid.set(-0.4, 0.35, 0.1)), content: 'frequency-map' },
       ],
     },
     probe: () => ({

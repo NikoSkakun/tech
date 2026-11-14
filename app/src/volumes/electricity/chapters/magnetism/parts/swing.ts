@@ -26,7 +26,8 @@ export interface SwingRig {
 export function createSwing(): SwingRig {
   const g = new Group();
   g.name = 'ampere-swing';
-  // the magnet, centred on the gap so that turning it over keeps the gap in place
+  // the magnet, centred on the gap so that turning it over keeps the gap in place; the bar hangs in the middle
+  // of the gap (x = pivot x), so it has the same room to swing both ways
   const mb = new Builder('horseshoe');
   const yTop = GAP / 2 + T / 2;
   for (const [y, pole] of [
@@ -40,7 +41,7 @@ export function createSwing(): SwingRig {
   const magnetModel = mb.build();
   const magnet = new Group();
   magnet.add(magnetModel.group);
-  magnet.position.set(-0.15, GAP_Y, 0);
+  magnet.position.set(0.15, GAP_Y, 0);
   // frame: two posts and a crossbar along z above the gap
   const fb = new Builder('swing-frame');
   for (const z of [-0.55, 0.55]) {
@@ -48,8 +49,8 @@ export function createSwing(): SwingRig {
     fb.cyl(0.035, PIVOT_Y + 0.05, { at: [0.15, 0.06, z], seg: 12, slot: 'metal', c: 'steel' });
   }
   fb.rod([0.15, PIVOT_Y, -0.6], [0.15, PIVOT_Y, 0.6], 0.03, { slot: 'metal', c: 'steel' });
-  fb.box(0.5, 0.06, 0.7, { at: [-0.15, 0, 0], r: 0.03, c: ['ink', 'slate'] });
-  fb.box(0.25, GAP_Y - yTop + 0.02, 0.3, { at: [-0.45, 0.06, 0], r: 0.03, c: 'slate' });
+  fb.box(0.8, 0.06, 0.7, { at: [0.05, 0, 0], r: 0.03, c: ['ink', 'slate'] });
+  fb.box(0.25, GAP_Y - yTop + 0.02, 0.3, { at: [-0.15, 0.06, 0], r: 0.03, c: 'slate' });
   const frame = fb.build();
   // pendulum: two leads and the bar, pivoting on the crossbar
   const pb = new Builder('pendulum');

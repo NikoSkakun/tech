@@ -79,7 +79,9 @@ export function ensureParent(file) {
  * chapters are included (`debug`) but the HTML overlay is hidden so screenshots show only the product.
  */
 export function appUrl(base, { route = '', q = 'high', freeze = null, extra = {} } = {}) {
-  const params = new URLSearchParams({ debug: '', overlay: '0', noaudio: '', q, ...extra });
+  // QA_HUD=dom|gl: run any QA script against that interface renderer (?hud=, docs/HUD_DOM.md §16); `extra` wins
+  const hud = process.env.QA_HUD ? { hud: process.env.QA_HUD } : {};
+  const params = new URLSearchParams({ debug: '', overlay: '0', noaudio: '', q, ...hud, ...extra });
   if (q === 'auto') params.delete('q'); // let the app pick the tier itself (`mobile` on phones / tablets)
   if (freeze !== null && freeze !== undefined) params.set('freeze', String(freeze));
   const hash = route ? `#/${route.replace(/^\/+/, '')}` : '';

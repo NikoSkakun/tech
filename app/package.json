@@ -13,7 +13,8 @@
     "format": "prettier --write \"src/**/*.{ts,css}\" \"*.{ts,js,json,html}\"",
     "test": "vitest run",
     "fonts": "node scripts/build-fonts.mjs",
-    "fonts:check": "node scripts/font-coverage.mjs"
+    "fonts:check": "node scripts/font-coverage.mjs",
+    "webfonts": "node scripts/build-webfonts.mjs"
   },
   "dependencies": {
     "three": "0.187.0"

@@ -24,12 +24,34 @@ import {
   type ToastOptions,
   type UiHost,
 } from '@/ui3d';
-import type { HudContext, HudModule, OverlayName } from './context';
+import type { DomModule, HudContext, HudModule, OverlayName, RegionHooks } from './context';
 import { Landing } from './landing';
 import { touchTop } from './touch/geometry';
 
 /** Screen edge a region counts toward (`auto`: right on wide screens, bottom otherwise). */
 export type InsetSide = 'left' | 'right' | 'top' | 'bottom' | 'auto';
+
+/** How a region counts toward the camera's free area. */
+export interface InsetSpec {
+  side: InsetSide | ((m: HudMetrics) => InsetSide);
+  /** Margin added beyond the region's far edge (units). */
+  extra?: number;
+}
+
+/** Layout box of a region in HUD units: top-left corner and size. */
+interface InsetBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+interface InsetSource {
+  side: InsetSide | ((m: HudMetrics) => InsetSide);
+  /** Layout box in HUD units, or null while the region is out of the layout. */
+  box: () => InsetBox | null;
+  extra: number;
+}
 
 export interface Overlay {
   /** Show the overlay; `arg` is view-specific (e.g. a glossary term to focus). */
@@ -82,14 +104,12 @@ export class Hud implements HudContext {
     layer: UI.layer.modal,
   });
   readonly toasts = new ToastStack({ float: { ax: 0.5, ay: 0, dy: 96 }, layer: UI.layer.tip });
-  private readonly modules: HudModule[] = [];
+  private readonly modules: RegionHooks[] = [];
   private readonly volumeListeners: ((volume: VolumeManifest) => void)[] = [];
   private readonly overlays = new Map<OverlayName, Overlay>();
-  private readonly insetSources: {
-    side: InsetSide | ((m: HudMetrics) => InsetSide);
-    node: UiNode;
-    extra: number;
-  }[] = [];
+  private readonly insetSources: InsetSource[] = [];
+  /** Where focus was when an overlay opened (DOM interface: it returns there on close). */
+  private focusBefore: Element | null = null;
   private layoutPending = true;
   private chromeShown = true;
   private contentToken = 0;
@@ -144,14 +164,50 @@ export class Hud implements HudContext {
   }
 
   /** Add a persistent region. `inset` makes it count toward the camera's free area. */
-  mount(
-    mod: HudModule,
-    inset?: { side: InsetSide | ((m: HudMetrics) => InsetSide); extra?: number },
-    parent: UiNode = this.chrome,
-  ): void {
-    this.modules.push(mod);
+  mount(mod: HudModule, inset?: InsetSpec, parent: UiNode = this.chrome): void {
     parent.add(mod.node);
-    if (inset) this.insetSources.push({ side: inset.side, node: mod.node, extra: inset.extra ?? 0 });
+    const n = mod.node;
+    const box = (): InsetBox | null => (n.visible && n.slot >= 0 ? { x: n.bx, y: n.by, w: n.bw, h: n.bh } : null);
+    this.add(mod, inset && { side: inset.side, box, extra: inset.extra ?? 0 });
+  }
+
+  /**
+   * Add a region of the DOM interface (docs/HUD_DOM.md §6). The caller has placed `mod.el` in a layer of
+   * `#kd-hud`; its layout box (`offset*`, so reveal transforms never re-frame the camera) counts toward the
+   * camera's free area through the same inset code as a WebGL node. A size change of the element re-runs the
+   * layout (`ResizeObserver`); position changes come from the layout pass itself. Returns an unmount function.
+   */
+  mountDom(mod: DomModule, inset?: InsetSpec): () => void {
+    const el = mod.el;
+    const box = (): InsetBox | null => {
+      // `offsetParent` is null for an element out of the layout (`hidden`, `display: none`, detached)
+      if (!el.isConnected || el.offsetParent === null) return null;
+      const k = this.metrics.pxPerUnit;
+      let x = el.offsetLeft;
+      let y = el.offsetTop;
+      // offsets are relative to the positioned ancestor (a layer at the viewport's origin, or a plate)
+      for (let p = el.offsetParent as HTMLElement | null; p && p.id !== 'kd-hud'; p = p.offsetParent as HTMLElement | null) {
+        x += p.offsetLeft;
+        y += p.offsetTop;
+      }
+      return { x: x / k, y: y / k, w: el.offsetWidth / k, h: el.offsetHeight / k };
+    };
+    const observer = new ResizeObserver(() => this.relayout());
+    observer.observe(el);
+    const source = inset && { side: inset.side, box, extra: inset.extra ?? 0 };
+    this.add(mod, source);
+    return () => {
+      observer.disconnect();
+      const i = this.modules.indexOf(mod);
+      if (i >= 0) this.modules.splice(i, 1);
+      if (source) this.insetSources.splice(this.insetSources.indexOf(source), 1);
+      this.relayout();
+    };
+  }
+
+  private add(mod: RegionHooks, source: InsetSource | undefined): void {
+    this.modules.push(mod);
+    if (source) this.insetSources.push(source);
     if (this.volume) mod.onVolume?.(this.volume);
     if (this.chapter) {
       mod.onChapter?.(this.chapter);
@@ -188,6 +244,8 @@ export class Hud implements HudContext {
     const next = this.overlays.get(name);
     if (!next) return;
     if (this.overlay && this.overlay !== name) this.overlays.get(this.overlay)?.close();
+    // DOM interface: the view takes focus on open (its own job); focus returns where it was on close
+    else if (!this.overlay && this.engine.flags.hud === 'dom') this.focusBefore = document.activeElement;
     this.overlay = name;
     // phones: event messages sit where a full-screen view has its own buttons — they go with the step view
     if (next.fullscreen && this.metrics.shell !== 'desk') this.toasts.flush();
@@ -202,7 +260,22 @@ export class Hud implements HudContext {
     this.overlays.get(name)?.close();
     this.showChrome(true);
     this.landing.revealed();
+    this.restoreFocus();
     return true;
+  }
+
+  /** Back to the element that had focus before the overlay opened (if it is still there and not inert). */
+  private restoreFocus(): void {
+    const el = this.focusBefore;
+    this.focusBefore = null;
+    if (!(el instanceof HTMLElement) || !el.isConnected || el === document.activeElement) return;
+    // the chrome becomes interactive again only as it fades in: focus once the layer has left `inert`
+    const tryFocus = (left: number): void => {
+      if (!el.isConnected) return;
+      if (el.closest('[inert]') && left > 0) this.host.tweens.delay(0.05, () => tryFocus(left - 1));
+      else el.focus({ preventScroll: true });
+    };
+    tryFocus(10);
   }
 
   /** @internal Key routing for the open overlay. */
@@ -332,20 +405,20 @@ export class Hud implements HudContext {
       if (this.chromeShown) Object.assign(insets, this.touch.insets(m));
     } else if (this.chromeShown) {
       for (const src of this.insetSources) {
-        const n = src.node;
-        if (!n.visible || n.slot < 0) continue;
+        const n = src.box();
+        if (!n) continue;
         // `auto`: a side column on wide screens, a bottom sheet otherwise
         const declared = typeof src.side === 'function' ? src.side(m) : src.side;
         const side = declared === 'auto' ? (m.layout === 'wide' ? 'right' : 'bottom') : declared;
-        const size = side === 'left' || side === 'right' ? n.bw : n.bh;
+        const size = side === 'left' || side === 'right' ? n.w : n.h;
         const offset =
           side === 'left'
-            ? n.bx
+            ? n.x
             : side === 'right'
-              ? m.width - n.bx - n.bw
+              ? m.width - n.x - n.w
               : side === 'top'
-                ? n.by
-                : m.height - n.by - n.bh;
+                ? n.y
+                : m.height - n.y - n.h;
         insets[side] = Math.max(insets[side], Math.max(offset, 0) + size + src.extra);
       }
     }

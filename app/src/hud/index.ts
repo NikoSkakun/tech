@@ -39,7 +39,8 @@ export const plugin: EnginePlugin = {
     instance = h;
     const header = createHeader(h);
     h.mount(header, { side: 'top', extra: 8 });
-    h.mount(createSystemButtons(h));
+    const system = createSystemButtons(h);
+    h.mount(system);
     const navigator = createNavigator(h);
     h.mount(navigator, { side: 'bottom', extra: 8 });
     const column = createStepColumn(h, h.popups, header.node);
@@ -50,7 +51,15 @@ export const plugin: EnginePlugin = {
     mountTooltips(h, h.surface.root);
     installKeys(h, (e) => h.overlayKey(e));
     let journeyMap: JourneyMap | null = null;
-    installUiDebug(h, () => journeyMap);
+    installUiDebug(h, () => journeyMap, () => ({
+      header: header.node,
+      spine: views.get(current)?.spine.node,
+      system: system.node,
+      column: column.node,
+      board: column.board.node,
+      navigator: navigator.node,
+      sheet: h.touch.sheet?.node,
+    }));
     h.mount(createLoading(h));
     installOnboarding(h);
     h.register('settings', createSettings(h));
@@ -139,9 +148,19 @@ export const plugin: EnginePlugin = {
       if (volume) prepare(volume);
     });
     h.onVolume(activate);
-    // D0 spike (docs/HUD_DOM.md): `?hud=dom` draws header, step panel and navigator as DOM over the canvas
-    if (new URLSearchParams(window.location.search).get('hud') === 'dom')
-      void import('@/hud-dom').then((m) => m.mountDomHud(h, { header: header.node, navigator: navigator.node }));
+    // `?hud=dom` (docs/HUD_DOM.md §16): every region with a registered DOM view is drawn by `@/hud-dom`; the
+    // WebGL parts it takes over are handed to it (hybrid until the cut-over)
+    if (engine.flags.hud === 'dom')
+      void import('@/hud-dom').then((m) =>
+        m.mountDomHud(h, {
+          header: header.node,
+          system: system.node,
+          navigator: navigator.node,
+          column: column.node,
+          board: column.board.node,
+          spine: () => views.get(current)?.spine.node ?? null,
+        }),
+      );
   },
 };
 
