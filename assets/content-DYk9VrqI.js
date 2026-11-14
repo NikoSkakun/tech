@@ -1,1 +1,0 @@
-import{T as e}from"./index-DTDFS_Zx.js";import{n as t,t as n}from"./labels-own-BTY3EXgC.js";var r=e(t,{labels:n});export{r as default};
