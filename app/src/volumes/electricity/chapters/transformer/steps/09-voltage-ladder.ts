@@ -7,26 +7,35 @@
  * «Далі: магістральні мережі →» opens `transmission/plant-exit` when that chapter is available.
  */
 import { Vector3 } from 'three';
+import { fmtUnit } from '@/content';
 import { createOrbs, createTrail } from '@/fx';
 import type { StepFactory } from '../chapter';
 import { doc, hot } from '../labels';
 import { OWN, OWN_LISTS } from '../labels-own';
-import { LADDER, RUNGS, createLadder } from '../parts/ladder';
-import { group } from '../world';
+import { GEN_X, LADDER, RUNGS, createLadder } from '../parts/ladder';
+import { group, tag } from '../world';
 
 const ID = 'voltage-ladder';
 const NEXT = 'electricity/transmission/plant-exit';
 /** One trip of the pulse, seconds. */
 const TRIP = 9;
+/** Voltage of each rung (top → bottom) for its tag: kV, the last one (the house) in V. */
+const RUNG_V = [750, 330, 110, 35, 10, 0.4, 230] as const;
 
 export const voltageLadder: StepFactory = (tx) => {
   const { ui, ctx } = tx;
   const ladder = createLadder();
-  const pulse = createOrbs({ kind: 'pulse', color: 'yellow', count: 1, radius: 0.16 });
+  const pulse = createOrbs({ kind: 'pulse', color: 'yellow', count: 1, radius: 0.22 });
   const head = group('pulse-head');
   head.add(pulse);
-  const trail = createTrail(head, { color: 'yellow', duration: 0.7, width: 0.12 });
-  const set = group(`set:${ID}`, 0, 0, 0, [ladder.group, head, trail]);
+  const trail = createTrail(head, { color: 'yellow', duration: 0.8, width: 0.16 });
+  // a voltage tag left of every rung (the chosen rung's callout replaces its tag)
+  const tags = RUNGS.map((r, i) => {
+    const t = tag(i === 6 ? fmtUnit(RUNG_V[i]!, 'V', { digits: 0 }) : fmtUnit(RUNG_V[i]!, 'kV', { digits: RUNG_V[i]! < 1 ? 1 : 0 }), 20, 'white', 'mono');
+    t.position.set(LADDER.x - LADDER.half - 0.32, r.y, 0.3);
+    return t;
+  });
+  const set = group(`set:${ID}`, 0, 0, 0, [ladder.group, head, trail, ...tags]);
   tx.stageRoot.add(set);
 
   const pts = ladder.route();
@@ -91,8 +100,8 @@ export const voltageLadder: StepFactory = (tx) => {
         { type: 'button', id: 'next9', label: doc(ID, 0), icon: 'arrowRight', primary: true, onClick: goNext },
       ],
       callouts: [
-        { anchor: at(-2.2, 2.85, 0), text: OWN.gen9, side: 'left' },
-        { anchor: at(LADDER.x + LADDER.half + 1.0, 1.2, 0.3), text: OWN.house9, side: 'right' },
+        { anchor: at(GEN_X, 2.4, 0.2), text: OWN.gen9, side: 'up' },
+        { anchor: at(LADDER.x + LADDER.half + 1.0, 1.25, 0.3), text: OWN.house9, side: 'up' },
         { anchor: () => tx.stageRoot.localToWorld(new Vector3(LADDER.x - LADDER.half - 0.1, RUNGS[sel()]!.y, 0.3)), text: () => OWN_LISTS.rungNames9[sel()]!, color: 'yellow', side: 'left' },
       ],
       hotspots: [
@@ -104,6 +113,7 @@ export const voltageLadder: StepFactory = (tx) => {
     update(dt) {
       u = (u + dt / TRIP) % 1;
       along(u, head.position);
+      tags.forEach((t, i) => (t.visible = i !== sel()));
       ladder.rungs.forEach((g, i) => {
         const near = Math.abs(u - ladder.marks[i]!) < 0.035 ? 1 : 0;
         glow[i]! += (Math.max(near, i === sel() ? 0.6 : 0) - glow[i]!) * Math.min(1, dt * 8);

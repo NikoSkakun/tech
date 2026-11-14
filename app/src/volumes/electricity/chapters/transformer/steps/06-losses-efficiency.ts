@@ -160,8 +160,8 @@ export const lossesEfficiency: StepFactory = (tx) => {
         ],
       },
       callouts: [
-        { anchor: at(WIND_X, 0.6, 0.7), text: OWN.copperLoss, color: 'orange', side: 'down' },
-        { anchor: at(BAR_X, 0.45, 1.0), text: () => (solid() ? OWN.solidBar : `${OWN.sheetsBar} · ${eddyText()}`), color: 'cyan', side: 'down' },
+        { anchor: at(WIND_X, 0.02, 1.6), text: OWN.copperLoss, color: 'orange', side: 'down' },
+        { anchor: at(BAR_X, 0.02, 1.8), text: () => (solid() ? OWN.solidBar : `${OWN.sheetsBar} · ${eddyText()}`), color: 'cyan', side: 'down' },
       ],
       hotspots: [
         { anchor: at(BAR_X - 0.55, 1.3, BAR.len / 2 + 0.3), content: hot(ID, 0) },
@@ -190,7 +190,7 @@ export const lossesEfficiency: StepFactory = (tx) => {
       bar.group.scale.y = 1 + 0.004 * k * Math.abs(field) * (1 + heard);
       pkTag.text = `P_{k}·β² = ${fmtSI(eta().loadLossKW * 1000, 'W')}`;
       // «Послухати»: the 100 Hz hum (mains loop at pitch 2) plus the 100 Hz rasp with its 200/300 Hz overtones
-      tx.sound.hum = 0.08 + heard * 0.55 * k;
+      tx.sound.hum = 0.08 + heard * 0.8 * k;
       tx.sound.humPitch = 2;
       tx.sound.buzz = heard * 0.55 * k;
       tx.sound.buzzPitch = 1;

@@ -13,6 +13,7 @@ import { TAP, createTapChanger } from '@electricity/sim/transformer';
 import type { StepFactory } from '../chapter';
 import { doc, hot, splitCaps, splitList } from '../labels';
 import { OWN } from '../labels-own';
+import { createOltcInset } from '../parts/oltc-inset';
 import { TAPS, createTapSelector, tapAngle } from '../parts/tap-selector';
 import { group } from '../world';
 
@@ -24,7 +25,8 @@ const LOWER = TAP.setpointKV * (1 - TAP.bandFraction);
 export const tapChanger: StepFactory = (tx) => {
   const { ui } = tx;
   const sel = createTapSelector();
-  const set = group(`set:${ID}`, 0, 0, 0, [sel.group]);
+  const inset = createOltcInset();
+  const set = group(`set:${ID}`, 0, 0, 0, [sel.group, inset.group]);
   tx.stageRoot.add(set);
 
   const oltc = createTapChanger(0);
@@ -58,12 +60,12 @@ export const tapChanger: StepFactory = (tx) => {
     id: ID,
     shots: {
       [ID]: {
-        position: [0.9, 2.4, 7.9],
-        target: [0.45, 1.85, -0.6],
+        position: [0.5, 2.6, 7.9],
+        target: [0.2, 2.0, -0.6],
         fov: 32,
         frameAspect: 1.45,
         orbit: { azimuth: 0.6, polar: 0.3 },
-        fit: { center: [0.3, 1.8, -0.4], radius: 3.9 },
+        fit: { center: [0.2, 2.1, -0.6], radius: 4.1 },
       },
     },
     stage: {
@@ -117,7 +119,7 @@ export const tapChanger: StepFactory = (tx) => {
         ],
       },
       callouts: [
-        { anchor: at(new Vector3(-2.7, 3.7, 0.2)), text: OWN.tapWinding, color: 'coral', side: 'up' },
+        { anchor: at(new Vector3(-2.75, 1.0, 0.58)), text: OWN.tapWinding, color: 'coral', side: 'down' },
         { anchor: at(sel.anchorLocal('selector')), text: () => `${OWN.selector} · n = ${fmtNumber(oltc.state.tap, { sign: true })}`, side: 'up' },
       ],
       hotspots: [
@@ -148,6 +150,7 @@ export const tapChanger: StepFactory = (tx) => {
       const blink = 0.6 + 0.4 * Math.sin(clock * 8);
       sel.lampUp.intensity = low ? 1.7 * blink : 0.15;
       sel.lampDown.intensity = high ? 1.7 * blink : 0.15;
+      inset.setPulse(0.5 + 0.5 * Math.sin(clock * 2.2));
       tx.sound.hum = 0.12;
     },
   };

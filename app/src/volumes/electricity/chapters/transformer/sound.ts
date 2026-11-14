@@ -39,8 +39,10 @@ export function createSound(): Sound {
       s.buzzPitch = 1;
     },
     apply() {
-      audio.loop('hum').set({ gain: Math.min(1, s.hum) * 0.45, pitch: s.humPitch });
-      audio.loop('buzz').set({ gain: Math.min(1, s.buzz) * 0.3, pitch: s.buzzPitch });
+      // mix measured offline (qa/sound-offline.mjs): the steps' hum sits 10–20 dB under the mood pad, «Послухати»
+      // reaches the pad's level; never clips
+      audio.loop('hum').set({ gain: Math.min(1, s.hum), pitch: s.humPitch });
+      audio.loop('buzz').set({ gain: Math.min(1, s.buzz) * 0.6, pitch: s.buzzPitch });
     },
     click: (pitch = 1) => audio.play('tick', { pitch, gain: 0.6 }),
     relay: () => audio.play('relay'),

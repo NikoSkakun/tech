@@ -11,6 +11,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { Builder, addSchukoSocket, addVoltageTransformer, kioskSubstation, poleSubstation, powerTransformer, type KitModel } from '@/kit';
 import { K, col } from '@/style';
 import { COPPER, COPPER_PRIMARY, COPPER_SECONDARY } from '../world';
+import { greyPorcelain } from './porcelain';
 
 export type ExhibitId = 'gsu' | 'auto' | 'dist' | 'ct' | 'iso' | 'smps';
 export const EXHIBITS: readonly ExhibitId[] = ['gsu', 'auto', 'dist', 'ct', 'iso', 'smps'];
@@ -67,26 +68,30 @@ export interface CtExhibit extends Exhibit {
 function ct(): CtExhibit {
   const g = new Group();
   const b = new Builder('ct');
-  b.box(2.6, 0.18, 0.18, { r: 0.04, mid: true, slot: 'metal', c: COPPER, at: [0, 1.4, 0] });
-  b.ring(0.32, 0.12, { axis: 'x', seg: 40, tubeSeg: 14, slot: 'gloss', c: 'mist', at: [0, 1.4, 0] });
-  for (let i = 0; i < 24; i++) {
-    const a = (i / 24) * Math.PI * 2;
-    b.ring(0.13, 0.012, { axis: 'z', seg: 10, tubeSeg: 4, slot: 'metal', c: COPPER_SECONDARY, at: [0, 1.4 + Math.cos(a) * 0.32, Math.sin(a) * 0.32], rot: [a, 0, 0] });
+  // the current transformer is the hero of this exhibit: a fat toroid on the busbar, in front; the 110 kV voltage
+  // transformer stands back and to the side at half size («не в масштабі»), so it does not crowd it
+  const y = 1.4;
+  const R = 0.46;
+  b.box(2.8, 0.24, 0.24, { r: 0.05, mid: true, slot: 'metal', c: COPPER, at: [0, y, 0] });
+  b.ring(R, 0.17, { axis: 'x', seg: 48, tubeSeg: 16, slot: 'gloss', c: 'mist', at: [0, y, 0] });
+  for (let i = 0; i < 28; i++) {
+    const a = (i / 28) * Math.PI * 2;
+    b.ring(0.19, 0.016, { axis: 'z', seg: 12, tubeSeg: 4, slot: 'metal', c: COPPER_SECONDARY, at: [0, y + Math.cos(a) * R, Math.sin(a) * R], rot: [a, 0, 0] });
   }
-  b.box(0.36, 0.28, 0.2, { r: 0.04, slot: 'gloss', c: 'ink', at: [0, 0.82, 0.25] });
-  for (const x of [-0.08, 0.08]) b.cyl(0.03, 0.06, { seg: 8, slot: 'metal', c: 'mist', at: [x, 1.1, 0.25] });
-  for (const x of [-1.1, 1.1]) b.box(0.14, 1.32, 0.14, { r: 0.03, slot: 'metal', c: 'slate', at: [x, 0, 0] });
-  b.frame({ at: [2.2, 0, 0] }, () => addVoltageTransformer(b, { kV: 110 }));
+  b.box(0.46, 0.34, 0.24, { r: 0.05, slot: 'gloss', c: 'ink', at: [0, 0.66, 0.34] });
+  for (const x of [-0.1, 0.1]) b.cyl(0.04, 0.08, { seg: 8, slot: 'metal', c: 'mist', at: [x, 1.0, 0.34] });
+  for (const x of [-1.2, 1.2]) b.box(0.16, y - 0.12, 0.16, { r: 0.03, slot: 'metal', c: 'slate', at: [x, 0, 0] });
+  b.frame({ at: [1.6, 0, -1.6], s: 0.5 }, () => addVoltageTransformer(b, { kV: 110 }));
   const model = b.build();
   const am = new Builder('ct-ammeter');
-  am.cyl(0.24, 0.1, { axis: 'z', seg: 28, slot: 'gloss', c: 'slate' });
-  am.cyl(0.2, 0.02, { axis: 'z', seg: 28, slot: 'gloss', c: 'white', at: [0, 0, 0.1] });
-  const needle = am.part('needle', { at: [0, -0.1, 0.13] });
-  needle.beam([0, 0, 0], [0, 0.22, 0], 0.02, { h: 0.01, slot: 'flat', c: 'bg.void' });
+  am.cyl(0.32, 0.12, { axis: 'z', seg: 32, slot: 'gloss', c: 'slate' });
+  am.cyl(0.27, 0.02, { axis: 'z', seg: 32, slot: 'gloss', c: 'white', at: [0, 0, 0.12] });
+  const needle = am.part('needle', { at: [0, -0.13, 0.15] });
+  needle.beam([0, 0, 0], [0, 0.3, 0], 0.025, { h: 0.012, slot: 'flat', c: 'bg.void' });
   const ammeter = am.build();
-  ammeter.group.position.set(-0.75, 0.6, 0.4);
+  ammeter.group.position.set(-0.85, 0.62, 0.55);
   g.add(model.group, ammeter.group);
-  return { id: 'ct', group: g, size: 4.6, top: 3.2, ammeter, terminals: new Vector3(0, 1.16, 0.25), yaw: 0.35 };
+  return { id: 'ct', group: g, size: 3.3, top: 2.0, ammeter, terminals: new Vector3(0, 1.04, 0.34), yaw: 0.95 };
 }
 
 function iso(): Exhibit {
@@ -139,6 +144,9 @@ export function createGallery(): { list: Exhibit[]; ct: CtExhibit; smps: SmpsExh
   const c = ct();
   const s = smps();
   const list = [gsu(), auto(), dist(), c, iso(), s];
-  for (const e of list) e.group.rotation.y = e.yaw ?? 0;
+  for (const e of list) {
+    e.group.rotation.y = e.yaw ?? 0;
+    greyPorcelain(e.group);
+  }
   return { list, ct: c, smps: s };
 }

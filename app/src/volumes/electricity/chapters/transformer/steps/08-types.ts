@@ -21,7 +21,8 @@ import { group } from '../world';
 
 const ID = 'types';
 const R = 4.4;
-const FIT = 2.3;
+/** Largest dimension of the exhibit in front, world units (its neighbours get 45 %). */
+const FIT = 2.75;
 /** True-scale row: world units per metre. */
 const TRUE_S = 0.21;
 const STEP_A = (Math.PI * 2) / EXHIBITS.length;
@@ -33,7 +34,7 @@ export const types: StepFactory = (tx) => {
   const holders = gal.list.map((e) => group(`exhibit:${e.id}`, 0, 0, 0, [e.group]));
   const person = people([{ at: [0, 0, 0], action: 'idle', color: 'coral' }], ctx.random.fork('person'));
   const personHolder = group('person', 0, 0, 0, [person.group]);
-  const arc = createArc({ from: [-0.08, 1.16, 0.25], to: [0.08, 1.16, 0.25], color: 'violet', branches: 1, width: 0.03 });
+  const arc = createArc({ from: [-0.1, 1.08, 0.34], to: [0.1, 1.08, 0.34], color: 'violet', branches: 1, width: 0.03 });
   arc.power = 0;
   gal.ct.group.add(arc);
   const set = group(`set:${ID}`, 0, 0, 0, [table.group, ...holders, personHolder]);
@@ -103,11 +104,13 @@ export const types: StepFactory = (tx) => {
         fit: { center: [0, 1.3, R - 0.3], radius: 2.8 },
       },
       'types-row': {
-        position: [0, 2.6, 8.6],
-        target: [0, 0.9, 0.6],
+        // aimed right of the row's centre: the panel covers the right of the frame, and the two smallest exhibits
+        // (and their labels) sit at the right end of the row
+        position: [0.9, 2.7, 9.8],
+        target: [0.9, 0.9, 0.6],
         fov: 32,
         frameAspect: 1.8,
-        fit: { center: [0, 0.9, 0.6], radius: 4.0 },
+        fit: { center: [0.2, 0.9, 0.6], radius: 4.9 },
       },
     },
     stage: {
@@ -145,7 +148,7 @@ export const types: StepFactory = (tx) => {
       ],
       hotspots: [
         { anchor: holderAt('auto', 6), content: hot(ID, 0), visible: () => front('auto') },
-        { anchor: holderAt('ct', 1.6), content: hot(ID, 1), visible: () => front('ct') },
+        { anchor: holderAt('ct', 1.9), content: hot(ID, 1), visible: () => front('ct') },
         { anchor: holderAt('smps', 0.05), content: hot(ID, 2), visible: () => front('smps') },
       ],
     },
@@ -162,18 +165,18 @@ export const types: StepFactory = (tx) => {
         const th = a + i * STEP_A;
         const slot = new Vector3(Math.sin(th) * R, table.top, Math.cos(th) * R);
         focus[i]! += ((i === idx() ? 1 : 0) - focus[i]!) * Math.min(1, dt * 4);
-        const fit = (FIT / e.size) * (0.5 + 0.5 * focus[i]!);
+        const fit = (FIT / e.size) * (0.45 + 0.55 * focus[i]!);
         const s = fit + (TRUE_S - fit) * m;
         h.position.set(slot.x + (rowX[i]! - slot.x) * m, slot.y * (1 - m), slot.z + (0.6 - slot.z) * m);
         h.rotation.y = th * (1 - m) + (e.id === 'ct' ? -0.5 : 0) * m;
         h.scale.setScalar(s);
       });
-      // the person: beside the front exhibit at its scale, or at the start of the true-scale row
+      // the person: beside the front exhibit at its scale, or in the true-scale row in the gap after the largest unit
       const fe = gal.list[idx()]!;
       const ps = (FIT / fe.size) * (1 - m) + TRUE_S * m;
       personHolder.scale.setScalar(ps);
       personHolder.visible = m > 0.5 || (fe.id !== 'iso' && fe.id !== 'smps');
-      personHolder.position.set((1 - m) * (FIT * 0.62) + m * (rowX[0]! - 1.4), table.top * (1 - m), (1 - m) * (R + 0.5) + m * 0.9);
+      personHolder.position.set((1 - m) * (FIT * 0.62) + m * (rowX[0]! + (gal.list[0]!.size * TRUE_S) / 2 + 0.17), table.top * (1 - m), (1 - m) * (R + 0.5) + m * 1.3);
       person.update(dt, t);
       const c = ctr();
       gal.ct.ammeter.part('needle').rotation.z = 0.9 - Math.min(1, c.secondaryA) * 1.8;

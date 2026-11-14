@@ -15,7 +15,7 @@ import { doc, hot, pairTitle, splitList } from '../labels';
 import { OWN } from '../labels-own';
 import { createClockDial } from '../parts/clock-dial';
 import { createThreeLimb } from '../parts/three-limb';
-import { group, tag } from '../world';
+import { group } from '../world';
 
 const ID = 'three-phase-groups';
 const SLOW = 50;
@@ -33,11 +33,7 @@ export const threePhaseGroups: StepFactory = (tx) => {
   hvDial.group.position.set(-1.25, 3.55, -0.2);
   const lvDial = createClockDial();
   lvDial.group.position.set(1.25, 3.55, -0.2);
-  const hvTag = tag(OWN.hvDial, 21, 'coral');
-  hvTag.position.set(-1.25, 2.5, -0.2);
-  const lvTag = tag(OWN.lvDial, 21, 'sky');
-  lvTag.position.set(1.25, 2.5, -0.2);
-  const set = group(`set:${ID}`, 0, 0, 0, [core, hvDial.group, lvDial.group, hvTag, lvTag]);
+  const set = group(`set:${ID}`, 0, 0, 0, [core, hvDial.group, lvDial.group]);
   tx.stageRoot.add(set);
 
   const hv = (): HvConnection => (ui.value<string>('hv7') === 'D' ? 'D' : 'Y');
@@ -133,7 +129,10 @@ export const threePhaseGroups: StepFactory = (tx) => {
         ],
       },
       callouts: [
-        { anchor: at(new Vector3(-2.0, 0.4, 2.3)), text: OWN.terminals, side: 'down' },
+        // dial names as callouts (not world tags): on a narrow screen the two names must avoid each other
+        { anchor: atWorld(-1.25, 2.6, -0.2), text: OWN.hvDial, color: 'coral', side: 'down' },
+        { anchor: atWorld(1.25, 2.6, -0.2), text: () => `${OWN.lvDial} · ${vg().label}`, color: 'sky', side: 'down' },
+        { anchor: at(new Vector3(-2.0, -0.05, 2.9)), text: OWN.terminals, side: 'down' },
       ],
       hotspots: [
         { anchor: atWorld(1.25 + 0.6, 3.55 + 0.55, -0.1), content: hot(ID, 0) },
@@ -151,7 +150,6 @@ export const threePhaseGroups: StepFactory = (tx) => {
         fl.intensity = 1 + (pulse > 0 ? 1.2 * Math.abs(f[k]!) : 0);
       });
       limbs.terminals['2N']!.visible = vg().neutral;
-      lvTag.text = `${OWN.lvDial} · ${vg().label}`;
       const v = volts();
       lvDial.setLengths([0, 1, 2].map((k) => 1 + ((v[k]! - 230) / 230) * 4) as [number, number, number]);
       hvDial.update(dt);

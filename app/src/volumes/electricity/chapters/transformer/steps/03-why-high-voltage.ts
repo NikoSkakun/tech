@@ -19,8 +19,9 @@ import { createLineDiorama, type ClassKV } from '../parts/line-diorama';
 import { group } from '../world';
 
 const ID = 'why-high-voltage';
-/** Diorama metres → world units (250 m strip → 10 units). */
-const S = 0.04;
+/** Diorama metres → world units (214 m strip → 11,8 units). */
+const S = 0.055;
+const YAW = 0.38;
 const MIST = col('mist').lerp(col('steel'), 0.3);
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -29,10 +30,14 @@ export const whyHighVoltage: StepFactory = (tx) => {
   const d = createLineDiorama();
   const dio = group('line-diorama', 0, 0.05, 0, [d.group]);
   dio.scale.setScalar(S);
+  // the strip runs from the station (front left) away to the city (back right): the near supports are big, and
+  // the whole 214 m fits the free part of the frame between the board and the panel
+  dio.rotation.y = YAW;
   const path0 = d.phasePath(110);
-  const electrons = createFlow(ctx, { kind: 'electron', paths: [{ path: path0, closed: false }], count: 160, radius: 0.9, speed: 0, spread: 0.6, name: 'line-e' });
-  const shimmer = createHeatShimmer({ width: 160, height: 18, intensity: 0 });
+  const electrons = createFlow(ctx, { kind: 'electron', paths: [{ path: path0, closed: false }], count: 120, radius: 0.6, speed: 0, spread: 0.5, name: 'line-e' });
+  const shimmer = createHeatShimmer({ width: 110, height: 22, intensity: 0 });
   shimmer.position.set(0, 30, 0);
+  let dark = 0;
   d.group.add(electrons, shimmer);
   const set = group(`set:${ID}`, 0, 0, 0, [dio]);
   tx.stageRoot.add(set);
@@ -74,12 +79,12 @@ export const whyHighVoltage: StepFactory = (tx) => {
     id: ID,
     shots: {
       [ID]: {
-        position: [-2.6, 3.0, 7.6],
-        target: [0.5, 0.75, -0.3],
+        position: [-0.4, 2.8, 9.0],
+        target: [0.3, 0.95, -0.4],
         fov: 32,
         frameAspect: 1.6,
         orbit: { azimuth: 0.6, polar: 0.3 },
-        fit: { center: [0.2, 0.8, 0], radius: 5.0 },
+        fit: { center: [0.4, 1.0, 0], radius: 5.6 },
       },
     },
     stage: {
@@ -159,13 +164,17 @@ export const whyHighVoltage: StepFactory = (tx) => {
       const heat = r.impossible ? 1 : (r.wireTemperatureC - 20) / 50;
       const c = r.impossible ? col('red') : MIST.clone().lerp(col('orange'), Math.min(1, heat));
       d.wire.color.lerp(c, Math.min(1, dt * 4));
+      // a hot conductor glows by itself (toon shading alone washes orange out to pale pink)
+      d.wire.emissive.copy(d.wire.color);
+      d.wire.emissiveIntensity += ((r.impossible ? 0.9 : 0.6 * Math.min(1, Math.max(0, heat))) - d.wire.emissiveIntensity) * Math.min(1, dt * 4);
       d.wire.power = r.impossible ? 0.15 : 0.25 + 0.6 * Math.min(1, P() / 300);
       shimmer.intensity = Math.min(1, heat) * 0.9;
       // electrons: density and drift ∝ current (the 10 kV case, 5774 A, is the full crowd)
       const share = Math.min(1, r.currentA / 1650);
       electrons.density = 0.08 + 0.92 * share;
       electrons.speed = 3 + 25 * share;
-      d.city.night += ((r.impossible ? 0.05 : 0.95) - d.city.night) * Math.min(1, dt * 3);
+      dark += ((r.impossible ? 1 : 0) - dark) * Math.min(1, dt * 3);
+      d.setDark(dark);
       tx.sound.buzz = r.impossible ? 0.25 : Math.min(0.3, heat * 0.25);
       tx.sound.buzzPitch = 1.4;
     },

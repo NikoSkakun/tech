@@ -135,7 +135,7 @@ export const mutualInduction: StepFactory = (tx) => {
         { anchor: at(LIMB_X + 0.55, CY + 0.2, 0.2), text: OWN.secondary, color: 'sky', side: 'right' },
         { anchor: at(-3.15, 1.05, 0.2), text: `${OWN.source} · ${doc(ID, 4)}`, side: 'left' },
         { anchor: at(0, CY + 1.0, 0.3), text: OWN.flux, color: 'magenta', side: 'up', visible: () => on() },
-        { anchor: at(2.2, 0.95, 0.95), text: OWN.lamp, side: 'down' },
+        { anchor: at(2.2, 0.02, 1.4), text: OWN.lamp, side: 'down' },
       ],
       hotspots: [
         { anchor: at(-0.82, CY - 0.82, 0.25), content: hot(ID, 0) },

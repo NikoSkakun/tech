@@ -16,6 +16,7 @@ import { doc, hot } from '../labels';
 import { OWN } from '../labels-own';
 import { createLampStand, createSource } from '../parts/faraday-kit';
 import { createMeterConsole, createRheostat } from '../parts/meter-console';
+import { RECT_HY } from '../parts/core-path';
 import { CY, LIMB_X } from '../parts/teaching';
 import { group, mesh, tag } from '../world';
 import { shareTeaching } from './shared-teaching';
@@ -106,8 +107,9 @@ export const turnsRatio: StepFactory = (tx) => {
     id: ID,
     shots: {
       [ID]: {
-        position: [0.2, 2.7, 8.9],
-        target: [0.1, 1.35, 0.4],
+        // high enough to see the bottom yoke over the meter console
+        position: [0.2, 3.55, 8.7],
+        target: [0.1, 1.3, 0.4],
         fov: 30,
         frameAspect: 1.5,
         orbit: { azimuth: 0.6, polar: 0.3 },
@@ -193,7 +195,7 @@ export const turnsRatio: StepFactory = (tx) => {
       callouts: [
         { anchor: at(-3.25, 1.05, -0.1), text: OWN.mains2, side: 'up' },
         { anchor: at(3.15, 0.8, -0.35), text: () => (open() ? `${OWN.load2} · ${doc(ID, 7)}` : OWN.load2), side: 'up' },
-        { anchor: at(0, 0.05, 0.6), text: OWN.laminated, side: 'down' },
+        { anchor: at(0.35, CY - RECT_HY + 0.1, 0.25), text: OWN.laminated, side: 'up' },
       ],
       hotspots: [
         { anchor: at(LIMB_X + 0.5, CY - 0.4, 0.3), content: hot(ID, 0) },
