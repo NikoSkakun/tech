@@ -1,6 +1,7 @@
 // Building blocks of chapter-check (M3): layout checks at the current viewport, robust frame-time sampling,
 // and UI snapshots for comparing device pixel ratios.
 import { fmt } from './lib.mjs';
+import { hudChecks } from './dom-parts.mjs';
 
 /** Advance a few deterministic frames so a resize / navigation is laid out and drawn. */
 export async function settleFrames(page, n = 3) {
@@ -12,7 +13,8 @@ export async function settleFrames(page, n = 3) {
  *  - controls outside the viewport (`__ui.offscreen()`, the HUD hook of M3-ui: interactive nodes whose visible hit
  *    box leaves the viewport; content scrolled out of a scroll view does not count) → fail;
  *  - world text below `minText` px-eq → fail, at 1280×720 only (the legibility reference size);
- *  - SDF text magnified beyond `sdfMaxMag` × the atlas resolution (soft corners) → warning.
+ *  - SDF text magnified beyond `sdfMaxMag` × the atlas resolution (soft corners) → warning;
+ *  - interface text below caption units, overlapping chrome regions → fail (`hudChecks`, dom-parts.mjs).
  */
 export async function layoutAt(page, { step, minText, sdfMaxMag, fail, note, warn }) {
   const vp = page.viewportSize();
@@ -51,6 +53,8 @@ export async function layoutAt(page, { step, minText, sdfMaxMag, fail, note, war
   entry.maxMagnification = r.texts.length ? Math.max(...r.texts.map((t) => t.magnification ?? 0)) : null;
   for (const t of soft.slice(0, 3))
     warn(`${step} @${size}: text «${t.text}» is drawn at ${fmt(t.magnification, 1)}× the SDF atlas resolution (> ${sdfMaxMag}×: corners may look soft)`);
+  // D8: interface text ≥ caption units and no overlapping regions, both renderers (dom-parts.mjs)
+  await hudChecks(page, entry, { step, size, fail, note });
   return entry;
 }
 

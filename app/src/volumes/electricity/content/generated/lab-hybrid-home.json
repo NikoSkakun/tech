@@ -1140,13 +1140,6 @@
      "intl": "Demand response"
     }
    ],
-   "facts": {
-    "items": [
-     {
-      "text": "без нових чисел (фінал); посилання: → `grid/balance`, → `grid/outage-schedules`, → `grid/future-grid` (віртуальні електростанції), → `distribution/der` (розподілена генерація), → `distribution/transformer-substation` (ТП)."
-     }
-    ]
-   },
    "hotspots": [
     {
      "id": "transformer-substation",

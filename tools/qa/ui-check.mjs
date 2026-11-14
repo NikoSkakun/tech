@@ -11,20 +11,28 @@
 //   layout sweep at 1280×720, 1920×1080, 1024×768, 800×1200, 3840×2160 and 1920×1080 @2x over the overflow,
 //   board and controls steps: `__ui.offscreen()` empty, board beside the column, proportionate panel, pointer drag ·
 //   HUD cost (frame time and draw calls with the HUD on vs off) within the budget (≤ 1.5 ms, ≤ 60 calls), also at 4K.
-// Exit code 1 on any failure. Screenshots of each stage go to <out>/ui-check/.
-import { appErrors, appUrl, baseUrl, ensureDir, launch, openApp, outRoot, parseArgs, parseSize, screenshot } from './lib.mjs';
+//   Motion rule (D8, DECISIONS §59 p): a pointer sweep over the screen must not move any interface element.
+//   --hud dom (D8): "no DOM UI" becomes "no WebGL HUD surface on screen" (named WebGL nodes are listed — regions
+//   not ported yet); plus Tab from the canvas reaches the first DOM control, Esc closes the map and restores the
+//   focus, the step text is selectable by a mouse drag. Controls are driven through `__ui.locate` + real pointer.
+//   --zoom <z> (D8): browser zoom z×100 % — every viewport (main run and layout sweep) divided by z at DPR × z.
+// Exit code 1 on any failure. Screenshots of each stage go to <out>/ui-check[-dom][-zoom<z>]/.
+import { appErrors, appUrl, baseUrl, ensureDir, hudParam, launch, openApp, outRoot, parseArgs, parseSize, screenshot } from './lib.mjs';
+import { domKeyboardChecks, domSliderTrack, pointerSweep, webglNames } from './ui-dom-parts.mjs';
 
 const args = parseArgs();
-const [width, height] = parseSize(args.size);
+const zoom = Math.max(1, Number(args.zoom ?? 1));
+const [width, height] = parseSize(args.size).map((v) => Math.round(v / zoom));
 const base = baseUrl(args);
-const out = ensureDir(`${outRoot(args)}/ui-check`);
+const out = ensureDir(`${outRoot(args)}/ui-check${hudParam() === 'dom' ? '-dom' : ''}${zoom > 1 ? `-zoom${zoom}` : ''}`);
 const failures = [];
 const check = (ok, what, detail = '') => {
   console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${what}${detail ? ` — ${detail}` : ''}`);
   if (!ok) failures.push(what);
 };
 
-const { browser, page } = await launch({ width, height });
+const { browser, page } = await launch({ width, height, dpr: zoom });
+let hud = 'gl';
 const step = (frames = 45) => page.evaluate((n) => window.__app.step(1 / 60, n), frames);
 const pos = () => page.evaluate(() => window.__app.position());
 const at = async (name) => {
@@ -46,9 +54,9 @@ const settle = async () => {
 };
 
 try {
-  await openApp(page, appUrl(base, { route: '_sandbox-ui/controls', freeze: 3 }));
+  ({ hud } = await openApp(page, appUrl(base, { route: '_sandbox-ui/controls', freeze: 3 })));
   await page.waitForFunction(() => typeof window.__ui === 'object' && window.__ui.locate('sys-map') !== null);
-  console.log(`[ui-check] ${width}x${height}`);
+  console.log(`[ui-check] ${width}x${height}${zoom > 1 ? ` @${zoom}x (zoom ${zoom * 100} %)` : ''} · interface ${hud}`);
 
   // 1. button → state
   await click('nav-next');
@@ -60,8 +68,9 @@ try {
 
   // 2. slider drag → value
   const before = await page.evaluate(() => window.__ui.value('G'));
-  const g = await at('ctl-G');
-  const trackY = g.y + 8; // the track is the lower part of the slider
+  // the track is the lower part of a WebGL slider; a DOM slider drags on its <input type=range>
+  const g = (await domSliderTrack(page, 'ctl-G')) ?? (await at('ctl-G'));
+  const trackY = g.y0 === undefined ? g.y + 8 : g.y;
   await page.mouse.move(g.x + g.w * 0.3, trackY);
   await step(4);
   await page.mouse.down();
@@ -141,17 +150,30 @@ try {
   // 10. targets, DOM, console
   const small = await page.evaluate(() => window.__ui.smallTargets());
   check(small.length === 0, 'every pointer target is at least 44 px-eq', small.slice(0, 6).join('; '));
-  // the boot splash and the fatal-error screen are the only HTML (STYLE_GUIDE §6) and must be hidden by now
-  const dom = await page.evaluate(() =>
-    [...document.body.querySelectorAll('*')]
-      // (#live is the invisible aria-live region for screen readers)
-      .filter((e) => e.tagName !== 'CANVAS' && e.tagName !== 'SCRIPT' && e.id !== 'app' && e.id !== 'live')
-      .filter((e) => e.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) && e.getBoundingClientRect().width > 0)
-      .map((e) => `${e.tagName}#${e.id}`),
-  );
-  check(dom.length === 0, 'no visible DOM UI (WebGL only)', dom.slice(0, 5).join(', '));
+  if (hud === 'dom') {
+    // the DOM interface is the HUD now: nothing may still be drawn by the WebGL HUD (HUD_DOM §12). Until every
+    // region is ported this lists the regions that are not — an expected failure, attributed by name
+    const gl = await webglNames(page);
+    check(gl.length === 0, 'dom: no WebGL HUD surface on screen', `${gl.length} named WebGL node(s), regions not ported to the DOM yet: ${gl.slice(0, 8).join(', ')}`);
+  } else {
+    // the boot splash and the fatal-error screen are the only HTML (STYLE_GUIDE §6) and must be hidden by now
+    const dom = await page.evaluate(() =>
+      [...document.body.querySelectorAll('*')]
+        // (#live is the invisible aria-live region for screen readers)
+        .filter((e) => e.tagName !== 'CANVAS' && e.tagName !== 'SCRIPT' && e.id !== 'app' && e.id !== 'live')
+        .filter((e) => e.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) && e.getBoundingClientRect().width > 0)
+        .map((e) => `${e.tagName}#${e.id}`),
+    );
+    check(dom.length === 0, 'no visible DOM UI (WebGL only)', dom.slice(0, 5).join(', '));
+  }
   const errors = await appErrors(page);
   check(errors.length === 0, 'no console errors or warnings', errors.slice(0, 3).map((e) => e.message.slice(0, 120)).join(' | '));
+
+  // 10b. motion rule (both renderers) and the DOM keyboard / text checks, on a fresh controls step
+  await openApp(page, appUrl(base, { route: '_sandbox-ui/controls', freeze: 3, extra: { n: 'sweep' } }));
+  await settle();
+  await pointerSweep(page, { check, frames: step, tag: `${width}x${height}` });
+  if (hud === 'dom') await domKeyboardChecks(page, { check, frames: step });
 
   // 11. step API through the QA hook: press / set with notify / live patch / visibility predicates (M3)
   await openApp(page, appUrl(base, { route: '_sandbox-ui/board', freeze: 3 }));
@@ -175,7 +197,7 @@ try {
   //     scaled in proportion to the viewport — at the usual sizes, in portrait, at 4K and at 1080p with DPR 2
   const SIZES = [[1280, 720, 1], [1920, 1080, 1], [1024, 768, 1], [800, 1200, 1], [3840, 2160, 1], [1920, 1080, 2]];
   const ROUTES = ['_sandbox-ui/overflow', '_sandbox-ui/board', '_sandbox-ui/controls'];
-  for (const [w, h, dpr] of SIZES) {
+  for (const [w, h, dpr] of SIZES.map(([a, b, d]) => [Math.round(a / zoom), Math.round(b / zoom), d * zoom])) {
     const tag = `${w}x${h}${dpr > 1 ? `@${dpr}x` : ''}`;
     const run = await launch({ width: w, height: h, dpr });
     try {
@@ -194,6 +216,11 @@ try {
           off = off.concat(await p.evaluate(() => window.__ui.offscreen()));
         }
         check(off.length === 0, `${tag} ${route}: every hit target on screen`, off.slice(0, 4).map((o) => `${o.name}@${Math.round(o.x)},${Math.round(o.y)}`).join(' '));
+        // region overlap fails under --zoom (D8); at 100 % it is reported only: the WebGL layout has a known 3 px
+        // column × navigator touch at 1024x768 and 800x1200 that predates the check (chapter-check fails it at its sizes)
+        const ov = (await p.evaluate(() => window.__ui.overlaps?.() ?? [])).map((o) => `${o.a}×${o.b} ${Math.round(o.w)}×${Math.round(o.h)}`);
+        if (zoom > 1) check(ov.length === 0, `${tag} ${route}: no interface regions overlap`, ov.join(', '));
+        else if (ov.length) console.log(`  note ${tag} ${route}: regions overlap — ${ov.join(', ')}`);
         await screenshot(p, `${out}/sweep-${tag}-${route.split('/')[1]}.jpg`, 80);
         if (route === '_sandbox-ui/board') {
           const b = await p.evaluate(() => window.__ui.locate('board'));
@@ -206,16 +233,20 @@ try {
           const panel = await p.evaluate(() => window.__ui.locate('step-panel') ?? window.__ui.locate('step-column'));
           const share = panel.w / w;
           const ok = sheet ? share > 0.45 && share <= 1 : share > 0.2 && share < 0.32;
-          check(ok, `${tag}: step panel width is proportionate`, `${(share * 100).toFixed(1)} % of the width`);
+          // under browser zoom the HUD unit hits its floor and the panel takes a larger share by design (HUD_DOM §14)
+          if (zoom === 1) check(ok, `${tag}: step panel width is proportionate`, `${(share * 100).toFixed(1)} % of the width`);
+          else check(share <= 1, `${tag}: step panel fits the width (zoom)`, `${(share * 100).toFixed(1)} % of the width`);
           // a real pointer drag on a dock slider works at this size
           const before = await p.evaluate(() => window.__ui.value('ov-a'));
-          const s = await p.evaluate(() => window.__ui.locate('ctl-ov-a'));
+          const track = await domSliderTrack(p, 'ctl-ov-a');
+          const s = track ?? (await p.evaluate(() => window.__ui.locate('ctl-ov-a')));
           if (s) {
-            await p.mouse.move(s.x - s.w * 0.1, s.y + s.h * 0.2);
+            const sy = track ? track.y : s.y + s.h * 0.2;
+            await p.mouse.move(s.x - s.w * 0.1, sy);
             await frames(3);
             await p.mouse.down();
             for (let k = 1; k <= 6; k++) {
-              await p.mouse.move(s.x - s.w * (0.1 + 0.05 * k), s.y + s.h * 0.2);
+              await p.mouse.move(s.x - s.w * (0.1 + 0.05 * k), sy);
               await frames(2);
             }
             await p.mouse.up();
@@ -253,9 +284,9 @@ try {
       check(calls <= 60, `${tag}: HUD draw calls ≤ 60`, `${calls} (${off.calls} → ${on.calls})`);
     };
     await cost(page, `${width}x${height}`);
-    const big = await launch({ width: 3840, height: 2160 });
+    const big = await launch({ width: 3840 / zoom, height: 2160 / zoom, dpr: zoom });
     try {
-      await cost(big.page, '3840x2160');
+      await cost(big.page, `${3840 / zoom}x${2160 / zoom}${zoom > 1 ? `@${zoom}x` : ''}`);
     } finally {
       await big.browser.close();
     }

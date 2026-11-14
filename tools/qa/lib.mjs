@@ -6,6 +6,8 @@
 //   --size WxH      viewport in CSS px                  (default 1920x1080)
 //   --q <tier>      quality tier low|medium|high|ultra  (default high)
 //   --out <path>    output file or directory            (default /srv/electricity/qa/$QA_ID or .../misc)
+//   --hud dom|gl    interface renderer, passed as ?hud= (default: $QA_HUD, else none = the app's default;
+//                   docs/HUD_DOM.md §16). `openApp` reports the mode in effect (`gpu.hud`, one log line).
 import { createRequire } from 'node:module';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -45,8 +47,24 @@ export function parseArgs(argv = process.argv.slice(2)) {
       }
     } else args._.push(a);
   }
+  if (args.hud !== undefined) {
+    if (args.hud !== 'dom' && args.hud !== 'gl') {
+      console.error(`--hud must be dom or gl (got ${JSON.stringify(args.hud)})`);
+      process.exit(2);
+    }
+    // through the environment, so `appUrl` sees it and child tools (chapter-check → mobile-check) inherit it
+    process.env.QA_HUD = args.hud;
+  }
   return args;
 }
+
+/** The `?hud=` value QA pages are opened with (`--hud` / `QA_HUD`), or null = the app's default. */
+export function hudParam() {
+  const v = process.env.QA_HUD;
+  return v === 'dom' || v === 'gl' ? v : null;
+}
+
+let hudLogged = false;
 
 export function baseUrl(args) {
   if (typeof args.base === 'string') return args.base.endsWith('/') ? args.base : `${args.base}/`;
@@ -79,8 +97,8 @@ export function ensureParent(file) {
  * chapters are included (`debug`) but the HTML overlay is hidden so screenshots show only the product.
  */
 export function appUrl(base, { route = '', q = 'high', freeze = null, extra = {} } = {}) {
-  // QA_HUD=dom|gl: run any QA script against that interface renderer (?hud=, docs/HUD_DOM.md §16); `extra` wins
-  const hud = process.env.QA_HUD ? { hud: process.env.QA_HUD } : {};
+  // --hud / QA_HUD=dom|gl: run any QA script against that interface renderer (?hud=, HUD_DOM §16); `extra` wins
+  const hud = hudParam() ? { hud: hudParam() } : {};
   const params = new URLSearchParams({ debug: '', overlay: '0', noaudio: '', q, ...hud, ...extra });
   if (q === 'auto') params.delete('q'); // let the app pick the tier itself (`mobile` on phones / tablets)
   if (freeze !== null && freeze !== undefined) params.set('freeze', String(freeze));
@@ -120,7 +138,19 @@ export async function openApp(page, url, { timeout = 60000 } = {}) {
   if (!/nvidia/i.test(gpu.renderer) && !process.env.QA_ALLOW_SOFTWARE) {
     throw new Error(`WebGL is not running on the NVIDIA GPU (renderer: "${gpu.renderer}"). Check the Chrome GPU flags.`);
   }
+  gpu.hud = await hudMode(page);
+  // DOM text reflows when the web fonts arrive: screenshots and boxes only after they are in (HUD_DOM §12)
+  if (gpu.hud === 'dom') await page.evaluate(() => document.fonts.ready.then(() => undefined));
+  if (!hudLogged) {
+    hudLogged = true;
+    console.log(`  interface: ${gpu.hud}${hudParam() ? '' : ' (app default)'}`);
+  }
   return gpu;
+}
+
+/** The interface renderer the page runs (`dom` | `gl`), as the engine parsed it from `?hud=`. */
+export async function hudMode(page) {
+  return page.evaluate(() => window.__app?.engine?.flags?.hud ?? 'gl');
 }
 
 /** Console errors/warnings captured by the app since boot (or since the last clear). */

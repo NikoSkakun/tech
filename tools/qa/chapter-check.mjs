@@ -24,7 +24,12 @@
 //     - controls off screen: `window.__ui.offscreen()` (HUD hook) must return an empty list, at every size;
 //     - text size at 1280x720: every visible world Text3D (`__app.textSizes()`) must be ≥ --min-text (16) px-eq
 //       (px at 1080p). ui3d surfaces are not measured by the engine (`__ui.worldTextSizes()` is used if present);
-//     - SDF text magnified more than --sdf-max-mag (4) × the atlas resolution → warning (soft corners).
+//     - SDF text magnified more than --sdf-max-mag (4) × the atlas resolution → warning (soft corners);
+//     - interface text (D8, both renderers, every size): `__ui.textSizes()` below `UI.text.caption` (15 units =
+//       10.5 CSS px at 1280x720) → fail; chrome regions overlapping (`__ui.overlaps()`) → fail (dom-parts.mjs).
+//   Interface (D8): --hud dom|gl opens every page with ?hud= (default: the app's); report.gpu.hud names it.
+//   Zoom (D8): --zoom 2 = 200 % browser zoom: every size's CSS viewport halved at DPR 2 (1920x1080 → 960x540);
+//   offscreen / text / overlap checks as above; the DPR-2 compare is skipped; output in <out>/<chapter>-zoom2/.
 //   Perf (M3): --perf-rounds (3) interleaved passes over all steps; the minimum per step is held against the
 //   budget and the spread (max − min) is reported — robust to other GPU users on a shared machine. With
 //   3840x2160 in the size list a second perf pass runs at 4K: warn above --budget-4k (14 ms), fail above
@@ -41,7 +46,7 @@
 //          --out <dir> · --port/--base · --other <chapter> chapter used for the leave/return test
 //          --budget <ms> (8) · --budget-4k <ms> (14) · --fail-4k <ms> (16.6) · --no-perf-fail · --dpr2
 //          --skip perf,leaks,random,layout,dpr2 · --perf-rounds <n> (3) · --perf-frames <n> (90)
-//          --min-text <px-eq> (16) · --sdf-max-mag <×> (4)
+//          --min-text <px-eq> (16) · --sdf-max-mag <×> (4) · --hud dom|gl · --zoom <z> (1)
 import { execFileSync } from 'node:child_process';
 import { compareSnapshots, confirmPerf, layoutAt, measurePerf, settleFrames, uiSnapshot } from './check-parts.mjs';
 import { writeFileSync } from 'node:fs';
@@ -71,12 +76,17 @@ if (!chapterId) {
   process.exit(2);
 }
 const ALL_SIZES = [[1920, 1080], [1280, 720], [3840, 2160]];
-const sizes =
+// --zoom <z> (D8): browser zoom at z×100 % — each size keeps its device pixels, the CSS viewport shrinks by z and
+// the device pixel ratio grows by z (200 % on a 1080p screen = 960x540 CSS at DPR 2; docs/HUD_DOM.md §14)
+const zoom = Math.max(1, Number(args.zoom ?? 1));
+const zoomed = (list) => list.map(([w, h]) => [Math.round(w / zoom), Math.round(h / zoom)]);
+const sizes = zoomed(
   args.sizes === 'all'
     ? ALL_SIZES
     : typeof args.sizes === 'string'
       ? args.sizes.split(',').map((v) => parseSize(v))
-      : [parseSize(args.size), ...(typeof args['also-size'] === 'string' ? [parseSize(args['also-size'])] : [])];
+      : [parseSize(args.size), ...(typeof args['also-size'] === 'string' ? [parseSize(args['also-size'])] : [])],
+);
 const [width, height] = sizes[0];
 const has = (w, h) => sizes.some(([a, b]) => a === w && b === h);
 const q = String(args.q ?? 'high');
@@ -89,17 +99,18 @@ const minText = Number(args['min-text'] ?? 16);
 const sdfMaxMag = Number(args['sdf-max-mag'] ?? 4);
 const budget4k = Number(args['budget-4k'] ?? 14);
 const fail4k = Number(args['fail-4k'] ?? 16.6);
-const dpr2 = (args.sizes === 'all' || Boolean(args.dpr2)) && !String(args.skip ?? '').includes('dpr2');
+const dpr2 = (args.sizes === 'all' || Boolean(args.dpr2)) && !String(args.skip ?? '').includes('dpr2') && zoom === 1;
 // reference sizes that are always layout-checked; the ones missing from `sizes` are reached by resizing
-const EXTRA_LAYOUT = [[1280, 720], [1920, 1080]].filter(([w, h]) => !has(w, h));
+const EXTRA_LAYOUT = zoomed([[1280, 720], [1920, 1080]]).filter(([w, h]) => !has(w, h));
 const base = baseUrl(args);
 const skip = new Set(String(args.skip ?? '').split(',').filter(Boolean));
-const outDir = ensureDir(`${outRoot(args)}/${chapterId.replace(/\//g, '-')}`);
+const outDir = ensureDir(`${outRoot(args)}/${chapterId.replace(/\//g, '-')}${zoom > 1 ? `-zoom${zoom}` : ''}`);
 const sheetTool = fileURLToPath(new URL('./sheet.sh', import.meta.url));
 
 const failures = [];
 const warnings = [];
 const report = { chapterId, size: `${width}x${height}`, sizes: sizes.map(([w, h]) => `${w}x${h}`), quality: q, gpu: null, steps: [], perf: [], perf4k: [], layout: [], dpr2: [], leaks: null, failures, warnings, notes: [] };
+report.zoom = zoom;
 const warn = (msg) => {
   warnings.push(msg);
   console.log(`  WARN ${msg}`);
@@ -143,10 +154,10 @@ const layoutCheck = async (page, step) => {
 };
 const dpr1Snapshots = new Map();
 
-const { browser, page, requests, pageErrors } = await launch({ width, height });
+const { browser, page, requests, pageErrors } = await launch({ width, height, dpr: zoom });
 try {
   /* -------------------------------------------------------------------------------- 1. deep links */
-  console.log(`[1/5] deep links — ${chapterId} @ ${sizes.map(([w, h]) => `${w}x${h}`).join(', ')} ${q}`);
+  console.log(`[1/5] deep links — ${chapterId} @ ${sizes.map(([w, h]) => `${w}x${h}`).join(', ')} ${q}${zoom > 1 ? ` · zoom ${zoom * 100} % (DPR ${zoom})` : ''}`);
   report.gpu = await openApp(page, appUrl(base, { route: chapterId, q, freeze }));
   const chapters = await page.evaluate(() => window.__app.listChapters());
   // chapters come in library order (default volume first), so a short id prefers the default volume

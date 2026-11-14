@@ -42,7 +42,9 @@ chapter, steps in order.
 ## Text conventions
 
 - Mini-markup inside strings: `**term**` (key term, bold), `_emphasis_`, `` `formula` `` (render as formula / mono).
-  A code span of the form `` `chapter/step` `` inside copy is a link to that step, not a formula.
+  On-screen copy carries no `` `chapter/step` `` code spans (the HUD would draw them as formulas): name the chapter in
+  words («розділ „Атом“») and list the link in «Перехресні посилання» («Див. також» chips); `copy_check.py` fails
+  on them. Guidance fields («Бачимо», «Зв’язки», remarks) may keep them.
 - U+00A0 (non-breaking space) between a number and its unit and in thousands groups is significant — keep it.
   The apostrophe is ’ (U+2019).
 - Quotes are already levelled for the screen: the «…» that delimit a page or hotspot text in the documents are
@@ -145,11 +147,12 @@ After export_content.py always run tools/content/export_runtime.py (generates ap
 | `glossary[].name`, `.intl` | same rule; the glossary is sorted / indexed by the Ukrainian alphabet, search matches both |
 | `steps[].hotspots[].id` | the explicit stable id of the document (`{#wind-turbine}`, «Hotspot ids» above), present on every hotspot — bind with `hotspots: [{ content: id }]`, never by index or title |
 | `steps[].hotspots[].title`, `.intl` | display name of the hotspot card (§54) and its international secondary line; `name` keeps the pair as written (`Nucleus — ядро`) |
-| `steps[].labels[]` | UI labels quoted «…» in the step's «Інтерактив» items, verbatim, in order — use them for control captions instead of retyping |
+| `steps[].labels[]` | UI labels quoted «…» in the step's «Інтерактив» items, verbatim, in order — use them for control captions instead of retyping. Quotes of ordinary items count up to 60 characters (longer ones are prose). The item `- **Підписи:** «…» · «…»` — always the **last** item of «Інтерактив» (copy_check) — lists further on-screen captions of any length (plates, warnings, segment items, board lists); being last, it never shifts the indexes of the labels before it, so add new captions there instead of re-quoting earlier items |
 | `steps[].facts.items[].table` | `{ head, rows, note? }` when the fact is a table in the document; the HUD renders a table (row cards above 4 columns) — never parse the pipes of `text` |
 | `crossReferences[]` | rendered by the HUD as «Див. також» chips in the step their `where` names |
 | `labels` (chapter level, optional) | free-form scene labels the builder adds in `defineContent(raw, { labels })` — §54 applies |
-| `<id>.manifest.json` | eager, small: `id`, `title`, `subtitle` (= first step title by default), `axisLabel`, `group`, `parent`, `order`, `steps[] { id, title, blurb }` (blurb = first sentence of the step’s first panel page, ≤ 140 characters). Import it in `index.ts`: `defineChapter({ …, ...manifestText(meta) })` — never import `<id>.json` there |
+| `<id>.manifest.json` | eager, small: `id`, `title`, `subtitle` (= first step title by default), `axisLabel`, `group`, `parent`, `order`, `steps[] { id, title, blurb }` (blurb = first sentence of the step’s first panel page — two when the first is
+shorter than 12 characters, e.g. «1831 рік.» — ≤ 140 characters). Import it in `index.ts`: `defineChapter({ …, ...manifestText(meta) })` — never import `<id>.json` there |
 
 `app/src/content/__tests__/generated-meta.test.ts` checks the manifests against the exports; `doccheck.py` checks
 that the generated files equal a fresh run.

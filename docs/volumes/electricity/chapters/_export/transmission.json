@@ -36,7 +36,7 @@
      "symbol": null,
      "unit": null,
      "raw": "GSU (generator step-up) transformer — блочний (генераторний) підвищувальний трансформатор",
-     "definition": "підвищує генераторну напругу до напруги мережі; див. розділ «Трансформатор» (→ `transformer/types`)."
+     "definition": "підвищує генераторну напругу до напруги мережі; див. розділ «Трансформатор»."
     },
     {
      "international": "Switchyard (AIS)",

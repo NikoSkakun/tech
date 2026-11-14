@@ -44,9 +44,10 @@ try {
     chapters: window.__app.listChapters(),
     coarse: matchMedia('(pointer: coarse)').matches,
     fullscreen: window.__app.engine.canFullscreen,
+    hud: window.__app.engine.flags?.hud ?? 'gl',
     ua: navigator.userAgent,
   }));
-  console.log(`webkit ${tag}: ${info.gpu.renderer.slice(0, 60)} · ${info.device.formFactor}/${info.device.orientation}/${info.device.pointer} · tier ${info.tier} · fullscreen API ${info.fullscreen}`);
+  console.log(`webkit ${tag}: ${info.gpu.renderer.slice(0, 60)} · ${info.device.formFactor}/${info.device.orientation}/${info.device.pointer} · tier ${info.tier} · interface ${info.hud} · fullscreen API ${info.fullscreen}`);
   if (info.device.formFactor !== 'phone') problems.push(`classified as ${info.device.formFactor} (pointer: coarse = ${info.coarse})`);
   if (info.tier !== 'mobile') problems.push(`tier ${info.tier}, expected mobile`);
   const tap = async (name) => {

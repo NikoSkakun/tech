@@ -21,6 +21,9 @@
  11b. simple     tools/content/simple_check.py: the simple reading level («Просто», «Простий квіз», docs/briefs/L-simple-level.md)
                  in chapters that have it — every step covered, page / sentence length, no formulas, hotspot ids, 3-question
                  quiz; detailed misconceptions: «[Сцена: …]» split, no stage words in the learner part
+ 11c. copy       tools/content/copy_check.py: on-screen copy hygiene — no `chapter/step` code span in copy (shown as a
+                 formula, not a link), no builder notes («(хаб)», TODO) in titles / pages, «Підписи» last in «Інтерактив»;
+                 warning: captions written in backticks in «Бачимо» / «Інтерактив» (not exported to `steps[].labels`)
  12. fonts       app/scripts/font-coverage.mjs: every character of the on-screen copy has a glyph in the font atlas
  13. oracles     tools/ref-models/C6-labs/{home,battery,thermal}_model.py --check (control points of the labs)
 
@@ -227,6 +230,7 @@ def main():
               ('runtime', 'export_runtime.py', ['--check'] + vol),
               ('terms', 'terms_check.py', vol),
               ('simple', 'simple_check.py', vol),
+              ('copy', 'copy_check.py', vol),
               ('fonts', '../../app/scripts/font-coverage.mjs', vol)]
     # volume-specific checks (reference models …): volume.json → docs.checks = [[name, path from the repo root, args…]]
     checks += [(c[0], os.path.relpath(os.path.join(C.ROOT, c[1]), HERE), c[2:]) for c in C.META.get('docs', {}).get('checks', [])]

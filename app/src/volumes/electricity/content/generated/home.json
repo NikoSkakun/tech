@@ -31,7 +31,7 @@
     {
      "international": "Electricity meter",
      "ukrainian": "лічильник електроенергії",
-     "definition": "рахує спожиту енергію в kWh (детально — розділ «Розподільні мережі», → `distribution/service-entrance`).",
+     "definition": "рахує спожиту енергію в kWh (детально — розділ «Розподільні мережі»).",
      "name": "лічильник електроенергії",
      "intl": "Electricity meter"
     },
@@ -206,7 +206,7 @@
     {
      "id": "neutral-bar-pe-bar",
      "name": "Neutral bar / PE bar — шина N / шина PE",
-     "text": "не можна плутати й з’єднувати їх після точки розділення (розділ «Розподільні мережі», система TN-C-S, → `distribution/neutral-earthing`).",
+     "text": "не можна плутати й з’єднувати їх після точки розділення (розділ «Розподільні мережі», система TN-C-S).",
      "international": "Neutral bar / PE bar",
      "ukrainian": "шина N / шина PE",
      "title": "шина N / шина PE",

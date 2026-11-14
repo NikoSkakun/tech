@@ -73,10 +73,11 @@ for (const name of browsers) {
         timerQuery: has('EXT_disjoint_timer_query_webgl2'),
         parallelCompile: has('KHR_parallel_shader_compile'),
         chapters: window.__app.listChapters(),
+        hud: window.__app.engine.flags?.hud ?? "gl",
       };
     });
     console.log(
-      `${name}: ${info.renderer.slice(0, 70)} · webgl2 ${info.webgl2} · float targets ${info.floatTargets} · timer query ${info.timerQuery} · parallel compile ${info.parallelCompile}`,
+      `${name}: ${info.renderer.slice(0, 70)} · webgl2 ${info.webgl2} · float targets ${info.floatTargets} · timer query ${info.timerQuery} · parallel compile ${info.parallelCompile} · interface ${info.hud}`,
     );
     if (!info.webgl2) problems.push('no WebGL2 context');
     const shots = [];

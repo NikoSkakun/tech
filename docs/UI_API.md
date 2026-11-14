@@ -378,7 +378,7 @@ A missing glyph logs one warning (it fails `chapter-check`): ask F1 to add it to
 **DOM interface (`?hud=dom`, D1 — `docs/HUD_DOM.md`).** The interface is moving to HTML/CSS over the canvas.
 `?hud=dom|gl` picks the renderer (default `gl` until the cut-over, `DEFAULT_HUD` in `engine/app.ts`); under `dom`
 every region whose DOM view exists is drawn by `@/hud-dom`, the rest stays WebGL (hybrid). QA scripts follow the
-environment variable `QA_HUD=dom|gl` (`tools/qa/lib.mjs appUrl`; `--hud` comes with D8). `window.__ui` is a
+option `--hud dom|gl` or the environment variable `QA_HUD=dom|gl` (`tools/qa/lib.mjs`; below). `window.__ui` is a
 facade over two backends: the DOM one answers first from `[data-ui]` elements (the same names as above; boxes
 from `getBoundingClientRect`, CSS px, centre + size), the WebGL one answers for what the DOM does not draw, so a
 chapter test never needs to know which renderer drew a control. New members: **`textSizes()`** — every visible
@@ -387,6 +387,30 @@ piece of interface text `{ name, text, units, px }` (units = px-eq at 1080p; DOM
 whose boxes intersect `{ a, b, w, h }`. `smallTargets()` counts a DOM control's invisible hit extension (≥ 44
 units like the WebGL `minHit`). `__app.settled()` also waits for the web fonts under `?hud=dom`. Chapter code
 is unchanged: keep declaring `stepUi`; never query the DOM interface by class names.
+
+**QA tools on both interfaces (D8).** Every QA script — and every chapter interaction test that uses
+`tools/qa/lib.mjs parseArgs` — takes **`--hud dom|gl`** (no option: `$QA_HUD`, else the app's default); it is passed
+as `?hud=`, inherited by child tools, and `openApp` prints the mode in effect and returns it as `gpu.hud` (reports
+store it). Under `dom`, `openApp` also waits for the web fonts.
+
+```bash
+node tools/qa/chapter-check.mjs atom --hud dom --sizes all   # + interface text ≥ caption units, no region overlap
+node tools/qa/chapter-check.mjs atom --hud dom --zoom 2      # 200 % browser zoom: 960x540 CSS at DPR 2
+node tools/qa/ui-check.mjs --hud dom [--zoom 2]              # DOM variant + pointer sweep (motion rule)
+node tools/qa/dom-cost.mjs atom [--size 3840x2160] [--tier mobile]   # HUD_DOM §15 budgets per step (dev server)
+node tools/qa/hud-sheet.mjs atom [--sizes …] [--mobile]      # before/after sheets: ?hud=gl next to ?hud=dom
+node tools/qa/a11y-check.mjs atom/dive-in                    # Tab order, names, aria-*, contrast (DOM interface)
+QA_HUD=dom node app/src/volumes/electricity/chapters/atom/qa/interactions.mjs --port <port>   # or --hud dom
+```
+
+- `chapter-check` (both interfaces, every size): `__ui.textSizes()` below `UI.text.caption` (15 units = 10.5 CSS px
+  at 1280×720) fails, `__ui.overlaps()` non-empty fails; world-text, off-screen and DPR-2 checks are unchanged.
+  `--zoom <z>` divides every size by z at DPR z (the DPR-2 compare is skipped there).
+- `ui-check --hud dom`: "no visible DOM UI" becomes "no WebGL HUD surface on screen" — it lists the named WebGL nodes
+  still drawn (regions not ported yet); adds Tab from the canvas → first DOM control, Esc closes the map and gives
+  the focus back, step text selectable by a mouse drag. Both interfaces: a **pointer sweep** (25 points, no button)
+  must not change any element's box except the hovered one (DECISIONS §59 p). Region overlap in the layout sweep
+  fails under `--zoom`, is printed as a note at 100 %.
 
 ## 14. Do / don't
 

@@ -174,11 +174,21 @@ def runtime_fact(f):
     return out
 
 
+CAPTIONS_RE = re.compile(r'^\*\*Підписи:?\*\*:?')
+# a «Підписи» item lists on-screen captions explicitly (C8): long warnings and plate texts are allowed there
+CAPTION_QUOTE_RE = re.compile(r'«([^«»]{1,240})»')
+
+
 def ui_labels(s):
-    """UI labels the document quotes «…» in the step's «Інтерактив» items, in order, without duplicates."""
+    """UI labels the document quotes «…» in the step's «Інтерактив» items, in order, without duplicates.
+    Quotes of ordinary items are taken up to 60 characters (longer quotes are prose); the item «Підписи» —
+    always the last item of the field, so the indexes of the labels before it never shift — lists captions of
+    any length."""
     seen = []
     for item in (s.get('interaction') or {}).get('items') or []:
-        for m in QUOTE_RE.finditer(item.get('text') or ''):
+        text = item.get('text') or ''
+        rx = CAPTION_QUOTE_RE if CAPTIONS_RE.match(text) else QUOTE_RE
+        for m in rx.finditer(text):
             label = m.group(1).strip()
             if label and label not in seen:
                 seen.append(label)
@@ -261,6 +271,7 @@ def runtime(doc):
 MARKUP_RE = re.compile(r'\*\*|(?<![\w])_|_(?![\w])|`|\{[a-z.]+:|\}')
 SENTENCE_END_RE = re.compile(r'(?<=[.!?…])\s+(?=[«„(—–\-A-ZА-ЯІЇЄҐ0-9])')
 BLURB_MAX = 140
+BLURB_MIN = 12  # characters: shorter openers are time stamps or exclamations
 
 
 def plain(text):
@@ -269,11 +280,16 @@ def plain(text):
 
 
 def blurb(step):
-    """One-line teaser of a step: the first sentence of its first panel page, at most ~140 characters."""
+    """One-line teaser of a step: the first sentence of its first panel page (two when the first is shorter than
+    BLURB_MIN), at most ~140 characters."""
     pages = step.get('panel') or []
     if not pages:
         return ''
-    first = SENTENCE_END_RE.split(plain(pages[0]), maxsplit=1)[0]
+    parts = SENTENCE_END_RE.split(plain(pages[0]))
+    first = parts[0]
+    # a time stamp or a one-word opener («1831 рік.») says nothing on its own: take the next sentence too
+    if len(first) < BLURB_MIN and len(parts) > 1:
+        first = first + ' ' + parts[1]
     if len(first) <= BLURB_MAX:
         return first
     cut = first[:BLURB_MAX].rsplit(' ', 1)[0].rstrip(',;:—– ')
