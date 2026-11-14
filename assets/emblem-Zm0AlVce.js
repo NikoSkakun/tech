@@ -1,0 +1,1 @@
+import{O as e,U as t,ht as n,mt as r}from"./three-C4KRfW3Y.js";import{t as i}from"./style-D3hc74fy.js";function a(){let a=new e,o=new t(new r(.5,28,20),i.toon({color:`coral`,gloss:.5})),s=new t(new n(.82,.07,10,48),i.glow({color:`cyan`,intensity:1.6,falloff:0}));return s.rotation.x=1.25,a.add(o,s),a}export{a as default};
