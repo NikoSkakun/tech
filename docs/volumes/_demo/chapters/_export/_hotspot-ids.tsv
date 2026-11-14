@@ -1,0 +1,4 @@
+# Hotspot ids issued by tools/content/export_content.py (tools/content/hotspot_ids.py). An id never changes:
+# a line whose id is gone from its step fails doccheck. Delete a line only for a hotspot removed on purpose.
+# chapter	step	id
+wave	oscillation	bead

@@ -123,6 +123,7 @@
    },
    "hotspots": [
     {
+     "id": "cross-section-window",
      "name": "Cross-section window — переріз",
      "international": "Cross-section window",
      "ukrainian": "переріз",
@@ -131,6 +132,7 @@
      "tail": null
     },
     {
+     "id": "battery-terminals",
      "name": "Battery terminals — полюси батарейки",
      "international": "Battery terminals",
      "ukrainian": "полюси батарейки",
@@ -253,6 +255,7 @@
    },
    "hotspots": [
     {
+     "id": "snail-electron",
      "name": "Snail electron — равлик-електрон",
      "international": "Snail electron",
      "ukrainian": "равлик-електрон",
@@ -261,6 +264,7 @@
      "tail": null
     },
     {
+     "id": "field-front",
      "name": "Field front — фронт поля",
      "international": "Field front",
      "ukrainian": "фронт поля",
@@ -390,6 +394,7 @@
    },
    "hotspots": [
     {
+     "id": "battery-cutaway",
      "name": "Battery cutaway — розріз батарейки",
      "international": "Battery cutaway",
      "ukrainian": "розріз батарейки",
@@ -398,6 +403,7 @@
      "tail": null
     },
     {
+     "id": "second-ammeter",
      "name": "Second ammeter — другий амперметр",
      "international": "Second ammeter",
      "ukrainian": "другий амперметр",
@@ -589,6 +595,7 @@
    },
    "hotspots": [
     {
+     "id": "wire-spool",
      "name": "Wire spool — моток дроту",
      "international": "Wire spool",
      "ukrainian": "моток дроту",
@@ -597,6 +604,7 @@
      "tail": null
     },
     {
+     "id": "cc-indicator",
      "name": "CC indicator — обмеження струму",
      "international": "CC indicator",
      "ukrainian": "обмеження струму",
@@ -605,6 +613,7 @@
      "tail": null
     },
     {
+     "id": "thick-vs-thin",
      "name": "Thick vs thin — товстий проти тонкого",
      "international": "Thick vs thin",
      "ukrainian": "товстий проти тонкого",
@@ -613,6 +622,7 @@
      "tail": null
     },
     {
+     "id": "ammeter",
      "name": "Ammeter — амперметр",
      "international": "Ammeter",
      "ukrainian": "амперметр",
@@ -794,6 +804,7 @@
    },
    "hotspots": [
     {
+     "id": "fuse-wire",
      "name": "Fuse wire — дротинка запобіжника",
      "international": "Fuse wire",
      "ukrainian": "дротинка запобіжника",
@@ -802,6 +813,7 @@
      "tail": null
     },
     {
+     "id": "schematic",
      "name": "Schematic — схема",
      "international": "Schematic",
      "ukrainian": "схема",
@@ -966,6 +978,7 @@
    },
    "hotspots": [
     {
+     "id": "energy-meter",
      "name": "Energy meter — лічильник",
      "international": "Energy meter",
      "ukrainian": "лічильник",
@@ -974,6 +987,7 @@
      "tail": null
     },
     {
+     "id": "charger-label",
      "name": "Charger label — табличка зарядки",
      "international": "Charger label",
      "ukrainian": "табличка зарядки",
@@ -982,6 +996,7 @@
      "tail": null
     },
     {
+     "id": "kettle-element",
      "name": "Kettle element — нагрівальний елемент",
      "international": "Kettle element",
      "ukrainian": "нагрівальний елемент",
@@ -1181,6 +1196,7 @@
    },
    "hotspots": [
     {
+     "id": "node-balance",
      "name": "Node balance — баланс вузла",
      "international": "Node balance",
      "ukrainian": "баланс вузла",
@@ -1189,6 +1205,7 @@
      "tail": null
     },
     {
+     "id": "home-wiring",
      "name": "Home wiring — квартира",
      "international": "Home wiring",
      "ukrainian": "квартира",
@@ -1331,6 +1348,7 @@
    },
    "hotspots": [
     {
+     "id": "hot-extension-cord",
      "name": "Hot extension cord — гарячий подовжувач",
      "international": "Hot extension cord",
      "ukrainian": "гарячий подовжувач",
@@ -1339,6 +1357,7 @@
      "tail": null
     },
     {
+     "id": "sankey-ribbon",
      "name": "Sankey ribbon — стрічка енергії",
      "international": "Sankey ribbon",
      "ukrainian": "стрічка енергії",
@@ -1502,6 +1521,7 @@
    },
    "hotspots": [
     {
+     "id": "com-jack",
      "name": "COM jack — гніздо COM",
      "international": "COM jack",
      "ukrainian": "гніздо COM",
@@ -1510,6 +1530,7 @@
      "tail": null
     },
     {
+     "id": "meter-fuse",
      "name": "Meter fuse — запобіжник мультиметра",
      "international": "Meter fuse",
      "ukrainian": "запобіжник мультиметра",
@@ -1668,6 +1689,7 @@
    },
    "hotspots": [
     {
+     "id": "compass",
      "name": "Compass — компас",
      "international": "Compass",
      "ukrainian": "компас",
@@ -1676,6 +1698,7 @@
      "tail": null
     },
     {
+     "id": "sine-on-scope",
      "name": "Sine on scope — синусоїда",
      "international": "Sine on scope",
      "ukrainian": "синусоїда",

@@ -111,6 +111,7 @@
    },
    "hotspots": [
     {
+     "id": "unit-cell",
      "name": "Unit cell — елементарна комірка",
      "international": "Unit cell",
      "ukrainian": "елементарна комірка",
@@ -119,6 +120,7 @@
      "tail": null
     },
     {
+     "id": "ion-core",
      "name": "Ion core — іонний остов",
      "international": "Ion core",
      "ukrainian": "іонний остов",
@@ -261,6 +263,7 @@
    },
    "hotspots": [
     {
+     "id": "scattering-flash",
      "name": "Scattering flash — спалах розсіювання",
      "international": "Scattering flash",
      "ukrainian": "спалах розсіювання",
@@ -269,6 +272,7 @@
      "tail": null
     },
     {
+     "id": "drift-counter",
      "name": "Drift counter — лічильник перенесення",
      "international": "Drift counter",
      "ukrainian": "лічильник перенесення",
@@ -415,6 +419,7 @@
    },
    "hotspots": [
     {
+     "id": "fermi-level",
      "name": "Fermi level — рівень Фермі",
      "international": "Fermi level",
      "ukrainian": "рівень Фермі",
@@ -423,6 +428,7 @@
      "tail": null
     },
     {
+     "id": "band-gap",
      "name": "Band gap — заборонена зона",
      "international": "Band gap",
      "ukrainian": "заборонена зона",
@@ -431,6 +437,7 @@
      "tail": null
     },
     {
+     "id": "hole-hint",
      "name": "Hole hint — дірка",
      "international": "Hole hint",
      "ukrainian": "дірка",
@@ -565,6 +572,7 @@
    },
    "hotspots": [
     {
+     "id": "polarized-molecules",
      "name": "Polarized molecules — поляризовані молекули",
      "international": "Polarized molecules",
      "ukrainian": "поляризовані молекули",
@@ -573,6 +581,7 @@
      "tail": null
     },
     {
+     "id": "burn-track",
      "name": "Burn track — слід пробою",
      "international": "Burn track",
      "ukrainian": "слід пробою",
@@ -768,6 +777,7 @@
    },
    "hotspots": [
     {
+     "id": "vacancy",
      "name": "Vacancy — вакансія",
      "international": "Vacancy",
      "ukrainian": "вакансія",
@@ -776,6 +786,7 @@
      "tail": null
     },
     {
+     "id": "nichrome",
      "name": "Nichrome — ніхром",
      "international": "Nichrome",
      "ukrainian": "ніхром",
@@ -784,6 +795,7 @@
      "tail": null
     },
     {
+     "id": "mri-magnet",
      "name": "MRI magnet — магніт МРТ",
      "international": "MRI magnet",
      "ukrainian": "магніт МРТ",
@@ -948,6 +960,7 @@
    },
    "hotspots": [
     {
+     "id": "hole",
      "name": "Hole — дірка",
      "international": "Hole",
      "ukrainian": "дірка",
@@ -956,6 +969,7 @@
      "tail": null
     },
     {
+     "id": "3d-lattice",
      "name": "3D lattice — справжня ґратка",
      "international": "3D lattice",
      "ukrainian": "справжня ґратка",
@@ -1082,6 +1096,7 @@
    },
    "hotspots": [
     {
+     "id": "fixed-ion",
      "name": "Fixed ion — нерухомий іон домішки",
      "international": "Fixed ion",
      "ukrainian": "нерухомий іон домішки",
@@ -1090,6 +1105,7 @@
      "tail": null
     },
     {
+     "id": "cleanroom",
      "name": "Cleanroom — чиста кімната",
      "international": "Cleanroom",
      "ukrainian": "чиста кімната",
@@ -1237,6 +1253,7 @@
    },
    "hotspots": [
     {
+     "id": "fixed-ions",
      "name": "Fixed ions — нерухомі іони",
      "international": "Fixed ions",
      "ukrainian": "нерухомі іони",
@@ -1245,6 +1262,7 @@
      "tail": null
     },
     {
+     "id": "diode-symbol",
      "name": "Diode symbol — позначення діода",
      "international": "Diode symbol",
      "ukrainian": "позначення діода",
@@ -1439,6 +1457,7 @@
    },
    "hotspots": [
     {
+     "id": "gate-oxide",
      "name": "Gate oxide — підзатворний оксид",
      "international": "Gate oxide",
      "ukrainian": "підзатворний оксид",
@@ -1447,6 +1466,7 @@
      "tail": null
     },
     {
+     "id": "phosphor",
      "name": "Phosphor — люмінофор",
      "international": "Phosphor",
      "ukrainian": "люмінофор",
@@ -1455,6 +1475,7 @@
      "tail": null
     },
     {
+     "id": "inverter-link",
      "name": "Inverter link — до інвертора",
      "international": "Inverter link",
      "ukrainian": "до інвертора",

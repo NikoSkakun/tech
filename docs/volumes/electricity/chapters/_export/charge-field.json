@@ -121,6 +121,7 @@
    },
    "hotspots": [
     {
+     "id": "amber",
      "name": "Amber — бурштин",
      "international": "Amber",
      "ukrainian": "бурштин",
@@ -129,6 +130,7 @@
      "tail": null
     },
     {
+     "id": "sum-chip",
      "name": "Sum chip — чип суми",
      "international": "Sum chip",
      "ukrainian": "чип суми",
@@ -259,6 +261,7 @@
    },
    "hotspots": [
     {
+     "id": "torsion-balance",
      "name": "Torsion balance — крутильні терези",
      "international": "Torsion balance",
      "ukrainian": "крутильні терези",
@@ -267,6 +270,7 @@
      "tail": null
     },
     {
+     "id": "force-graph",
      "name": "Force graph — графік F(r)",
      "international": "Force graph",
      "ukrainian": "графік F(r)",
@@ -427,6 +431,7 @@
    },
    "hotspots": [
     {
+     "id": "null-point",
      "name": "Null point — точка нуля",
      "international": "Null point",
      "ukrainian": "точка нуля",
@@ -435,6 +440,7 @@
      "tail": null
     },
     {
+     "id": "line-density",
      "name": "Line density — густина ліній",
      "international": "Line density",
      "ukrainian": "густина ліній",
@@ -610,6 +616,7 @@
    },
    "hotspots": [
     {
+     "id": "equipotential-line",
      "name": "Equipotential line — ізолінія",
      "international": "Equipotential line",
      "ukrainian": "ізолінія",
@@ -618,6 +625,7 @@
      "tail": null
     },
     {
+     "id": "steep-slope",
      "name": "Steep slope — крутий схил",
      "international": "Steep slope",
      "ukrainian": "крутий схил",
@@ -776,6 +784,7 @@
    },
    "hotspots": [
     {
+     "id": "surface-charge",
      "name": "Surface charge — поверхневий заряд",
      "international": "Surface charge",
      "ukrainian": "поверхневий заряд",
@@ -784,6 +793,7 @@
      "tail": null
     },
     {
+     "id": "car",
      "name": "Car — автомобіль",
      "international": "Car",
      "ukrainian": "автомобіль",
@@ -964,6 +974,7 @@
    },
    "hotspots": [
     {
+     "id": "wall-molecules",
      "name": "Wall molecules — молекули стіни",
      "international": "Wall molecules",
      "ukrainian": "молекули стіни",
@@ -972,6 +983,7 @@
      "tail": null
     },
     {
+     "id": "lightning-rod",
      "name": "Lightning rod — громовідвід",
      "international": "Lightning rod",
      "ukrainian": "громовідвід",
@@ -980,6 +992,7 @@
      "tail": null
     },
     {
+     "id": "graupel",
      "name": "Graupel — крупа і крижинки",
      "international": "Graupel",
      "ukrainian": "крупа і крижинки",
@@ -1164,6 +1177,7 @@
    },
    "hotspots": [
     {
+     "id": "dielectric-molecules",
      "name": "Dielectric molecules — молекули діелектрика",
      "international": "Dielectric molecules",
      "ukrainian": "молекули діелектрика",
@@ -1172,6 +1186,7 @@
      "tail": null
     },
     {
+     "id": "supercapacitor",
      "name": "Supercapacitor — суперконденсатор",
      "international": "Supercapacitor",
      "ukrainian": "суперконденсатор",
@@ -1268,6 +1283,7 @@
    },
    "hotspots": [
     {
+     "id": "glass-stand",
      "name": "Glass stand — скляна підставка",
      "international": "Glass stand",
      "ukrainian": "скляна підставка",
@@ -1276,6 +1292,7 @@
      "tail": null
     },
     {
+     "id": "copper-wire",
      "name": "Copper wire — мідний дріт",
      "international": "Copper wire",
      "ukrainian": "мідний дріт",

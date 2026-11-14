@@ -107,6 +107,7 @@
    },
    "hotspots": [
     {
+     "id": "service-cable",
      "name": "Service cable — ввідний кабель",
      "international": "Service cable",
      "ukrainian": "ввідний кабель",
@@ -115,6 +116,7 @@
      "tail": null
     },
     {
+     "id": "meter",
      "name": "Meter — лічильник",
      "international": "Meter",
      "ukrainian": "лічильник",
@@ -123,6 +125,7 @@
      "tail": null
     },
     {
+     "id": "distribution-board",
      "name": "Distribution board — щиток",
      "international": "Distribution board",
      "ukrainian": "щиток",
@@ -290,6 +293,7 @@
    },
    "hotspots": [
     {
+     "id": "comb-busbar",
      "name": "Comb busbar — гребінчаста шина",
      "international": "Comb busbar",
      "ukrainian": "гребінчаста шина",
@@ -298,6 +302,7 @@
      "tail": null
     },
     {
+     "id": "circuit-labels",
      "name": "Circuit labels — маркування груп",
      "international": "Circuit labels",
      "ukrainian": "маркування груп",
@@ -306,6 +311,7 @@
      "tail": null
     },
     {
+     "id": "neutral-bar-pe-bar",
      "name": "Neutral bar / PE bar — шина N / шина PE",
      "international": "Neutral bar / PE bar",
      "ukrainian": "шина N / шина PE",
@@ -314,6 +320,7 @@
      "tail": null
     },
     {
+     "id": "voltage-relay",
      "name": "Voltage relay — реле напруги",
      "international": "Voltage relay",
      "ukrainian": "реле напруги",
@@ -516,6 +523,7 @@
    },
    "hotspots": [
     {
+     "id": "bimetal-strip",
      "name": "Bimetal strip — біметалева пластина",
      "international": "Bimetal strip",
      "ukrainian": "біметалева пластина",
@@ -524,6 +532,7 @@
      "tail": null
     },
     {
+     "id": "solenoid-plunger",
      "name": "Solenoid & plunger — котушка і якір",
      "international": "Solenoid & plunger",
      "ukrainian": "котушка і якір",
@@ -532,6 +541,7 @@
      "tail": null
     },
     {
+     "id": "arc-chute",
      "name": "Arc chute — дугогасна камера",
      "international": "Arc chute",
      "ukrainian": "дугогасна камера",
@@ -540,6 +550,7 @@
      "tail": null
     },
     {
+     "id": "trip-free-mechanism",
      "name": "Trip-free mechanism — механізм вільного розчеплення",
      "international": "Trip-free mechanism",
      "ukrainian": "механізм вільного розчеплення",
@@ -733,6 +744,7 @@
    },
    "hotspots": [
     {
+     "id": "junction-box",
      "name": "Junction box — розподільна коробка",
      "international": "Junction box",
      "ukrainian": "розподільна коробка",
@@ -741,6 +753,7 @@
      "tail": null
     },
     {
+     "id": "conduit",
      "name": "Conduit — гофротруба",
      "international": "Conduit",
      "ukrainian": "гофротруба",
@@ -749,6 +762,7 @@
      "tail": null
     },
     {
+     "id": "aluminium-wiring",
      "name": "Aluminium wiring — алюмінієва проводка",
      "international": "Aluminium wiring",
      "ukrainian": "алюмінієва проводка",
@@ -949,6 +963,7 @@
    },
    "hotspots": [
     {
+     "id": "pe-contact",
      "name": "PE contact — захисний контакт",
      "international": "PE contact",
      "ukrainian": "захисний контакт",
@@ -957,6 +972,7 @@
      "tail": null
     },
     {
+     "id": "equipotential-bonding-conductor",
      "name": "Equipotential bonding conductor — провідник зрівнювання потенціалів",
      "international": "Equipotential bonding conductor",
      "ukrainian": "провідник зрівнювання потенціалів",
@@ -965,6 +981,7 @@
      "tail": null
     },
     {
+     "id": "wet-skin",
      "name": "Wet skin — мокра шкіра",
      "international": "Wet skin",
      "ukrainian": "мокра шкіра",
@@ -1139,6 +1156,7 @@
    },
    "hotspots": [
     {
+     "id": "toroid",
      "name": "Toroid — тороїд",
      "international": "Toroid",
      "ukrainian": "тороїд",
@@ -1147,6 +1165,7 @@
      "tail": null
     },
     {
+     "id": "test-resistor",
      "name": "Test resistor — тест-резистор",
      "international": "Test resistor",
      "ukrainian": "тест-резистор",
@@ -1155,6 +1174,7 @@
      "tail": null
     },
     {
+     "id": "type-label",
      "name": "Type label — маркування типу",
      "international": "Type label",
      "ukrainian": "маркування типу",
@@ -1336,6 +1356,7 @@
    },
    "hotspots": [
     {
+     "id": "contact-springs",
      "name": "Contact springs — пружні контакти",
      "international": "Contact springs",
      "ukrainian": "пружні контакти",
@@ -1344,6 +1365,7 @@
      "tail": null
     },
     {
+     "id": "shutters",
      "name": "Shutters — шторки",
      "international": "Shutters",
      "ukrainian": "шторки",
@@ -1352,6 +1374,7 @@
      "tail": null
     },
     {
+     "id": "daisy-chain",
      "name": "Daisy chain — «гірлянда» подовжувачів",
      "international": "Daisy chain",
      "ukrainian": "«гірлянда» подовжувачів",
@@ -1528,6 +1551,7 @@
    },
    "hotspots": [
     {
+     "id": "rating-plate",
      "name": "Rating plate — табличка приладу",
      "international": "Rating plate",
      "ukrainian": "табличка приладу",
@@ -1536,6 +1560,7 @@
      "tail": null
     },
     {
+     "id": "cooktop-circuit",
      "name": "Cooktop circuit — лінія плити",
      "international": "Cooktop circuit",
      "ukrainian": "лінія плити",
@@ -1544,6 +1569,7 @@
      "tail": null
     },
     {
+     "id": "smart-plug",
      "name": "Smart plug — розумна розетка",
      "international": "Smart plug",
      "ukrainian": "розумна розетка",
@@ -1741,6 +1767,7 @@
    },
    "hotspots": [
     {
+     "id": "bulk-capacitor",
      "name": "Bulk capacitor — конденсатор 400 V",
      "international": "Bulk capacitor",
      "ukrainian": "конденсатор 400 V",
@@ -1749,6 +1776,7 @@
      "tail": null
     },
     {
+     "id": "transformer-gap",
      "name": "Transformer gap — зазор трансформатора",
      "international": "Transformer gap",
      "ukrainian": "зазор трансформатора",
@@ -1757,6 +1785,7 @@
      "tail": null
     },
     {
+     "id": "y-capacitor",
      "name": "Y-capacitor — Y-конденсатор",
      "international": "Y-capacitor",
      "ukrainian": "Y-конденсатор",
@@ -1924,6 +1953,7 @@
    },
    "hotspots": [
     {
+     "id": "tungsten-filament",
      "name": "Tungsten filament — вольфрамова спіраль",
      "international": "Tungsten filament",
      "ukrainian": "вольфрамова спіраль",
@@ -1932,6 +1962,7 @@
      "tail": null
     },
     {
+     "id": "led-chip",
      "name": "LED chip — кристал світлодіода",
      "international": "LED chip",
      "ukrainian": "кристал світлодіода",
@@ -1940,6 +1971,7 @@
      "tail": null
     },
     {
+     "id": "driver",
      "name": "Driver — драйвер",
      "international": "Driver",
      "ukrainian": "драйвер",
@@ -2076,6 +2108,7 @@
    },
    "hotspots": [
     {
+     "id": "generator",
      "name": "Generator — генератор",
      "international": "Generator",
      "ukrainian": "генератор",
@@ -2084,6 +2117,7 @@
      "tail": null
     },
     {
+     "id": "gsu-transformer",
      "name": "GSU transformer — блочний трансформатор",
      "international": "GSU transformer",
      "ukrainian": "блочний трансформатор",
@@ -2092,6 +2126,7 @@
      "tail": null
     },
     {
+     "id": "750-kv-line",
      "name": "750 kV line — ЛЕП 750 kV",
      "international": "750 kV line",
      "ukrainian": "ЛЕП 750 kV",
@@ -2100,6 +2135,7 @@
      "tail": null
     },
     {
+     "id": "dispatcher",
      "name": "Dispatcher — диспетчер",
      "international": "Dispatcher",
      "ukrainian": "диспетчер",
@@ -2108,6 +2144,7 @@
      "tail": null
     },
     {
+     "id": "transformer-substation",
      "name": "Transformer substation — ТП 10/0,4 kV",
      "international": "Transformer substation",
      "ukrainian": "ТП 10/0,4 kV",
@@ -2116,6 +2153,7 @@
      "tail": null
     },
     {
+     "id": "mcb",
      "name": "MCB — автомат",
      "international": "MCB",
      "ukrainian": "автомат",
@@ -2286,6 +2324,7 @@
    },
    "hotspots": [
     {
+     "id": "changeover-switch",
      "name": "Changeover switch — перекидний рубильник",
      "international": "Changeover switch",
      "ukrainian": "перекидний рубильник",
@@ -2294,6 +2333,7 @@
      "tail": null
     },
     {
+     "id": "lfp-battery",
      "name": "LFP battery — LFP-батарея",
      "international": "LFP battery",
      "ukrainian": "LFP-батарея",
@@ -2302,6 +2342,7 @@
      "tail": null
     },
     {
+     "id": "critical-loads-board",
      "name": "Critical loads board — щит критичних навантажень",
      "international": "Critical loads board",
      "ukrainian": "щит критичних навантажень",

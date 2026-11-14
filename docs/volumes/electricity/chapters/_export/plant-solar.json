@@ -90,6 +90,7 @@
    },
    "hotspots": [
     {
+     "id": "pv-field",
      "name": "PV field — поле модулів",
      "international": "PV field",
      "ukrainian": "поле модулів",
@@ -98,6 +99,7 @@
      "tail": null
     },
     {
+     "id": "solar-tower",
      "name": "Solar tower — сонячна башта",
      "international": "Solar tower",
      "ukrainian": "сонячна башта",
@@ -263,6 +265,7 @@
    },
    "hotspots": [
     {
+     "id": "pyranometer",
      "name": "Pyranometer — піранометр",
      "international": "Pyranometer",
      "ukrainian": "піранометр",
@@ -384,6 +387,7 @@
    },
    "hotspots": [
     {
+     "id": "junction-box",
      "name": "Junction box — з’єднувальна коробка модуля",
      "international": "Junction box",
      "ukrainian": "з’єднувальна коробка модуля",
@@ -392,6 +396,7 @@
      "tail": null
     },
     {
+     "id": "mc4-connector",
      "name": "MC4 connector — роз’єм MC4",
      "international": "MC4 connector",
      "ukrainian": "роз’єм MC4",
@@ -400,6 +405,7 @@
      "tail": null
     },
     {
+     "id": "string-fuse",
      "name": "String fuse — запобіжник ланцюжка",
      "international": "String fuse",
      "ukrainian": "запобіжник ланцюжка",
@@ -538,6 +544,7 @@
    },
    "hotspots": [
     {
+     "id": "igbt-module",
      "name": "IGBT module — модуль IGBT",
      "international": "IGBT module",
      "ukrainian": "модуль IGBT",
@@ -546,6 +553,7 @@
      "tail": null
     },
     {
+     "id": "transformer",
      "name": "Transformer — трансформатор 0,8/33 kV",
      "international": "Transformer",
      "ukrainian": "трансформатор 0,8/33 kV",
@@ -554,6 +562,7 @@
      "tail": null
     },
     {
+     "id": "rmu-ring-main-unit",
      "name": "RMU (ring main unit) — комірка РП",
      "international": "RMU (ring main unit)",
      "ukrainian": "комірка РП",
@@ -701,6 +710,7 @@
    },
    "hotspots": [
     {
+     "id": "main-transformer",
      "name": "Main transformer — головний трансформатор 33/150 kV",
      "international": "Main transformer",
      "ukrainian": "головний трансформатор 33/150 kV",
@@ -709,6 +719,7 @@
      "tail": null
     },
     {
+     "id": "circuit-breaker",
      "name": "Circuit breaker — вимикач",
      "international": "Circuit breaker",
      "ukrainian": "вимикач",
@@ -717,6 +728,7 @@
      "tail": null
     },
     {
+     "id": "revenue-meter",
      "name": "Revenue meter — комерційний лічильник",
      "international": "Revenue meter",
      "ukrainian": "комерційний лічильник",
@@ -883,6 +895,7 @@
    },
    "hotspots": [
     {
+     "id": "slew-drive",
      "name": "Slew drive — привод трекера",
      "international": "Slew drive",
      "ukrainian": "привод трекера",
@@ -891,6 +904,7 @@
      "tail": null
     },
     {
+     "id": "tracker-controller",
      "name": "Tracker controller — контролер трекера",
      "international": "Tracker controller",
      "ukrainian": "контролер трекера",
@@ -1024,6 +1038,7 @@
    },
    "hotspots": [
     {
+     "id": "cleaning-robot",
      "name": "Cleaning robot — робот для чищення",
      "international": "Cleaning robot",
      "ukrainian": "робот для чищення",
@@ -1162,6 +1177,7 @@
    },
    "hotspots": [
     {
+     "id": "evening-ramp",
      "name": "Evening ramp — вечірня рампа",
      "international": "Evening ramp",
      "ukrainian": "вечірня рампа",
@@ -1297,6 +1313,7 @@
    },
    "hotspots": [
     {
+     "id": "receiver-tube",
      "name": "Receiver tube — трубка-приймач",
      "international": "Receiver tube",
      "ukrainian": "трубка-приймач",
@@ -1305,6 +1322,7 @@
      "tail": null
     },
     {
+     "id": "stirling-engine",
      "name": "Stirling engine — двигун Стірлінга",
      "international": "Stirling engine",
      "ukrainian": "двигун Стірлінга",
@@ -1454,6 +1472,7 @@
    },
    "hotspots": [
     {
+     "id": "heliostat",
      "name": "Heliostat — геліостат",
      "international": "Heliostat",
      "ukrainian": "геліостат",
@@ -1462,6 +1481,7 @@
      "tail": null
     },
     {
+     "id": "receiver",
      "name": "Receiver — приймач",
      "international": "Receiver",
      "ukrainian": "приймач",
@@ -1470,6 +1490,7 @@
      "tail": null
     },
     {
+     "id": "hot-tank",
      "name": "Hot tank — гарячий резервуар",
      "international": "Hot tank",
      "ukrainian": "гарячий резервуар",
@@ -1478,6 +1499,7 @@
      "tail": null
     },
     {
+     "id": "cold-tank",
      "name": "Cold tank — холодний резервуар",
      "international": "Cold tank",
      "ukrainian": "холодний резервуар",
@@ -1588,6 +1610,7 @@
    },
    "hotspots": [
     {
+     "id": "agrivoltaics",
      "name": "Agrivoltaics — агрофотовольтаїка",
      "international": "Agrivoltaics",
      "ukrainian": "агрофотовольтаїка",
@@ -1596,6 +1619,7 @@
      "tail": null
     },
     {
+     "id": "floating-pv",
      "name": "Floating PV — плавуча СЕС",
      "international": "Floating PV",
      "ukrainian": "плавуча СЕС",
@@ -1604,6 +1628,7 @@
      "tail": null
     },
     {
+     "id": "rooftop-pv",
      "name": "Rooftop PV — дахова СЕС",
      "international": "Rooftop PV",
      "ukrainian": "дахова СЕС",

@@ -114,6 +114,7 @@
    },
    "hotspots": [
     {
+     "id": "dc-link",
      "name": "DC link — DC-ланка",
      "international": "DC link",
      "ukrainian": "DC-ланка",
@@ -122,6 +123,7 @@
      "tail": null
     },
     {
+     "id": "h-bridge",
      "name": "H-bridge — H-міст",
      "international": "H-bridge",
      "ukrainian": "H-міст",
@@ -130,6 +132,7 @@
      "tail": null
     },
     {
+     "id": "relays",
      "name": "Relays — реле",
      "international": "Relays",
      "ukrainian": "реле",
@@ -298,6 +301,7 @@
    },
    "hotspots": [
     {
+     "id": "heatsink",
      "name": "Heatsink — радіатор",
      "international": "Heatsink",
      "ukrainian": "радіатор",
@@ -306,6 +310,7 @@
      "tail": null
     },
     {
+     "id": "gate",
      "name": "Gate — затвор",
      "international": "Gate",
      "ukrainian": "затвор",
@@ -454,6 +459,7 @@
    },
    "hotspots": [
     {
+     "id": "freewheeling-diodes",
      "name": "Freewheeling diodes — зворотні діоди",
      "international": "Freewheeling diodes",
      "ukrainian": "зворотні діоди",
@@ -462,6 +468,7 @@
      "tail": null
     },
     {
+     "id": "dc-source",
      "name": "DC source — джерело",
      "international": "DC source",
      "ukrainian": "джерело",
@@ -648,6 +655,7 @@
    },
    "hotspots": [
     {
+     "id": "carrier",
      "name": "Carrier — несуча",
      "international": "Carrier",
      "ukrainian": "несуча",
@@ -656,6 +664,7 @@
      "tail": null
     },
     {
+     "id": "modified-sine",
      "name": "Modified sine — модифікований синус",
      "international": "Modified sine",
      "ukrainian": "модифікований синус",
@@ -829,6 +838,7 @@
    },
    "hotspots": [
     {
+     "id": "choke",
      "name": "Choke — дросель",
      "international": "Choke",
      "ukrainian": "дросель",
@@ -837,6 +847,7 @@
      "tail": null
     },
     {
+     "id": "film-capacitor",
      "name": "Film capacitor — плівковий конденсатор",
      "international": "Film capacitor",
      "ukrainian": "плівковий конденсатор",
@@ -1017,6 +1028,7 @@
    },
    "hotspots": [
     {
+     "id": "dc-link-capacitors",
      "name": "DC-link capacitors — конденсатори ланки",
      "international": "DC-link capacitors",
      "ukrainian": "конденсатори ланки",
@@ -1025,6 +1037,7 @@
      "tail": null
     },
     {
+     "id": "ferrite-core",
      "name": "Ferrite core — феритове осердя",
      "international": "Ferrite core",
      "ukrainian": "феритове осердя",
@@ -1184,6 +1197,7 @@
    },
    "hotspots": [
     {
+     "id": "input-current-limit",
      "name": "Input current limit — межа вхідного струму",
      "international": "Input current limit",
      "ukrainian": "межа вхідного струму",
@@ -1387,6 +1401,7 @@
    },
    "hotspots": [
     {
+     "id": "grid-forming-inverter",
      "name": "Grid-forming inverter — мережоформувальний інвертор",
      "international": "Grid-forming inverter",
      "ukrainian": "мережоформувальний інвертор",
@@ -1395,6 +1410,7 @@
      "tail": "(→ `plant-future/bess-services`)"
     },
     {
+     "id": "lineman",
      "name": "Lineman — монтер",
      "international": "Lineman",
      "ukrainian": "монтер",
@@ -1403,6 +1419,7 @@
      "tail": null
     },
     {
+     "id": "bidirectional-meter",
      "name": "Bidirectional meter — двонапрямний лічильник",
      "international": "Bidirectional meter",
      "ukrainian": "двонапрямний лічильник",
@@ -1411,6 +1428,7 @@
      "tail": null
     },
     {
+     "id": "voltage-rise",
      "name": "Voltage rise — підвищення напруги",
      "international": "Voltage rise",
      "ukrainian": "підвищення напруги",
@@ -1544,6 +1562,7 @@
    },
    "hotspots": [
     {
+     "id": "backup-relay",
      "name": "Backup relay — острівне реле",
      "international": "Backup relay",
      "ukrainian": "острівне реле",
@@ -1552,6 +1571,7 @@
      "tail": null
     },
     {
+     "id": "ac-coupling",
      "name": "AC coupling — зв’язок по змінному струму",
      "international": "AC coupling",
      "ukrainian": "зв’язок по змінному струму",
@@ -1716,6 +1736,7 @@
    },
    "hotspots": [
     {
+     "id": "double-conversion",
      "name": "Double conversion — подвійне перетворення",
      "international": "Double conversion",
      "ukrainian": "подвійне перетворення",
@@ -1724,6 +1745,7 @@
      "tail": null
     },
     {
+     "id": "gas-boiler",
      "name": "Gas boiler — газовий котел",
      "international": "Gas boiler",
      "ukrainian": "газовий котел",
@@ -1847,6 +1869,7 @@
    },
    "hotspots": [
     {
+     "id": "valve-hall",
      "name": "Valve hall — зала вентилів",
      "international": "Valve hall",
      "ukrainian": "зала вентилів",
@@ -2004,6 +2027,7 @@
    },
    "hotspots": [
     {
+     "id": "fridge",
      "name": "Fridge — холодильник",
      "international": "Fridge",
      "ukrainian": "холодильник",
@@ -2012,6 +2036,7 @@
      "tail": null
     },
     {
+     "id": "nameplate",
      "name": "Nameplate — шильдик",
      "international": "Nameplate",
      "ukrainian": "шильдик",

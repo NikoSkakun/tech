@@ -83,6 +83,7 @@
    },
    "hotspots": [
     {
+     "id": "wind-turbine",
      "name": "Wind turbine — вітрова турбіна",
      "international": "Wind turbine",
      "ukrainian": "вітрова турбіна",
@@ -91,6 +92,7 @@
      "tail": null
     },
     {
+     "id": "substation",
      "name": "Substation — підстанція ВЕС",
      "international": "Substation",
      "ukrainian": "підстанція ВЕС",
@@ -99,6 +101,7 @@
      "tail": null
     },
     {
+     "id": "offshore-wind-farm",
      "name": "Offshore wind farm — морська ВЕС",
      "international": "Offshore wind farm",
      "ukrainian": "морська ВЕС",
@@ -206,6 +209,7 @@
    },
    "hotspots": [
     {
+     "id": "anemometer",
      "name": "Anemometer — анемометр",
      "international": "Anemometer",
      "ukrainian": "анемометр",
@@ -306,6 +310,7 @@
    },
    "hotspots": [
     {
+     "id": "stream-tube",
      "name": "Stream tube — трубка течії",
      "international": "Stream tube",
      "ukrainian": "трубка течії",
@@ -447,6 +452,7 @@
    },
    "hotspots": [
     {
+     "id": "leading-edge-protection",
      "name": "Leading edge protection — захист передньої кромки",
      "international": "Leading edge protection",
      "ukrainian": "захист передньої кромки",
@@ -455,6 +461,7 @@
      "tail": null
     },
     {
+     "id": "lightning-receptor",
      "name": "Lightning receptor — блискавкоприймач",
      "international": "Lightning receptor",
      "ukrainian": "блискавкоприймач",
@@ -607,6 +614,7 @@
    },
    "hotspots": [
     {
+     "id": "hub-spinner",
      "name": "Hub & spinner — маточина й обтічник",
      "international": "Hub & spinner",
      "ukrainian": "маточина й обтічник",
@@ -615,6 +623,7 @@
      "tail": null
     },
     {
+     "id": "pitch-drive",
      "name": "Pitch drive — привод повороту лопаті",
      "international": "Pitch drive",
      "ukrainian": "привод повороту лопаті",
@@ -623,6 +632,7 @@
      "tail": null
     },
     {
+     "id": "main-shaft-bearing",
      "name": "Main shaft & bearing — головний вал і підшипник",
      "international": "Main shaft & bearing",
      "ukrainian": "головний вал і підшипник",
@@ -631,6 +641,7 @@
      "tail": null
     },
     {
+     "id": "gearbox",
      "name": "Gearbox — мультиплікатор",
      "international": "Gearbox",
      "ukrainian": "мультиплікатор",
@@ -639,6 +650,7 @@
      "tail": null
     },
     {
+     "id": "mechanical-brake",
      "name": "Mechanical brake — механічне гальмо",
      "international": "Mechanical brake",
      "ukrainian": "механічне гальмо",
@@ -647,6 +659,7 @@
      "tail": null
     },
     {
+     "id": "generator",
      "name": "Generator — генератор",
      "international": "Generator",
      "ukrainian": "генератор",
@@ -655,6 +668,7 @@
      "tail": null
     },
     {
+     "id": "power-converter",
      "name": "Power converter — перетворювач",
      "international": "Power converter",
      "ukrainian": "перетворювач",
@@ -663,6 +677,7 @@
      "tail": null
     },
     {
+     "id": "yaw-drive-ring",
      "name": "Yaw drive & ring — привод орієнтації і зубчастий вінець",
      "international": "Yaw drive & ring",
      "ukrainian": "привод орієнтації і зубчастий вінець",
@@ -671,6 +686,7 @@
      "tail": null
     },
     {
+     "id": "wind-sensors-anemometer-wind-vane",
      "name": "Wind sensors (anemometer & wind vane) — анемометр і флюгер",
      "international": "Wind sensors (anemometer & wind vane)",
      "ukrainian": "анемометр і флюгер",
@@ -679,6 +695,7 @@
      "tail": null
     },
     {
+     "id": "cooling",
      "name": "Cooling — охолодження",
      "international": "Cooling",
      "ukrainian": "охолодження",
@@ -820,6 +837,7 @@
    },
    "hotspots": [
     {
+     "id": "dc-link",
      "name": "DC link — ланка постійного струму",
      "international": "DC link",
      "ukrainian": "ланка постійного струму",
@@ -828,6 +846,7 @@
      "tail": null
     },
     {
+     "id": "slip-rings",
      "name": "Slip rings — контактні кільця",
      "international": "Slip rings",
      "ukrainian": "контактні кільця",
@@ -966,6 +985,7 @@
    },
    "hotspots": [
     {
+     "id": "aviation-light",
      "name": "Aviation light — сигнальний вогонь",
      "international": "Aviation light",
      "ukrainian": "сигнальний вогонь",
@@ -1104,6 +1124,7 @@
    },
    "hotspots": [
     {
+     "id": "substation-transformer",
      "name": "Substation transformer — трансформатор підстанції",
      "international": "Substation transformer",
      "ukrainian": "трансформатор підстанції",
@@ -1112,6 +1133,7 @@
      "tail": null
     },
     {
+     "id": "underground-cable",
      "name": "Underground cable — кабель 33 kV",
      "international": "Underground cable",
      "ukrainian": "кабель 33 kV",
@@ -1246,6 +1268,7 @@
    },
    "hotspots": [
     {
+     "id": "lidar",
      "name": "Lidar — лідар",
      "international": "Lidar",
      "ukrainian": "лідар",
@@ -1406,6 +1429,7 @@
    },
    "hotspots": [
     {
+     "id": "transition-piece",
      "name": "Transition piece — перехідна частина",
      "international": "Transition piece",
      "ukrainian": "перехідна частина",
@@ -1414,6 +1438,7 @@
      "tail": null
     },
     {
+     "id": "scour-protection",
      "name": "Scour protection — захист від розмиву",
      "international": "Scour protection",
      "ukrainian": "захист від розмиву",
@@ -1422,6 +1447,7 @@
      "tail": null
     },
     {
+     "id": "hvdc-platform",
      "name": "HVDC platform — HVDC-платформа",
      "international": "HVDC platform",
      "ukrainian": "HVDC-платформа",
@@ -1430,6 +1456,7 @@
      "tail": null
     },
     {
+     "id": "mooring-lines",
      "name": "Mooring lines — якірні лінії",
      "international": "Mooring lines",
      "ukrainian": "якірні лінії",
@@ -1549,6 +1576,7 @@
    },
    "hotspots": [
     {
+     "id": "repowering",
      "name": "Repowering — переоснащення",
      "international": "Repowering",
      "ukrainian": "переоснащення",
@@ -1557,6 +1585,7 @@
      "tail": null
     },
     {
+     "id": "bird-radar",
      "name": "Bird radar — пташиний радар",
      "international": "Bird radar",
      "ukrainian": "пташиний радар",

@@ -399,3 +399,20 @@ No new API. Behaviour where the two sides meet:
   `rotY` of ∓0.03 rad is gone). `__ui.locate` rectangles of HUD nodes no longer change with the pointer.
 - Rule for everyone (STYLE_GUIDE §5): interface elements never follow the pointer and get no perspective, tilt or
   fake depth; `UiNode.rotX/rotY` remain in the API, but HUD code must not use them for a 3D look.
+
+## C7-hotspot-ids — a stable explicit id for every hotspot (2026-11-14; brief C7-hotspot-ids)
+
+- Scripts: every hotspot carries `{#id}` after its name (`**Кільце** {#ring}: «…»`; `docs/CONTENT_EXPORT.md`
+  «Hotspot ids»). All 661 hotspots of the scripts have one: the 521 ids that existed (slug of the international
+  name) are unchanged, 140 are new (`distribution`, `generator-ac`, `magnetism`, `plants`, `transformer`,
+  `transmission`).
+- Export `_export/<id>.json`: hotspots gain a required `id` (schema pattern `^[a-z0-9]+(-[a-z0-9]+)*$`). New file
+  `_export/_hotspot-ids.tsv` per volume: every id ever issued; doccheck fails when one changes or disappears, when a
+  hotspot has no id, a malformed one, or an id used twice in a step.
+- Runtime `content/generated/<id>.json`: `steps[].hotspots[].id` is now present on **every** hotspot (it was
+  absent where the script had no international name) and is read from the script, not derived from the name.
+  Purely additive: nothing else in the runtime files changed; `name`, `title`, indexes still resolve
+  (`hud/annotations.ts`). `Hotspot.id` in `@/content/types.ts` is still optional (out of C7's scope;
+  `docs/requests/C7-hotspot-ids.md`).
+- Chapters that can switch to ids: `generator-ac` (30 index bindings), `magnetism` (24 index bindings),
+  `transformer` (27 `hot(step, i)` name look-ups); per-step lists in `docs/reports/C7-hotspot-ids.md`.

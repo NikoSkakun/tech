@@ -105,6 +105,7 @@
    },
    "hotspots": [
     {
+     "id": "generator-busduct",
      "name": "Струмопровід генератора",
      "international": null,
      "ukrainian": "Струмопровід генератора",
@@ -113,6 +114,7 @@
      "tail": null
     },
     {
+     "id": "step-up-transformer",
      "name": "Блочний трансформатор",
      "international": null,
      "ukrainian": "Блочний трансформатор",
@@ -121,6 +123,7 @@
      "tail": null
     },
     {
+     "id": "switchyard-gantry",
      "name": "Портал ВРП",
      "international": null,
      "ukrainian": "Портал ВРП",
@@ -236,6 +239,7 @@
    },
    "hotspots": [
     {
+     "id": "shield-wire",
      "name": "Грозотрос",
      "international": null,
      "ukrainian": "Грозотрос",
@@ -244,6 +248,7 @@
      "tail": null
     },
     {
+     "id": "phase-markers",
      "name": "Кольорові мітки фаз",
      "international": null,
      "ukrainian": "Кольорові мітки фаз",
@@ -252,6 +257,7 @@
      "tail": null
     },
     {
+     "id": "human-scale",
      "name": "Людина-капсула",
      "international": null,
      "ukrainian": "Людина-капсула",
@@ -450,6 +456,7 @@
    },
    "hotspots": [
     {
+     "id": "insulator-disc",
      "name": "Тарілка ізолятора",
      "international": null,
      "ukrainian": "Тарілка ізолятора",
@@ -458,6 +465,7 @@
      "tail": null
     },
     {
+     "id": "insulator-string",
      "name": "Гірлянда",
      "international": null,
      "ukrainian": "Гірлянда",
@@ -466,6 +474,7 @@
      "tail": null
     },
     {
+     "id": "spacer",
      "name": "Розпірка",
      "international": null,
      "ukrainian": "Розпірка",
@@ -474,6 +483,7 @@
      "tail": null
     },
     {
+     "id": "marker-ball",
      "name": "Маркер-кулька",
      "international": null,
      "ukrainian": "Маркер-кулька",
@@ -655,6 +665,7 @@
    },
    "hotspots": [
     {
+     "id": "clearance-line",
      "name": "Габаритна лінія",
      "international": null,
      "ukrainian": "Габаритна лінія",
@@ -663,6 +674,7 @@
      "tail": null
     },
     {
+     "id": "hot-conductor",
      "name": "Гарячий провід",
      "international": null,
      "ukrainian": "Гарячий провід",
@@ -671,6 +683,7 @@
      "tail": null
     },
     {
+     "id": "truck",
      "name": "Вантажівка",
      "international": null,
      "ukrainian": "Вантажівка",
@@ -679,6 +692,7 @@
      "tail": null
     },
     {
+     "id": "how-we-count",
      "name": "Як рахуємо",
      "international": null,
      "ukrainian": "Як рахуємо",
@@ -862,6 +876,7 @@
    },
    "hotspots": [
     {
+     "id": "ladder-capacitors",
      "name": "Конденсатори «сходинок»",
      "international": null,
      "ukrainian": "Конденсатори «сходинок»",
@@ -870,6 +885,7 @@
      "tail": null
     },
     {
+     "id": "shunt-reactor",
      "name": "Шунтовий реактор",
      "international": null,
      "ukrainian": "Шунтовий реактор",
@@ -878,6 +894,7 @@
      "tail": null
     },
     {
+     "id": "corona",
      "name": "Корона",
      "international": null,
      "ukrainian": "Корона",
@@ -1023,6 +1040,7 @@
    },
    "hotspots": [
     {
+     "id": "xlpe-insulation",
      "name": "Ізоляція зі зшитого поліетилену",
      "international": null,
      "ukrainian": "Ізоляція зі зшитого поліетилену",
@@ -1031,6 +1049,7 @@
      "tail": null
     },
     {
+     "id": "submarine-armour",
      "name": "Броня підводного кабелю",
      "international": null,
      "ukrainian": "Броня підводного кабелю",
@@ -1039,6 +1058,7 @@
      "tail": null
     },
     {
+     "id": "cable-tunnel",
      "name": "Тунель у місті",
      "international": null,
      "ukrainian": "Тунель у місті",
@@ -1213,6 +1233,7 @@
    },
    "hotspots": [
     {
+     "id": "valve-hall",
      "name": "Зала вентилів",
      "international": null,
      "ukrainian": "Зала вентилів",
@@ -1221,6 +1242,7 @@
      "tail": null
     },
     {
+     "id": "filter-yard",
      "name": "Поле фільтрів",
      "international": null,
      "ukrainian": "Поле фільтрів",
@@ -1229,6 +1251,7 @@
      "tail": null
     },
     {
+     "id": "ground-electrode",
      "name": "Заземлювальний електрод",
      "international": null,
      "ukrainian": "Заземлювальний електрод",
@@ -1412,6 +1435,7 @@
    },
    "hotspots": [
     {
+     "id": "sf6-breaker",
      "name": "Елегазовий вимикач",
      "international": null,
      "ukrainian": "Елегазовий вимикач",
@@ -1420,6 +1444,7 @@
      "tail": null
     },
     {
+     "id": "disconnector",
      "name": "Роз’єднувач",
      "international": null,
      "ukrainian": "Роз’єднувач",
@@ -1428,6 +1453,7 @@
      "tail": null
     },
     {
+     "id": "surge-arrester",
      "name": "ОПН",
      "international": null,
      "ukrainian": "ОПН",
@@ -1436,6 +1462,7 @@
      "tail": null
     },
     {
+     "id": "autotransformer-750-330",
      "name": "Автотрансформатор 750/330 kV",
      "international": null,
      "ukrainian": "Автотрансформатор 750/330 kV",
@@ -1444,6 +1471,7 @@
      "tail": null
     },
     {
+     "id": "control-board",
      "name": "Диспетчерський щит",
      "international": null,
      "ukrainian": "Диспетчерський щит",
@@ -1610,6 +1638,7 @@
    },
    "hotspots": [
     {
+     "id": "relay",
      "name": "Реле",
      "international": null,
      "ukrainian": "Реле",
@@ -1618,6 +1647,7 @@
      "tail": null
     },
     {
+     "id": "fault-ammeter",
      "name": "Амперметр КЗ",
      "international": null,
      "ukrainian": "Амперметр КЗ",
@@ -1626,6 +1656,7 @@
      "tail": null
     },
     {
+     "id": "arc",
      "name": "Дуга",
      "international": null,
      "ukrainian": "Дуга",
@@ -1701,6 +1732,7 @@
    },
    "hotspots": [
     {
+     "id": "frequency-pendulums",
      "name": "Маятники частоти",
      "international": null,
      "ukrainian": "Маятники частоти",

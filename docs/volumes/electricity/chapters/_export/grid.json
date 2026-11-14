@@ -128,6 +128,7 @@
    },
    "hotspots": [
     {
+     "id": "hvdc-link",
      "name": "HVDC link — лінія постійного струму",
      "international": "HVDC link",
      "ukrainian": "лінія постійного струму",
@@ -136,6 +137,7 @@
      "tail": null
     },
     {
+     "id": "generator-rotor",
      "name": "Generator rotor — ротор генератора",
      "international": "Generator rotor",
      "ukrainian": "ротор генератора",
@@ -144,6 +146,7 @@
      "tail": null
     },
     {
+     "id": "dispatch-centre",
      "name": "Dispatch centre — диспетчерський центр",
      "international": "Dispatch centre",
      "ukrainian": "диспетчерський центр",
@@ -274,6 +277,7 @@
    },
    "hotspots": [
     {
+     "id": "losses",
      "name": "Losses — втрати",
      "international": "Losses",
      "ukrainian": "втрати",
@@ -282,6 +286,7 @@
      "tail": null
     },
     {
+     "id": "frequency-meter",
      "name": "Frequency meter — частотомір",
      "international": "Frequency meter",
      "ukrainian": "частотомір",
@@ -409,6 +414,7 @@
    },
    "hotspots": [
     {
+     "id": "rotor",
      "name": "Rotor — ротор",
      "international": "Rotor",
      "ukrainian": "ротор",
@@ -417,6 +423,7 @@
      "tail": null
     },
     {
+     "id": "inverter",
      "name": "Inverter — інвертор",
      "international": "Inverter",
      "ukrainian": "інвертор",
@@ -425,6 +432,7 @@
      "tail": null
     },
     {
+     "id": "nadir",
      "name": "Nadir — надир частоти",
      "international": "Nadir",
      "ukrainian": "надир частоти",
@@ -644,6 +652,7 @@
    },
    "hotspots": [
     {
+     "id": "turbine-governor",
      "name": "Turbine governor — регулятор швидкості турбіни",
      "international": "Turbine governor",
      "ukrainian": "регулятор швидкості турбіни",
@@ -652,6 +661,7 @@
      "tail": null
     },
     {
+     "id": "frequency-relay",
      "name": "Frequency relay — реле частоти",
      "international": "Frequency relay",
      "ukrainian": "реле частоти",
@@ -660,6 +670,7 @@
      "tail": null
     },
     {
+     "id": "agc-automatic-generation-control",
      "name": "AGC (automatic generation control) — автоматичне регулювання генерації",
      "international": "AGC (automatic generation control)",
      "ukrainian": "автоматичне регулювання генерації",
@@ -847,6 +858,7 @@
    },
    "hotspots": [
     {
+     "id": "nuclear-unit",
      "name": "Nuclear unit — енергоблок АЕС",
      "international": "Nuclear unit",
      "ukrainian": "енергоблок АЕС",
@@ -855,6 +867,7 @@
      "tail": null
     },
     {
+     "id": "pumped-storage",
      "name": "Pumped storage — ГАЕС",
      "international": "Pumped storage",
      "ukrainian": "ГАЕС",
@@ -863,6 +876,7 @@
      "tail": null
     },
     {
+     "id": "gas-peaker",
      "name": "Gas peaker — пікова газова станція",
      "international": "Gas peaker",
      "ukrainian": "пікова газова станція",
@@ -1114,6 +1128,7 @@
    },
    "hotspots": [
     {
+     "id": "mnemonic-diagram",
      "name": "Mnemonic diagram — мнемосхема",
      "international": "Mnemonic diagram",
      "ukrainian": "мнемосхема",
@@ -1122,6 +1137,7 @@
      "tail": null
     },
     {
+     "id": "forecast",
      "name": "Forecast — прогноз навантаження",
      "international": "Forecast",
      "ukrainian": "прогноз навантаження",
@@ -1130,6 +1146,7 @@
      "tail": null
     },
     {
+     "id": "interconnector",
      "name": "Interconnector — інтерконектор",
      "international": "Interconnector",
      "ukrainian": "інтерконектор",
@@ -1311,6 +1328,7 @@
    },
    "hotspots": [
     {
+     "id": "capacitor-bank",
      "name": "Capacitor bank — БСК",
      "international": "Capacitor bank",
      "ukrainian": "БСК",
@@ -1319,6 +1337,7 @@
      "tail": null
     },
     {
+     "id": "statcom",
      "name": "STATCOM — статичний компенсатор",
      "international": "STATCOM",
      "ukrainian": "статичний компенсатор",
@@ -1327,6 +1346,7 @@
      "tail": null
     },
     {
+     "id": "tap-changer",
      "name": "Tap changer — РПН",
      "international": "Tap changer",
      "ukrainian": "РПН",
@@ -1495,6 +1515,7 @@
    },
    "hotspots": [
     {
+     "id": "state-estimator",
      "name": "State estimator — оцінювач стану",
      "international": "State estimator",
      "ukrainian": "оцінювач стану",
@@ -1503,6 +1524,7 @@
      "tail": null
     },
     {
+     "id": "contingency-analysis",
      "name": "Contingency analysis — аналіз аварійних подій",
      "international": "Contingency analysis",
      "ukrainian": "аналіз аварійних подій",
@@ -1511,6 +1533,7 @@
      "tail": null
     },
     {
+     "id": "distribution-dispatcher",
      "name": "Distribution dispatcher — диспетчер ОСР",
      "international": "Distribution dispatcher",
      "ukrainian": "диспетчер ОСР",
@@ -1659,6 +1682,7 @@
    },
    "hotspots": [
     {
+     "id": "market-operator",
      "name": "Market operator — оператор ринку",
      "international": "Market operator",
      "ukrainian": "оператор ринку",
@@ -1667,6 +1691,7 @@
      "tail": null
     },
     {
+     "id": "balance-responsible-party",
      "name": "Balance responsible party — сторона, відповідальна за баланс",
      "international": "Balance responsible party",
      "ukrainian": "сторона, відповідальна за баланс",
@@ -1821,6 +1846,7 @@
    },
    "hotspots": [
     {
+     "id": "back-to-back-hvdc",
      "name": "Back-to-back HVDC — вставка постійного струму",
      "international": "Back-to-back HVDC",
      "ukrainian": "вставка постійного струму",
@@ -1829,6 +1855,7 @@
      "tail": null
     },
     {
+     "id": "interconnector-auction",
      "name": "Interconnector auction — аукціон перетину",
      "international": "Interconnector auction",
      "ukrainian": "аукціон перетину",
@@ -1958,6 +1985,7 @@
    },
    "hotspots": [
     {
+     "id": "protection-relay",
      "name": "Protection relay — релейний захист",
      "international": "Protection relay",
      "ukrainian": "релейний захист",
@@ -1966,6 +1994,7 @@
      "tail": null
     },
     {
+     "id": "tree-contact",
      "name": "Tree contact — контакт з деревом",
      "international": "Tree contact",
      "ukrainian": "контакт з деревом",
@@ -1974,6 +2003,7 @@
      "tail": null
     },
     {
+     "id": "cyberattack",
      "name": "Cyberattack — кібератака",
      "international": "Cyberattack",
      "ukrainian": "кібератака",
@@ -2143,6 +2173,7 @@
    },
    "hotspots": [
     {
+     "id": "diesel-starter",
      "name": "Diesel starter — дизель-генератор власних потреб",
      "international": "Diesel starter",
      "ukrainian": "дизель-генератор власних потреб",
@@ -2151,6 +2182,7 @@
      "tail": null
     },
     {
+     "id": "npp-auxiliaries",
      "name": "NPP auxiliaries — власні потреби АЕС",
      "international": "NPP auxiliaries",
      "ukrainian": "власні потреби АЕС",
@@ -2159,6 +2191,7 @@
      "tail": null
     },
     {
+     "id": "synchroscope",
      "name": "Synchroscope — синхроноскоп",
      "international": "Synchroscope",
      "ukrainian": "синхроноскоп",
@@ -2292,6 +2325,7 @@
    },
    "hotspots": [
     {
+     "id": "feeder-10-kv",
      "name": "Feeder 10 kV — фідер 10 kV",
      "international": "Feeder 10 kV",
      "ukrainian": "фідер 10 kV",
@@ -2300,6 +2334,7 @@
      "tail": null
     },
     {
+     "id": "hospital-line",
      "name": "Hospital line — лінія лікарні",
      "international": "Hospital line",
      "ukrainian": "лінія лікарні",
@@ -2480,6 +2515,7 @@
    },
    "hotspots": [
     {
+     "id": "synchronous-condenser",
      "name": "Synchronous condenser — синхронний компенсатор",
      "international": "Synchronous condenser",
      "ukrainian": "синхронний компенсатор",
@@ -2488,6 +2524,7 @@
      "tail": null
     },
     {
+     "id": "smart-meter",
      "name": "Smart meter — розумний лічильник",
      "international": "Smart meter",
      "ukrainian": "розумний лічильник",
@@ -2496,6 +2533,7 @@
      "tail": null
     },
     {
+     "id": "ev-charger",
      "name": "EV charger — зарядна станція електромобіля",
      "international": "EV charger",
      "ukrainian": "зарядна станція електромобіля",

@@ -28,6 +28,7 @@ import typography as T  # noqa: E402
 import build_index  # noqa: E402
 import xref_check  # noqa: E402
 import simple_layer as SL  # noqa: E402
+import hotspot_ids as H  # noqa: E402
 
 SCHEMA_VERSION = 2  # v2: `volume`, full-id cross-reference targets, axisLabel / axisRaw (DECISIONS §58)
 CYR_RE = re.compile(r'[А-Яа-яіїєґІЇЄҐ]')
@@ -226,6 +227,9 @@ def parse_term_head(head):
     return out
 
 
+# explicit hotspot id after the name: `- **Кільце** {#ring}: «…»` (CONTENT_EXPORT.md «Hotspot ids»); the capture is
+# loose so that a malformed id reaches the check (HOTSPOT_ID_OK) with a clear message instead of leaking into the note
+HOTSPOT_ID_RE = re.compile(r'\s*\{#([^{}\s]*)\}')
 REMARK_RE = re.compile(r'^\s*((?:\((?:[^()]|\([^()]*\))*\)|[^:«»`;.()]{1,80}))?\s*:(?=\s|$)')
 
 
@@ -242,12 +246,13 @@ def delimited(body):
 
 
 def split_headed(text, mode):
-    """Split a chunk into (head, note, body) pieces; text before the first head is returned with head None.
+    """Split a chunk into (head, note, body, id) pieces; text before the first head is returned with head None.
     terms:    a head is a `code span` containing « — » (if the chunk has none, every code span is a head);
     hotspots: a head is a `code span` containing « — », or a `code span` / **bold** label followed — directly or
-              after a short remark such as «(мініатюра на столі)» — by a colon. Only outside «…» quotes."""
+              after a short remark such as «(мініатюра на столі)» — by a colon. Only outside «…» quotes.
+              The explicit id `{#id}` right after the head (before the remark) is returned as `id`."""
     mask = depth0_spans(text)
-    heads = []                                   # (start, end of head, end of head incl. remark and colon, note)
+    heads = []                             # (start, end of head, end of head incl. id, remark and colon, note, id)
     for m in re.finditer(r'`[^`\n]+`|\*\*[^*\n]+\*\*', text):
         if not mask[m.start()]:
             continue
@@ -255,24 +260,27 @@ def split_headed(text, mode):
         dash = ' — ' in m.group(0)
         if mode == 'terms':
             if code and dash:
-                heads.append((m.start(), m.end(), m.end(), None))
+                heads.append((m.start(), m.end(), m.end(), None, None))
             continue
-        r = REMARK_RE.match(text[m.end():])
+        hid = HOTSPOT_ID_RE.match(text, m.end())
+        after = hid.end() if hid else m.end()
+        r = REMARK_RE.match(text[after:])
         if r and (not heads or m.start() >= heads[-1][2]):
-            heads.append((m.start(), m.end(), m.end() + r.end(), (r.group(1) or '').strip() or None))
+            heads.append((m.start(), m.end(), after + r.end(), (r.group(1) or '').strip() or None,
+                          hid and hid.group(1)))
         elif code and dash and (not heads or m.start() >= heads[-1][2]):
-            heads.append((m.start(), m.end(), m.end(), None))
+            heads.append((m.start(), m.end(), after, None, hid and hid.group(1)))
     if mode == 'terms' and not heads:
-        heads = [(m.start(), m.end(), m.end(), None) for m in re.finditer(r'`[^`\n]+`', text) if mask[m.start()]]
+        heads = [(m.start(), m.end(), m.end(), None, None) for m in re.finditer(r'`[^`\n]+`', text) if mask[m.start()]]
     if not heads:
-        return [(None, None, text.strip())]
+        return [(None, None, text.strip(), None)]
     out = []
     lead = text[:heads[0][0]].strip()
     if lead:
-        out.append((None, None, lead))
-    for n, (st, e, e2, note) in enumerate(heads):
+        out.append((None, None, lead, None))
+    for n, (st, e, e2, note, hid) in enumerate(heads):
         nxt = heads[n + 1][0] if n + 1 < len(heads) else len(text)
-        out.append((text[st:e].strip(), note, text[e2:nxt].strip()))
+        out.append((text[st:e].strip(), note, text[e2:nxt].strip(), hid))
     return out
 
 
@@ -280,7 +288,7 @@ def parse_terms(field):
     """([terms], note): the note is free text of the field that is not a term («— (повторення)», lead-ins)."""
     terms, notes = [], []
     for chunk in chunks(field):
-        for head, _, body in split_headed(chunk, 'terms'):
+        for head, _, body, _ in split_headed(chunk, 'terms'):
             body = re.sub(r'^[:;,]\s*', '', body).strip()
             body = re.sub(r'\s*[;,]$', '', body).strip()
             if head is None:
@@ -300,7 +308,7 @@ def parse_hotspots(field):
     and the colon), text (on-screen copy, delimiters stripped), tail (remark after the quoted copy)."""
     spots, notes = [], []
     for chunk in chunks(field):
-        for head, note, body in split_headed(chunk, 'hotspots'):
+        for head, note, body, hid in split_headed(chunk, 'hotspots'):
             body = re.sub(r'^[:;,]\s*', '', body).strip()
             body = re.sub(r'\s*;$', '', body).strip()
             if head is None:
@@ -320,7 +328,7 @@ def parse_hotspots(field):
             if body.strip('.;, ') == '':
                 body = ''
             text, tail = delimited(body) if body else ('', None)
-            spots.append(dict(name=name, international=intl, ukrainian=ukr, note=note, text=text, tail=tail))
+            spots.append(dict(id=hid, name=name, international=intl, ukrainian=ukr, note=note, text=text, tail=tail))
     return spots, (squash(' '.join(notes)) or None)
 
 
@@ -627,7 +635,8 @@ def render(data):
 # ----------------------------------------------------------------------------------------- schema (subset validator)
 def validate(node, schema, root, path='$'):
     """Minimal JSON Schema validator for the subset used by schema.json (type, enum, required, properties,
-    additionalProperties, items, minItems, minimum, $ref to #/$defs). Returns a list of error strings."""
+    additionalProperties, items, minItems, minimum, minLength, pattern, $ref to #/$defs). Returns a list of error
+    strings."""
     if '$ref' in schema:
         return validate(node, root['$defs'][schema['$ref'].split('/')[-1]], root, path)
     errs = []
@@ -649,6 +658,8 @@ def validate(node, schema, root, path='$'):
         errs.append('%s: %r < minimum' % (path, node))
     if isinstance(node, str) and 'minLength' in schema and len(node) < schema['minLength']:
         errs.append('%s: string shorter than %d' % (path, schema['minLength']))
+    if isinstance(node, str) and 'pattern' in schema and not re.search(schema['pattern'], node):
+        errs.append('%s: %r does not match %s' % (path, node, schema['pattern']))
     if isinstance(node, dict):
         for req in schema.get('required', []):
             if req not in node:
@@ -762,7 +773,10 @@ def coverage(cid, data, problems, counts):
         same('facts', ' '.join(i['text'] + ' ' + (i['source'] or '') for i in e['facts']['items']) if e['facts'] else '')
         same('interaction', ' '.join(i['text'] for i in e['interaction']['items']) if e['interaction'] else '')
         same('hotspots', (e['hotspotsNote'] or '') + ' ' + ' '.join(
-            h['name'] + ' ' + (h['note'] or '') + ' ' + h['text'] + ' ' + (h['tail'] or '') for h in e['hotspots']))
+            h['name'] + ' ' + (h['id'] or '') + ' ' + (h['note'] or '') + ' ' + h['text'] + ' ' + (h['tail'] or '')
+            for h in e['hotspots']))
+        for msg in H.step_problems(e):
+            bad('%s: %s' % (where, msg))
         same('misconceptions', ' '.join(m['raw'] for m in e['misconceptions']))
         same('transition', e['transition']['text'] if e['transition'] else '')
         same('links', e['links'] or '')
@@ -824,8 +838,10 @@ def main():
     if schema is None:
         problems.append('tools/content/export.schema.json is missing')
     stale = 0
+    issued = set()
     for cid in C.CHAPTER_IDS:
         data = parse_chapter(cid)
+        issued |= H.current(cid, data)
         text = render(data)
         path = os.path.join(out_dir, cid + '.json')
         if check:
@@ -840,7 +856,20 @@ def main():
             for err in validate(json.loads(text), schema, schema)[:5]:
                 problems.append('%s: schema: %s' % (cid, err))
         coverage(cid, data, problems, counts)
-    extra = sorted(f for f in os.listdir(out_dir) if f.endswith('.json') and f[:-5] not in C.GROUP)
+    # hotspot ids: a registered id that is gone is an error; new ids are registered (hotspot_ids.py)
+    registry = H.read_registry()
+    problems += H.registry_problems(registry, issued, set(C.CHAPTER_IDS))
+    reg_text = H.render_registry(registry | issued)
+    reg_path = H.registry_path()
+    if check:
+        if not os.path.exists(reg_path) or open(reg_path, encoding='utf-8').read() != reg_text:
+            problems.append('_export/%s is stale — run tools/content/export_content.py --volume %s'
+                            % (H.REGISTRY_NAME, C.VOLUME))
+    else:
+        with open(reg_path, 'w', encoding='utf-8') as f:
+            f.write(reg_text)
+    counts['hotspot ids'] += len(issued)
+    extra =sorted(f for f in os.listdir(out_dir) if f.endswith('.json') and f[:-5] not in C.GROUP)
     for f in extra:
         problems.append('_export/%s does not belong to any chapter' % f)
     for p in problems[:60]:

@@ -152,6 +152,7 @@
    },
    "hotspots": [
     {
+     "id": "loop-normal",
      "name": "Нормаль рамки",
      "international": null,
      "ukrainian": "Нормаль рамки",
@@ -160,6 +161,7 @@
      "tail": null
     },
     {
+     "id": "phasor-trace",
      "name": "Пунктир від фазора до кривої",
      "international": null,
      "ukrainian": "Пунктир від фазора до кривої",
@@ -325,6 +327,7 @@
    },
    "hotspots": [
     {
+     "id": "rms-line",
      "name": "Лінія діючого значення",
      "international": null,
      "ukrainian": "Лінія діючого значення",
@@ -333,6 +336,7 @@
      "tail": null
     },
     {
+     "id": "frequency-map",
      "name": "Мапа 50/60 Hz",
      "international": null,
      "ukrainian": "Мапа 50/60 Hz",
@@ -444,6 +448,7 @@
    },
    "hotspots": [
     {
+     "id": "pole-transformer",
      "name": "Трансформатор на стовпі (вулиця змінного струму)",
      "international": null,
      "ukrainian": "Трансформатор на стовпі (вулиця змінного струму)",
@@ -452,6 +457,7 @@
      "tail": null
     },
     {
+     "id": "edison-dynamo",
      "name": "Динамо Едісона",
      "international": null,
      "ukrainian": "Динамо Едісона",
@@ -460,6 +466,7 @@
      "tail": null
     },
     {
+     "id": "hvdc-cable",
      "name": "Кабель HVDC на «полиці постійного струму»",
      "international": null,
      "ukrainian": "Кабель HVDC на «полиці постійного струму»",
@@ -619,6 +626,7 @@
    },
    "hotspots": [
     {
+     "id": "coil-l1",
      "name": "Котушка L1",
      "international": null,
      "ukrainian": "Котушка L1",
@@ -627,6 +635,7 @@
      "tail": null
     },
     {
+     "id": "neutral-ammeter",
      "name": "Амперметр нейтралі",
      "international": null,
      "ukrainian": "Амперметр нейтралі",
@@ -635,6 +644,7 @@
      "tail": null
     },
     {
+     "id": "phasor-triangle",
      "name": "Трикутник фазорів",
      "international": null,
      "ukrainian": "Трикутник фазорів",
@@ -769,6 +779,7 @@
    },
    "hotspots": [
     {
+     "id": "line-voltage-vector",
      "name": "Вектор лінійної напруги",
      "international": null,
      "ukrainian": "Вектор лінійної напруги",
@@ -777,6 +788,7 @@
      "tail": null
     },
     {
+     "id": "terminal-box",
      "name": "Клемна коробка",
      "international": null,
      "ukrainian": "Клемна коробка",
@@ -949,6 +961,7 @@
    },
    "hotspots": [
     {
+     "id": "cage-bars",
      "name": "Стрижні клітки",
      "international": null,
      "ukrainian": "Стрижні клітки",
@@ -957,6 +970,7 @@
      "tail": null
     },
     {
+     "id": "slip-indicator",
      "name": "Індикатор ковзання",
      "international": null,
      "ukrainian": "Індикатор ковзання",
@@ -965,6 +979,7 @@
      "tail": null
     },
     {
+     "id": "stator",
      "name": "Статор",
      "international": null,
      "ukrainian": "Статор",
@@ -1145,6 +1160,7 @@
    },
    "hotspots": [
     {
+     "id": "stator-bars",
      "name": "Стрижні обмотки статора",
      "international": null,
      "ukrainian": "Стрижні обмотки статора",
@@ -1153,6 +1169,7 @@
      "tail": null
     },
     {
+     "id": "rotor",
      "name": "Ротор",
      "international": null,
      "ukrainian": "Ротор",
@@ -1161,6 +1178,7 @@
      "tail": null
     },
     {
+     "id": "hydrogen-cooler",
      "name": "Водневий охолоджувач",
      "international": null,
      "ukrainian": "Водневий охолоджувач",
@@ -1169,6 +1187,7 @@
      "tail": null
     },
     {
+     "id": "voltage-regulator",
      "name": "Регулятор напруги",
      "international": null,
      "ukrainian": "Регулятор напруги",
@@ -1177,6 +1196,7 @@
      "tail": null
     },
     {
+     "id": "hydro-poles",
      "name": "Полюси гідрогенератора",
      "international": null,
      "ukrainian": "Полюси гідрогенератора",
@@ -1344,6 +1364,7 @@
    },
    "hotspots": [
     {
+     "id": "synchroscope",
      "name": "Синхроноскоп",
      "international": null,
      "ukrainian": "Синхроноскоп",
@@ -1352,6 +1373,7 @@
      "tail": null
     },
     {
+     "id": "sync-lamps",
      "name": "Лампи синхронізації",
      "international": null,
      "ukrainian": "Лампи синхронізації",
@@ -1360,6 +1382,7 @@
      "tail": null
     },
     {
+     "id": "field-springs",
      "name": "«Пружини» поля",
      "international": null,
      "ukrainian": "«Пружини» поля",
@@ -1536,6 +1559,7 @@
    },
    "hotspots": [
     {
+     "id": "inductor",
      "name": "Котушка",
      "international": null,
      "ukrainian": "Котушка",
@@ -1544,6 +1568,7 @@
      "tail": null
     },
     {
+     "id": "capacitor",
      "name": "Конденсатор",
      "international": null,
      "ukrainian": "Конденсатор",
@@ -1552,6 +1577,7 @@
      "tail": null
     },
     {
+     "id": "resonance-peak",
      "name": "Резонансний пік",
      "international": null,
      "ukrainian": "Резонансний пік",
@@ -1702,6 +1728,7 @@
    },
    "hotspots": [
     {
+     "id": "meter",
      "name": "Лічильник",
      "international": null,
      "ukrainian": "Лічильник",
@@ -1710,6 +1737,7 @@
      "tail": null
     },
     {
+     "id": "capacitor-bank",
      "name": "Конденсаторна батарея",
      "international": null,
      "ukrainian": "Конденсаторна батарея",
@@ -1718,6 +1746,7 @@
      "tail": null
     },
     {
+     "id": "power-triangle",
      "name": "Трикутник потужностей",
      "international": null,
      "ukrainian": "Трикутник потужностей",
@@ -1804,6 +1833,7 @@
    },
    "hotspots": [
     {
+     "id": "core",
      "name": "Осердя",
      "international": null,
      "ukrainian": "Осердя",

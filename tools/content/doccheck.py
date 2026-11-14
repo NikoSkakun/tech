@@ -11,7 +11,8 @@
   7. xref        tools/content/xref_check.py
   8. typography  tools/content/typography.py --check (documents are normalised, script is idempotent)
   9. generated   INDEX.md and GLOSSARY.md regenerate without diff; no glossary conflicts
- 10. export      docs/volumes/<volume>/chapters/_export/<id>.json regenerate without diff, satisfy tools/content/export.schema.json and cover every panel
+ 10. export      docs/volumes/<volume>/chapters/_export/<id>.json regenerate without diff, satisfy tools/content/export.schema.json, every
+                 hotspot has a stable explicit id (tools/content/hotspot_ids.py, registry _export/_hotspot-ids.tsv), and cover every panel
                  page, term, hotspot, fact, quiz item … of their documents (round-trip check, counts reported)
  11. runtime     app/src/volumes/<volume>/content/generated/<id>.json and <id>.manifest.json (tools/content/export_runtime.py) are up to date with the export
  11a. terms      tools/content/terms_check.py: DECISIONS §54–§56 on the on-screen fields of the export — no

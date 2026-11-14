@@ -633,6 +633,7 @@
   "hotspot": {
    "type": "object",
    "required": [
+    "id",
     "name",
     "international",
     "ukrainian",
@@ -641,6 +642,11 @@
     "tail"
    ],
    "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+     "description": "explicit stable id written after the name in the document (`**Name** {#some-id}:`), unique in the step; never changes"
+    },
     "name": {
      "type": "string",
      "minLength": 1

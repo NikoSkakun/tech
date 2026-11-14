@@ -99,6 +99,7 @@
    },
    "hotspots": [
     {
+     "id": "estuary",
      "name": "Estuary — естуарій",
      "international": "Estuary",
      "ukrainian": "естуарій",
@@ -107,6 +108,7 @@
      "tail": null
     },
     {
+     "id": "strait",
      "name": "Strait — протока",
      "international": "Strait",
      "ukrainian": "протока",
@@ -115,6 +117,7 @@
      "tail": null
     },
     {
+     "id": "wave-buoy",
      "name": "Wave buoy — хвильовий буй",
      "international": "Wave buoy",
      "ukrainian": "хвильовий буй",
@@ -262,6 +265,7 @@
    },
    "hotspots": [
     {
+     "id": "tidal-bulge",
      "name": "Tidal bulge — припливний горб",
      "international": "Tidal bulge",
      "ukrainian": "припливний горб",
@@ -270,6 +274,7 @@
      "tail": null
     },
     {
+     "id": "moon",
      "name": "Moon — Місяць",
      "international": "Moon",
      "ukrainian": "Місяць",
@@ -446,6 +451,7 @@
    },
    "hotspots": [
     {
+     "id": "bulb-turbine",
      "name": "Bulb turbine — капсульна турбіна",
      "international": "Bulb turbine",
      "ukrainian": "капсульна турбіна",
@@ -454,6 +460,7 @@
      "tail": null
     },
     {
+     "id": "navigation-lock",
      "name": "Navigation lock — судноплавний шлюз",
      "international": "Navigation lock",
      "ukrainian": "судноплавний шлюз",
@@ -462,6 +469,7 @@
      "tail": null
     },
     {
+     "id": "road",
      "name": "Road — дорога",
      "international": "Road",
      "ukrainian": "дорога",
@@ -567,6 +575,7 @@
    },
    "hotspots": [
     {
+     "id": "nacelle",
      "name": "Nacelle — гондола",
      "international": "Nacelle",
      "ukrainian": "гондола",
@@ -575,6 +584,7 @@
      "tail": null
     },
     {
+     "id": "subsea-cable",
      "name": "Subsea cable — підводний кабель",
      "international": "Subsea cable",
      "ukrainian": "підводний кабель",
@@ -583,6 +593,7 @@
      "tail": null
     },
     {
+     "id": "seal",
      "name": "Seal — тюлень",
      "international": "Seal",
      "ukrainian": "тюлень",
@@ -712,6 +723,7 @@
    },
    "hotspots": [
     {
+     "id": "wave-buoy",
      "name": "Wave buoy — хвилемірний буй",
      "international": "Wave buoy",
      "ukrainian": "хвилемірний буй",
@@ -720,6 +732,7 @@
      "tail": null
     },
     {
+     "id": "swell",
      "name": "Swell — зиб",
      "international": "Swell",
      "ukrainian": "зиб",
@@ -873,6 +886,7 @@
    },
    "hotspots": [
     {
+     "id": "wells-turbine",
      "name": "Wells turbine — турбіна Веллса",
      "international": "Wells turbine",
      "ukrainian": "турбіна Веллса",
@@ -881,6 +895,7 @@
      "tail": null
     },
     {
+     "id": "hydraulic-ram",
      "name": "Hydraulic ram — гідроциліндр",
      "international": "Hydraulic ram",
      "ukrainian": "гідроциліндр",
@@ -889,6 +904,7 @@
      "tail": null
     },
     {
+     "id": "mooring",
      "name": "Mooring — якір",
      "international": "Mooring",
      "ukrainian": "якір",
@@ -1026,6 +1042,7 @@
    },
    "hotspots": [
     {
+     "id": "anti-fouling",
      "name": "Anti-fouling — протиобростальне покриття",
      "international": "Anti-fouling",
      "ukrainian": "протиобростальне покриття",
@@ -1034,6 +1051,7 @@
      "tail": null
     },
     {
+     "id": "sacrificial-anode",
      "name": "Sacrificial anode — протекторний анод",
      "international": "Sacrificial anode",
      "ukrainian": "протекторний анод",
@@ -1163,6 +1181,7 @@
    },
    "hotspots": [
     {
+     "id": "cold-water-pipe",
      "name": "Cold water pipe — труба холодної води",
      "international": "Cold water pipe",
      "ukrainian": "труба холодної води",
@@ -1171,6 +1190,7 @@
      "tail": null
     },
     {
+     "id": "membrane",
      "name": "Membrane — мембрана",
      "international": "Membrane",
      "ukrainian": "мембрана",
@@ -1265,6 +1285,7 @@
    },
    "hotspots": [
     {
+     "id": "tidal-lagoon",
      "name": "Tidal lagoon — припливна лагуна",
      "international": "Tidal lagoon",
      "ukrainian": "припливна лагуна",

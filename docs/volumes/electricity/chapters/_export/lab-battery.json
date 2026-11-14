@@ -135,6 +135,7 @@
    },
    "hotspots": [
     {
+     "id": "volta-pile",
      "name": "Volta pile — стовп Вольти",
      "international": "Volta pile",
      "ukrainian": "стовп Вольти",
@@ -143,6 +144,7 @@
      "tail": null
     },
     {
+     "id": "lead-acid",
      "name": "Lead-acid — свинцевий акумулятор",
      "international": "Lead-acid",
      "ukrainian": "свинцевий акумулятор",
@@ -328,6 +330,7 @@
    },
    "hotspots": [
     {
+     "id": "separator",
      "name": "Separator — сепаратор",
      "international": "Separator",
      "ukrainian": "сепаратор",
@@ -336,6 +339,7 @@
      "tail": null
     },
     {
+     "id": "copper-foil",
      "name": "Copper foil — мідна фольга",
      "international": "Copper foil",
      "ukrainian": "мідна фольга",
@@ -344,6 +348,7 @@
      "tail": null
     },
     {
+     "id": "electrolyte",
      "name": "Electrolyte — електроліт",
      "international": "Electrolyte",
      "ukrainian": "електроліт",
@@ -477,6 +482,7 @@
    },
    "hotspots": [
     {
+     "id": "graphite-layers",
      "name": "Graphite layers — шари графіту",
      "international": "Graphite layers",
      "ukrainian": "шари графіту",
@@ -485,6 +491,7 @@
      "tail": null
     },
     {
+     "id": "cathode-crystal",
      "name": "Cathode crystal — кристал катода",
      "international": "Cathode crystal",
      "ukrainian": "кристал катода",
@@ -582,6 +589,7 @@
    },
    "hotspots": [
     {
+     "id": "lithium-metal",
      "name": "Lithium metal — металевий літій",
      "international": "Lithium metal",
      "ukrainian": "металевий літій",
@@ -727,6 +735,7 @@
    },
    "hotspots": [
     {
+     "id": "cobalt",
      "name": "Cobalt — кобальт",
      "international": "Cobalt",
      "ukrainian": "кобальт",
@@ -735,6 +744,7 @@
      "tail": null
     },
     {
+     "id": "lmfp",
      "name": "LMFP — LiMnₓFe₁₋ₓPO₄",
      "international": "LMFP",
      "ukrainian": "LiMnₓFe₁₋ₓPO₄",
@@ -924,6 +934,7 @@
    },
    "hotspots": [
     {
+     "id": "cut-off",
      "name": "Cut-off — відсічка",
      "international": "Cut-off",
      "ukrainian": "відсічка",
@@ -932,6 +943,7 @@
      "tail": null
     },
     {
+     "id": "mah-on-a-power-bank",
      "name": "mAh on a power bank — mAh на павербанку",
      "international": "mAh on a power bank",
      "ukrainian": "mAh на павербанку",
@@ -1068,6 +1080,7 @@
    },
    "hotspots": [
     {
+     "id": "cv-phase",
      "name": "CV phase — фаза CV",
      "international": "CV phase",
      "ukrainian": "фаза CV",
@@ -1076,6 +1089,7 @@
      "tail": null
     },
     {
+     "id": "heated-battery",
      "name": "Heated battery — батарея з підігрівом",
      "international": "Heated battery",
      "ukrainian": "батарея з підігрівом",
@@ -1193,6 +1207,7 @@
    },
    "hotspots": [
     {
+     "id": "series-string",
      "name": "Series string — послідовний ланцюжок",
      "international": "Series string",
      "ukrainian": "послідовний ланцюжок",
@@ -1201,6 +1216,7 @@
      "tail": null
     },
     {
+     "id": "busbar-torque",
      "name": "Busbar torque — затягування шин",
      "international": "Busbar torque",
      "ukrainian": "затягування шин",
@@ -1209,6 +1225,7 @@
      "tail": null
     },
     {
+     "id": "short-circuit",
      "name": "Short circuit — коротке замикання",
      "international": "Short circuit",
      "ukrainian": "коротке замикання",
@@ -1392,6 +1409,7 @@
    },
    "hotspots": [
     {
+     "id": "shunt",
      "name": "Shunt — шунт",
      "international": "Shunt",
      "ukrainian": "шунт",
@@ -1400,6 +1418,7 @@
      "tail": null
     },
     {
+     "id": "contactor",
      "name": "Contactor — контактор",
      "international": "Contactor",
      "ukrainian": "контактор",
@@ -1408,6 +1427,7 @@
      "tail": null
     },
     {
+     "id": "pre-charge-resistor",
      "name": "Pre-charge resistor — резистор попереднього заряду",
      "international": "Pre-charge resistor",
      "ukrainian": "резистор попереднього заряду",
@@ -1548,6 +1568,7 @@
    },
    "hotspots": [
     {
+     "id": "sei-growth",
      "name": "SEI growth — ріст SEI",
      "international": "SEI growth",
      "ukrainian": "ріст SEI",
@@ -1556,6 +1577,7 @@
      "tail": null
     },
     {
+     "id": "cracked-particle",
      "name": "Cracked particle — тріснута частинка",
      "international": "Cracked particle",
      "ukrainian": "тріснута частинка",
@@ -1720,6 +1742,7 @@
    },
    "hotspots": [
     {
+     "id": "vent",
      "name": "Vent — клапан",
      "international": "Vent",
      "ukrainian": "клапан",
@@ -1728,6 +1751,7 @@
      "tail": null
     },
     {
+     "id": "fire-fighting",
      "name": "Fire fighting — гасіння",
      "international": "Fire fighting",
      "ukrainian": "гасіння",
@@ -1736,6 +1760,7 @@
      "tail": null
     },
     {
+     "id": "storage",
      "name": "Storage — зберігання",
      "international": "Storage",
      "ukrainian": "зберігання",
@@ -1860,6 +1885,7 @@
    },
    "hotspots": [
     {
+     "id": "second-life",
      "name": "Second life — друге життя",
      "international": "Second life",
      "ukrainian": "друге життя",
@@ -1868,6 +1894,7 @@
      "tail": null
     },
     {
+     "id": "sodium-ion",
      "name": "Sodium-ion — натрій-іон",
      "international": "Sodium-ion",
      "ukrainian": "натрій-іон",

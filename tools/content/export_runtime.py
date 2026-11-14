@@ -16,7 +16,7 @@ correction — the HUD shows them); chapter `glossary`, `quiz`, `crossReferences
 M3 additions: terms and glossary rows carry a display `name` (DECISIONS §54: the Ukrainian form, with the
 international abbreviation in parentheses where it is kept) and the international form as `intl`; hotspots carry
 the same display name as `title` (their `name` is the pair as written, which chapters still bind by), `intl` and
-an `id` (slug of the international name); a fact written as a Markdown table also carries `table: {head,
+an `id` (explicit in the document, `{#id}` after the name — C7, tools/content/hotspot_ids.py); a fact written as a Markdown table also carries `table: {head,
 rows[, note]}`; each step gets `labels` — the UI labels quoted «…» in its «Інтерактив» items. The manifest file
 holds title, subtitle (= first step title), scale label, group, parent, order and step ids / titles / blurbs
 (first sentence of the step's first page).
@@ -131,11 +131,6 @@ def named(obj, out):
     return out
 
 
-def slug(text):
-    s = re.sub(r'[^a-z0-9]+', '-', (text or '').lower()).strip('-')
-    return s or None
-
-
 SEP_CELL_RE = re.compile(r'^:?-{3,}:?$')
 QUOTE_RE = re.compile(r'«([^«»]{1,60})»')
 
@@ -197,7 +192,7 @@ def runtime_term(t):
 def runtime_hotspot(h):
     """`name` stays the pair as written (chapters bind cards by it); the display name (§54) is `title`."""
     out = pick(h, ('name', 'text'), ('international', 'ukrainian'))
-    hid = slug(h.get('international'))
+    hid = h.get('id')  # explicit in the document (`{#id}`), never derived from the name (hotspot_ids.py)
     display = named(h, {})
     out['title'] = display.get('name') or h.get('name')
     if display.get('intl'):

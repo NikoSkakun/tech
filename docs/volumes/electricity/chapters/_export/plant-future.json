@@ -97,6 +97,7 @@
    },
    "hotspots": [
     {
+     "id": "readiness-bar",
      "name": "Readiness bar — шкала готовності",
      "international": "Readiness bar",
      "ukrainian": "шкала готовності",
@@ -256,6 +257,7 @@
    },
    "hotspots": [
     {
+     "id": "membrane",
      "name": "Membrane — мембрана",
      "international": "Membrane",
      "ukrainian": "мембрана",
@@ -264,6 +266,7 @@
      "tail": null
     },
     {
+     "id": "platinum-catalyst",
      "name": "Platinum catalyst — платиновий каталізатор",
      "international": "Platinum catalyst",
      "ukrainian": "платиновий каталізатор",
@@ -272,6 +275,7 @@
      "tail": null
     },
     {
+     "id": "bipolar-plate",
      "name": "Bipolar plate — біполярна пластина",
      "international": "Bipolar plate",
      "ukrainian": "біполярна пластина",
@@ -421,6 +425,7 @@
    },
    "hotspots": [
     {
+     "id": "salt-cavern",
      "name": "Salt cavern — соляна каверна",
      "international": "Salt cavern",
      "ukrainian": "соляна каверна",
@@ -429,6 +434,7 @@
      "tail": null
     },
     {
+     "id": "700-bar-tank",
      "name": "700 bar tank — балон 700 bar",
      "international": "700 bar tank",
      "ukrainian": "балон 700 bar",
@@ -594,6 +600,7 @@
    },
    "hotspots": [
     {
+     "id": "avr",
      "name": "AVR — регулятор напруги",
      "international": "AVR",
      "ukrainian": "регулятор напруги",
@@ -602,6 +609,7 @@
      "tail": null
     },
     {
+     "id": "exhaust",
      "name": "Exhaust — вихлоп",
      "international": "Exhaust",
      "ukrainian": "вихлоп",
@@ -610,6 +618,7 @@
      "tail": null
     },
     {
+     "id": "transfer-switch",
      "name": "Transfer switch — перемикач",
      "international": "Transfer switch",
      "ukrainian": "перемикач",
@@ -618,6 +627,7 @@
      "tail": null
     },
     {
+     "id": "day-tank",
      "name": "Day tank — витратний бак",
      "international": "Day tank",
      "ukrainian": "витратний бак",
@@ -626,6 +636,7 @@
      "tail": null
     },
     {
+     "id": "radiator",
      "name": "Radiator — радіатор",
      "international": "Radiator",
      "ukrainian": "радіатор",
@@ -782,6 +793,7 @@
    },
    "hotspots": [
     {
+     "id": "battery-rack",
      "name": "Battery rack — стійка",
      "international": "Battery rack",
      "ukrainian": "стійка",
@@ -790,6 +802,7 @@
      "tail": null
     },
     {
+     "id": "bms",
      "name": "BMS — система керування батареєю",
      "international": "BMS",
      "ukrainian": "система керування батареєю",
@@ -798,6 +811,7 @@
      "tail": null
     },
     {
+     "id": "liquid-cooling",
      "name": "Liquid cooling — рідинне охолодження",
      "international": "Liquid cooling",
      "ukrainian": "рідинне охолодження",
@@ -806,6 +820,7 @@
      "tail": null
     },
     {
+     "id": "fire-suppression-gas-detection",
      "name": "Fire suppression & gas detection — пожежогасіння й детектори газу",
      "international": "Fire suppression & gas detection",
      "ukrainian": "пожежогасіння й детектори газу",
@@ -814,6 +829,7 @@
      "tail": null
     },
     {
+     "id": "pcs",
      "name": "PCS — інвертор",
      "international": "PCS",
      "ukrainian": "інвертор",
@@ -988,6 +1004,7 @@
    },
    "hotspots": [
     {
+     "id": "grid-forming-pcs",
      "name": "Grid-forming PCS — мережоформувальний інвертор",
      "international": "Grid-forming PCS",
      "ukrainian": "мережоформувальний інвертор",
@@ -996,6 +1013,7 @@
      "tail": null
     },
     {
+     "id": "frequency-meter",
      "name": "Frequency meter — частотомір",
      "international": "Frequency meter",
      "ukrainian": "частотомір",
@@ -1143,6 +1161,7 @@
    },
    "hotspots": [
     {
+     "id": "neutron",
      "name": "Neutron — нейтрон",
      "international": "Neutron",
      "ukrainian": "нейтрон",
@@ -1151,6 +1170,7 @@
      "tail": null
     },
     {
+     "id": "alpha-particle",
      "name": "Alpha particle — альфа-частинка",
      "international": "Alpha particle",
      "ukrainian": "альфа-частинка",
@@ -1338,6 +1358,7 @@
    },
    "hotspots": [
     {
+     "id": "central-solenoid",
      "name": "Central solenoid — центральний соленоїд",
      "international": "Central solenoid",
      "ukrainian": "центральний соленоїд",
@@ -1346,6 +1367,7 @@
      "tail": null
     },
     {
+     "id": "divertor",
      "name": "Divertor — дивертор",
      "international": "Divertor",
      "ukrainian": "дивертор",
@@ -1354,6 +1376,7 @@
      "tail": null
     },
     {
+     "id": "blanket",
      "name": "Blanket — бланкет",
      "international": "Blanket",
      "ukrainian": "бланкет",
@@ -1362,6 +1385,7 @@
      "tail": null
     },
     {
+     "id": "cryostat",
      "name": "Cryostat — кріостат",
      "international": "Cryostat",
      "ukrainian": "кріостат",
@@ -1483,6 +1507,7 @@
    },
    "hotspots": [
     {
+     "id": "capsule",
      "name": "Capsule — капсула",
      "international": "Capsule",
      "ukrainian": "капсула",
@@ -1491,6 +1516,7 @@
      "tail": null
     },
     {
+     "id": "laser-bay",
      "name": "Laser bay — лазерний зал",
      "international": "Laser bay",
      "ukrainian": "лазерний зал",
@@ -1629,6 +1655,7 @@
    },
    "hotspots": [
     {
+     "id": "rtg-fins",
      "name": "RTG fins — ребра RTG",
      "international": "RTG fins",
      "ukrainian": "ребра RTG",
@@ -1637,6 +1664,7 @@
      "tail": null
     },
     {
+     "id": "pu-238-pellet",
      "name": "Pu-238 pellet — таблетка Pu-238",
      "international": "Pu-238 pellet",
      "ukrainian": "таблетка Pu-238",
@@ -1645,6 +1673,7 @@
      "tail": null
     },
     {
+     "id": "rectenna",
      "name": "Rectenna — ректена",
      "international": "Rectenna",
      "ukrainian": "ректена",
@@ -1729,6 +1758,7 @@
    },
    "hotspots": [
     {
+     "id": "microgrid",
      "name": "Microgrid — мікромережа",
      "international": "Microgrid",
      "ukrainian": "мікромережа",

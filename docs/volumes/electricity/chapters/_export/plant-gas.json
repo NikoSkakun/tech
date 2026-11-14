@@ -97,6 +97,7 @@
    },
    "hotspots": [
     {
+     "id": "hrsg",
      "name": "HRSG — котел-утилізатор",
      "international": "HRSG",
      "ukrainian": "котел-утилізатор",
@@ -105,6 +106,7 @@
      "tail": null
     },
     {
+     "id": "peaker",
      "name": "Peaker — пікова ГТУ",
      "international": "Peaker",
      "ukrainian": "пікова ГТУ",
@@ -113,6 +115,7 @@
      "tail": null
     },
     {
+     "id": "engine-hall",
      "name": "Engine hall — газопоршнева станція",
      "international": "Engine hall",
      "ukrainian": "газопоршнева станція",
@@ -121,6 +124,7 @@
      "tail": null
     },
     {
+     "id": "gas-station",
      "name": "Gas station — газорозподільний пункт",
      "international": "Gas station",
      "ukrainian": "газорозподільний пункт",
@@ -219,6 +223,7 @@
    },
    "hotspots": [
     {
+     "id": "odorant",
      "name": "Odorant — одорант",
      "international": "Odorant",
      "ukrainian": "одорант",
@@ -227,6 +232,7 @@
      "tail": null
     },
     {
+     "id": "gas-booster-compressor",
      "name": "Gas booster compressor — дотискний компресор",
      "international": "Gas booster compressor",
      "ukrainian": "дотискний компресор",
@@ -333,6 +339,7 @@
    },
    "hotspots": [
     {
+     "id": "inlet-guide-vanes",
      "name": "Inlet guide vanes — поворотні лопатки входу",
      "international": "Inlet guide vanes",
      "ukrainian": "поворотні лопатки входу",
@@ -341,6 +348,7 @@
      "tail": null
     },
     {
+     "id": "bleed-air",
      "name": "Bleed air — відбір повітря",
      "international": "Bleed air",
      "ukrainian": "відбір повітря",
@@ -349,6 +357,7 @@
      "tail": null
     },
     {
+     "id": "starter",
      "name": "Starter — пусковий пристрій",
      "international": "Starter",
      "ukrainian": "пусковий пристрій",
@@ -447,6 +456,7 @@
    },
    "hotspots": [
     {
+     "id": "t-s-diagram",
      "name": "T–s diagram — T–s діаграма",
      "international": "T–s diagram",
      "ukrainian": "T–s діаграма",
@@ -570,6 +580,7 @@
    },
    "hotspots": [
     {
+     "id": "cooling-holes",
      "name": "Cooling holes — отвори плівкового охолодження",
      "international": "Cooling holes",
      "ukrainian": "отвори плівкового охолодження",
@@ -578,6 +589,7 @@
      "tail": null
     },
     {
+     "id": "single-crystal",
      "name": "Single crystal — монокристал",
      "international": "Single crystal",
      "ukrainian": "монокристал",
@@ -702,6 +714,7 @@
    },
    "hotspots": [
     {
+     "id": "drum",
      "name": "Drum — барабан",
      "international": "Drum",
      "ukrainian": "барабан",
@@ -710,6 +723,7 @@
      "tail": null
     },
     {
+     "id": "bypass-stack",
      "name": "Bypass stack — обвідна труба",
      "international": "Bypass stack",
      "ukrainian": "обвідна труба",
@@ -718,6 +732,7 @@
      "tail": null
     },
     {
+     "id": "acc",
      "name": "ACC — повітряний конденсатор",
      "international": "ACC",
      "ukrainian": "повітряний конденсатор",
@@ -830,6 +845,7 @@
    },
    "hotspots": [
     {
+     "id": "thermal-stress",
      "name": "Thermal stress — термічні напруження",
      "international": "Thermal stress",
      "ukrainian": "термічні напруження",
@@ -980,6 +996,7 @@
    },
    "hotspots": [
     {
+     "id": "turbocharger",
      "name": "Turbocharger — турбокомпресор",
      "international": "Turbocharger",
      "ukrainian": "турбокомпресор",
@@ -988,6 +1005,7 @@
      "tail": null
     },
     {
+     "id": "container-unit",
      "name": "Container unit — контейнерна установка",
      "international": "Container unit",
      "ukrainian": "контейнерна установка",
@@ -1129,6 +1147,7 @@
    },
    "hotspots": [
     {
+     "id": "flare",
      "name": "Flare — факел",
      "international": "Flare",
      "ukrainian": "факел",
@@ -1137,6 +1156,7 @@
      "tail": null
     },
     {
+     "id": "hydrogen-flame",
      "name": "Hydrogen flame — водневе полум’я",
      "international": "Hydrogen flame",
      "ukrainian": "водневе полум’я",
@@ -1201,6 +1221,7 @@
    },
    "hotspots": [
     {
+     "id": "bridge-fuel",
      "name": "Bridge fuel — «перехідне паливо»",
      "international": "Bridge fuel",
      "ukrainian": "«перехідне паливо»",

@@ -159,6 +159,7 @@
    },
    "hotspots": [
     {
+     "id": "n-pole",
      "name": "N pole — північний полюс",
      "international": "N pole",
      "ukrainian": "північний полюс",
@@ -167,6 +168,7 @@
      "tail": null
     },
     {
+     "id": "s-pole",
      "name": "S pole — південний полюс",
      "international": "S pole",
      "ukrainian": "південний полюс",
@@ -175,6 +177,7 @@
      "tail": null
     },
     {
+     "id": "table-compass",
      "name": "Компас на краю столу",
      "international": null,
      "ukrainian": "Компас на краю столу",
@@ -183,6 +186,7 @@
      "tail": null
     },
     {
+     "id": "globe-keychain",
      "name": "Глобус-брелок",
      "international": null,
      "ukrainian": "Глобус-брелок",
@@ -326,6 +330,7 @@
    },
    "hotspots": [
     {
+     "id": "electron-spin",
      "name": "Electron spin — спін електрона",
      "international": "Electron spin",
      "ukrainian": "спін електрона",
@@ -334,6 +339,7 @@
      "tail": null
     },
     {
+     "id": "domain-wall",
      "name": "Domain wall — доменна стінка",
      "international": "Domain wall",
      "ukrainian": "доменна стінка",
@@ -342,6 +348,7 @@
      "tail": null
     },
     {
+     "id": "hysteresis-loop",
      "name": "Hysteresis loop — петля гістерезису",
      "international": "Hysteresis loop",
      "ukrainian": "петля гістерезису",
@@ -456,6 +463,7 @@
    },
    "hotspots": [
     {
+     "id": "probe-compass",
      "name": "Компас-зонд",
      "international": null,
      "ukrainian": "Компас-зонд",
@@ -464,6 +472,7 @@
      "tail": null
     },
     {
+     "id": "hand-rule",
      "name": "Рука-підказка",
      "international": null,
      "ukrainian": "Рука-підказка",
@@ -641,6 +650,7 @@
    },
    "hotspots": [
     {
+     "id": "core",
      "name": "Осердя",
      "international": null,
      "ukrainian": "Осердя",
@@ -649,6 +659,7 @@
      "tail": null
     },
     {
+     "id": "coil-end-n",
      "name": "Торець котушки (N)",
      "international": null,
      "ukrainian": "Торець котушки (N)",
@@ -800,6 +811,7 @@
    },
    "hotspots": [
     {
+     "id": "helmholtz-coils",
      "name": "Helmholtz coils — кільця Гельмгольца",
      "international": "Helmholtz coils",
      "ukrainian": "кільця Гельмгольца",
@@ -808,6 +820,7 @@
      "tail": null
     },
     {
+     "id": "electron-beam",
      "name": "Пучок",
      "international": null,
      "ukrainian": "Пучок",
@@ -816,6 +829,7 @@
      "tail": null
     },
     {
+     "id": "crossbar",
      "name": "Перекладина",
      "international": null,
      "ukrainian": "Перекладина",
@@ -1002,6 +1016,7 @@
    },
    "hotspots": [
     {
+     "id": "commutator",
      "name": "Колектор",
      "international": null,
      "ukrainian": "Колектор",
@@ -1010,6 +1025,7 @@
      "tail": null
     },
     {
+     "id": "brush",
      "name": "Щітка",
      "international": null,
      "ukrainian": "Щітка",
@@ -1018,6 +1034,7 @@
      "tail": null
     },
     {
+     "id": "tachometer",
      "name": "Тахометр",
      "international": null,
      "ukrainian": "Тахометр",
@@ -1200,6 +1217,7 @@
    },
    "hotspots": [
     {
+     "id": "galvanometer",
      "name": "Гальванометр",
      "international": null,
      "ukrainian": "Гальванометр",
@@ -1208,6 +1226,7 @@
      "tail": null
     },
     {
+     "id": "flux-disc",
      "name": "Диск потоку",
      "international": null,
      "ukrainian": "Диск потоку",
@@ -1216,6 +1235,7 @@
      "tail": null
     },
     {
+     "id": "led",
      "name": "LED",
      "international": "LED",
      "ukrainian": null,
@@ -1371,6 +1391,7 @@
    },
    "hotspots": [
     {
+     "id": "eddy-rings",
      "name": "Вихрові кільця",
      "international": null,
      "ukrainian": "Вихрові кільця",
@@ -1379,6 +1400,7 @@
      "tail": null
     },
     {
+     "id": "wall-heat",
      "name": "Тепло в стінці",
      "international": null,
      "ukrainian": "Тепло в стінці",
@@ -1387,6 +1409,7 @@
      "tail": null
     },
     {
+     "id": "plastic-tube",
      "name": "Пластикова труба",
      "international": null,
      "ukrainian": "Пластикова труба",
@@ -1395,6 +1418,7 @@
      "tail": null
     },
     {
+     "id": "how-we-count",
      "name": "«Як ми це рахуємо»",
      "international": null,
      "ukrainian": "«Як ми це рахуємо»",
@@ -1564,6 +1588,7 @@
    },
    "hotspots": [
     {
+     "id": "contact-spark",
      "name": "Іскра на контактах",
      "international": null,
      "ukrainian": "Іскра на контактах",
@@ -1572,6 +1597,7 @@
      "tail": null
     },
     {
+     "id": "lamp-l1-off",
      "name": "Лампа L1 при вимкненні S1",
      "international": null,
      "ukrainian": "Лампа L1 при вимкненні S1",
@@ -1580,6 +1606,7 @@
      "tail": null
     },
     {
+     "id": "ignition-coil",
      "name": "Котушка запалювання",
      "international": null,
      "ukrainian": "Котушка запалювання",
@@ -1720,6 +1747,7 @@
    },
    "hotspots": [
     {
+     "id": "displacement-current",
      "name": "∂E/∂t у рівнянні Ампера–Максвелла",
      "international": null,
      "ukrainian": "∂E/∂t у рівнянні Ампера–Максвелла",
@@ -1728,6 +1756,7 @@
      "tail": null
     },
     {
+     "id": "poynting-arrows",
      "name": "Стрілки S біля резистора",
      "international": null,
      "ukrainian": "Стрілки S біля резистора",
@@ -1736,6 +1765,7 @@
      "tail": null
     },
     {
+     "id": "spectrum-band",
      "name": "Смуга спектра",
      "international": null,
      "ukrainian": "Смуга спектра",
@@ -1869,6 +1899,7 @@
    },
    "hotspots": [
     {
+     "id": "slip-rings",
      "name": "Slip rings — контактні кільця",
      "international": "Slip rings",
      "ukrainian": "контактні кільця",
@@ -1877,6 +1908,7 @@
      "tail": null
     },
     {
+     "id": "crank",
      "name": "Ручка",
      "international": null,
      "ukrainian": "Ручка",

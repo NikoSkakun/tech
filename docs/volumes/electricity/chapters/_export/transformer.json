@@ -141,6 +141,7 @@
    },
    "hotspots": [
     {
+     "id": "ring",
      "name": "Кільце",
      "international": null,
      "ukrainian": "Кільце",
@@ -149,6 +150,7 @@
      "tail": null
     },
     {
+     "id": "galvanometer",
      "name": "Гальванометр",
      "international": null,
      "ukrainian": "Гальванометр",
@@ -305,6 +307,7 @@
    },
    "hotspots": [
     {
+     "id": "thick-thin-wire",
      "name": "Товстий і тонкий дріт",
      "international": null,
      "ukrainian": "Товстий і тонкий дріт",
@@ -313,6 +316,7 @@
      "tail": null
     },
     {
+     "id": "wattmeters",
      "name": "Ватметри P₁ і P₂",
      "international": null,
      "ukrainian": "Ватметри P₁ і P₂",
@@ -436,6 +440,7 @@
    },
    "hotspots": [
     {
+     "id": "step-up-transformer",
      "name": "Підвищувальний трансформатор станції",
      "international": null,
      "ukrainian": "Підвищувальний трансформатор станції",
@@ -444,6 +449,7 @@
      "tail": null
     },
     {
+     "id": "step-down-transformer",
      "name": "Понижувальний трансформатор міста",
      "international": null,
      "ukrainian": "Понижувальний трансформатор міста",
@@ -452,6 +458,7 @@
      "tail": null
     },
     {
+     "id": "insulator-string",
      "name": "Гірлянда ізоляторів",
      "international": null,
      "ukrainian": "Гірлянда ізоляторів",
@@ -629,6 +636,7 @@
    },
    "hotspots": [
     {
+     "id": "hv-bushing",
      "name": "Ввід ВН",
      "international": null,
      "ukrainian": "Ввід ВН",
@@ -637,6 +645,7 @@
      "tail": null
     },
     {
+     "id": "conservator",
      "name": "Розширювач",
      "international": null,
      "ukrainian": "Розширювач",
@@ -645,6 +654,7 @@
      "tail": null
     },
     {
+     "id": "breather",
      "name": "Повітроосушувач",
      "international": null,
      "ukrainian": "Повітроосушувач",
@@ -653,6 +663,7 @@
      "tail": null
     },
     {
+     "id": "buchholz-relay",
      "name": "Газове реле",
      "international": null,
      "ukrainian": "Газове реле",
@@ -661,6 +672,7 @@
      "tail": null
     },
     {
+     "id": "radiators",
      "name": "Радіатори",
      "international": null,
      "ukrainian": "Радіатори",
@@ -669,6 +681,7 @@
      "tail": null
     },
     {
+     "id": "windings",
      "name": "Обмотки НН і ВН",
      "international": null,
      "ukrainian": "Обмотки НН і ВН",
@@ -677,6 +690,7 @@
      "tail": null
     },
     {
+     "id": "oil",
      "name": "Олива",
      "international": null,
      "ukrainian": "Олива",
@@ -834,6 +848,7 @@
    },
    "hotspots": [
     {
+     "id": "transition-resistors",
      "name": "Перехідні резистори",
      "international": null,
      "ukrainian": "Перехідні резистори",
@@ -842,6 +857,7 @@
      "tail": null
     },
     {
+     "id": "regulator",
      "name": "Регулятор",
      "international": null,
      "ukrainian": "Регулятор",
@@ -1033,6 +1049,7 @@
    },
    "hotspots": [
     {
+     "id": "core-end",
      "name": "Торець осердя",
      "international": null,
      "ukrainian": "Торець осердя",
@@ -1041,6 +1058,7 @@
      "tail": null
     },
     {
+     "id": "domains",
      "name": "Домени",
      "international": null,
      "ukrainian": "Домени",
@@ -1049,6 +1067,7 @@
      "tail": null
     },
     {
+     "id": "hum",
      "name": "Гул",
      "international": null,
      "ukrainian": "Гул",
@@ -1175,6 +1194,7 @@
    },
    "hotspots": [
     {
+     "id": "clock-dial",
      "name": "Циферблат",
      "international": null,
      "ukrainian": "Циферблат",
@@ -1183,6 +1203,7 @@
      "tail": null
     },
     {
+     "id": "neutral-2n",
      "name": "Нейтраль 2N",
      "international": null,
      "ukrainian": "Нейтраль 2N",
@@ -1356,6 +1377,7 @@
    },
    "hotspots": [
     {
+     "id": "autotransformer",
      "name": "Автотрансформатор",
      "international": null,
      "ukrainian": "Автотрансформатор",
@@ -1364,6 +1386,7 @@
      "tail": null
     },
     {
+     "id": "current-transformer",
      "name": "Трансформатор струму",
      "international": null,
      "ukrainian": "Трансформатор струму",
@@ -1372,6 +1395,7 @@
      "tail": null
     },
     {
+     "id": "ferrite-core",
      "name": "Феритове осердя",
      "international": null,
      "ukrainian": "Феритове осердя",
@@ -1448,6 +1472,7 @@
    },
    "hotspots": [
     {
+     "id": "rung-750",
      "name": "Сходинка 750 kV",
      "international": null,
      "ukrainian": "Сходинка 750 kV",
@@ -1456,6 +1481,7 @@
      "tail": null
     },
     {
+     "id": "rung-0-4",
      "name": "Сходинка 0,4 kV",
      "international": null,
      "ukrainian": "Сходинка 0,4 kV",

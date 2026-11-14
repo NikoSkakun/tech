@@ -116,7 +116,7 @@ def check_step(s, err, warn):
         warn('step `%s`: %d «Слова» (aim %d–%d)' % (sid, len(x['words']), WORDS[0], WORDS[1]))
     if not FACTS[0] <= len(x['facts']) <= FACTS[1]:
         warn('step `%s`: %d «Цікаво» facts (aim %d–%d)' % (sid, len(x['facts']), FACTS[0], FACTS[1]))
-    ids = [R.slug(h.get('international')) for h in s.get('hotspots') or []]
+    ids = [h.get('id') for h in s.get('hotspots') or []]  # explicit `{#id}` of the document (hotspot_ids.py)
     for h in x['hotspots']:
         if h['id'] not in ids:
             err('step `%s`: «Підказки» id `%s` is not a hotspot of the step (%s)'

@@ -28,7 +28,7 @@ chapter, steps in order.
 | `steps[].terms[]` | on-screen term cards: `international` first, then `ukrainian`, optional `symbol` / `unit`, `definition`; `raw` is the term line as written |
 | `steps[].formulas.items[]` | on-screen formulas; `formulas.raw` keeps the explanatory words around them |
 | `steps[].facts.items[]` | on-screen fact chips: `text`, optional `source`; `facts.note` is a remark for the builder |
-| `steps[].hotspots[]` | `international` / `ukrainian` name and on-screen `text`; `note` and `tail` are remarks for the builder (where the hotspot sits, link target) |
+| `steps[].hotspots[]` | `id` (explicit, stable — «Hotspot ids» below), `international` / `ukrainian` name and on-screen `text`; `note` and `tail` are remarks for the builder (where the hotspot sits, link target) |
 | `steps[].misconceptions[]` | `myth` (on-screen, the wrong belief) and `correction` (the explanation for the learner); optional `scene` = the `[Сцена: …]` part — **guidance for the builder**, never shown |
 | `steps[].simple` | the simple reading level («Просто», below) — only in steps that have the block |
 | `simpleQuiz[]` | «Простий квіз» — only in chapters that have the section; same shape as `quiz[]` |
@@ -50,6 +50,37 @@ chapter, steps in order.
 - Palette tokens appear in backticks in guidance fields (`` `cyan` ``, `` `plantType.wind` ``) — STYLE_GUIDE §2.2.
 - `interaction.items[].controls[]` is a best-effort parse (type, label, min / max / step, unit, default as written);
   the item `text` is authoritative. Numbers use a decimal point in `min` / `max` / `step`; `default` is the raw text.
+
+## Hotspot ids (C7)
+
+Every hotspot of every chapter document carries an explicit id right after its name, before the remark and the
+colon:
+
+```
+- **Hotspots:**
+  - **Кільце** {#ring}: «Залізо „збирає“ поле: …»
+  - `Nucleus — ядро` {#nucleus} (у центрі сцени): «…»
+```
+
+- The id is a lowercase ASCII slug (`a-z`, `0-9`, single hyphens: `^[a-z0-9]+(-[a-z0-9]+)*$`), unique within the
+  step, and names the *meaning* in English (`buchholz-relay`, `rung-750`) — never a transliteration.
+- It is written by hand once, when the hotspot is created, and **never changes**: renaming the hotspot, translating
+  its name or adding an international name keeps the id. It is never derived from the name at export time.
+- The ids that existed before C7 (slug of the international name: `Electron cloud` → `electron-cloud`) were written
+  into the documents unchanged; the simple layer («Підказки») and the chapters bind by them.
+- `export_content.py` / doccheck group `export` fail on: a hotspot without an id, a malformed id (or a `{#…}` left in
+  the name, remark or copy), two equal ids in one step, and a **changed or removed id**. The baseline for the last
+  check is `docs/volumes/<volume>/chapters/_export/_hotspot-ids.tsv` — every (chapter, step, id) an export has ever
+  issued. `export_content.py` appends new ids and never removes one; doccheck fails when a registered id is gone
+  from its step. If a hotspot was removed or moved to another step on purpose (or you exported a mistyped id), delete
+  its line from the registry by hand in the same commit. In a merge conflict take either side and run `regen.sh` —
+  ids still in the documents are re-registered.
+- Builders bind by id, always: `hotspots: [{ anchor, content: 'ring' }]` (runtime `steps[].hotspots[].id`).
+  Indexes and names still resolve (`app/src/hud/annotations.ts`), but they break when the document is reordered or
+  renamed.
+
+Implementation: `tools/content/hotspot_ids.py` (rules and registry), parser in `export_content.py`
+(`split_headed`), unit tests `python3 tools/content/test_hotspot_ids.py`.
 
 ## The simple reading level («Просто / Докладно», docs/briefs/L-simple-level.md §3)
 
@@ -84,8 +115,8 @@ Settled details of the format (L1):
 - `[Сцена: …]` in a detailed misconception must close the item (`… → пояснення. [Сцена: …]`); it may contain
   brackets. Text after it, or an unclosed bracket, leaves the item unsplit and fails `simple_check.py`.
 - `## Простий квіз` follows `## Міні-квіз`, same item format (exactly one option marked ✔ / bold / «Правильно:»).
-- `id`s in «Підказки» are the runtime hotspot ids of the step (slug of the international name: `Electron cloud`
-  → `electron-cloud`); `simple_check.py` lists the valid ones when an id is wrong.
+- `id`s in «Підказки» are the hotspot ids of the step (the explicit `{#id}`, «Hotspot ids» above);
+  `simple_check.py` lists the valid ones when an id is wrong.
 - The keys `simple`, `simpleQuiz`, `scene` exist only when present: exports of chapters without them do not change.
 
 ## Guarantees checked by `doccheck.py`
@@ -93,7 +124,8 @@ Settled details of the format (L1):
 Every panel page, term, formula field, fact, interaction item, hotspot, misconception, transition, quiz item,
 glossary row, learning goal and cross-reference of a document is present in its export (round-trip comparison of
 the letters and digits, field by field), every file validates against `schema.json`, every quiz item has at least
-two options and exactly one correct index, and the files on disk are identical to a fresh run. The «Просто» block
+two options and exactly one correct index, every hotspot has a well-formed id unique in its step and no registered
+id has changed («Hotspot ids»), and the files on disk (incl. `_hotspot-ids.tsv`) are identical to a fresh run. The «Просто» block
 and «Простий квіз» are covered the same way (letters and digits of the block minus its labels, independent page and
 question counts); a misconception with a `scene` must lose no text in the split. The group `simple`
 (`tools/content/simple_check.py`, rules in its docstring) checks the simple layer of the chapters that have one —
@@ -111,7 +143,7 @@ After export_content.py always run tools/content/export_runtime.py (generates ap
 | `<id>.json` | the on-screen subset of the export, loaded lazily with the scene: `defineContent(raw, { labels })` |
 | `steps[].terms[].name`, `.intl` | DECISIONS §54: `name` = display name (Ukrainian form, «… (BMS)» where an abbreviation is kept), `intl` = international form as a secondary line (omitted when already in `name`). Show `termName(t)`, never `international` first |
 | `glossary[].name`, `.intl` | same rule; the glossary is sorted / indexed by the Ukrainian alphabet, search matches both |
-| `steps[].hotspots[].id` | stable slug of the international name (`wind-turbine`) — bind with `hotspots: [{ content: id }]` (or an index) instead of matching titles |
+| `steps[].hotspots[].id` | the explicit stable id of the document (`{#wind-turbine}`, «Hotspot ids» above), present on every hotspot — bind with `hotspots: [{ content: id }]`, never by index or title |
 | `steps[].hotspots[].title`, `.intl` | display name of the hotspot card (§54) and its international secondary line; `name` keeps the pair as written (`Nucleus — ядро`) |
 | `steps[].labels[]` | UI labels quoted «…» in the step's «Інтерактив» items, verbatim, in order — use them for control captions instead of retyping |
 | `steps[].facts.items[].table` | `{ head, rows, note? }` when the fact is a table in the document; the HUD renders a table (row cards above 4 columns) — never parse the pipes of `text` |

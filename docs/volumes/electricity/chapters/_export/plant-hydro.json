@@ -91,6 +91,7 @@
    },
    "hotspots": [
     {
+     "id": "dam",
      "name": "Dam — гребля",
      "international": "Dam",
      "ukrainian": "гребля",
@@ -99,6 +100,7 @@
      "tail": null
     },
     {
+     "id": "spillway",
      "name": "Spillway — водоскид",
      "international": "Spillway",
      "ukrainian": "водоскид",
@@ -107,6 +109,7 @@
      "tail": null
     },
     {
+     "id": "powerhouse",
      "name": "Powerhouse — будівля ГЕС",
      "international": "Powerhouse",
      "ukrainian": "будівля ГЕС",
@@ -115,6 +118,7 @@
      "tail": null
     },
     {
+     "id": "upper-reservoir",
      "name": "Upper reservoir — верхня водойма ГАЕС",
      "international": "Upper reservoir",
      "ukrainian": "верхня водойма ГАЕС",
@@ -123,6 +127,7 @@
      "tail": null
     },
     {
+     "id": "fish-ladder",
      "name": "Fish ladder — рибохід",
      "international": "Fish ladder",
      "ukrainian": "рибохід",
@@ -245,6 +250,7 @@
    },
    "hotspots": [
     {
+     "id": "net-head",
      "name": "Net head — напір нетто",
      "international": "Net head",
      "ukrainian": "напір нетто",
@@ -360,6 +366,7 @@
    },
    "hotspots": [
     {
+     "id": "grout-curtain",
      "name": "Grout curtain — протифільтраційна завіса",
      "international": "Grout curtain",
      "ukrainian": "протифільтраційна завіса",
@@ -368,6 +375,7 @@
      "tail": null
     },
     {
+     "id": "inspection-gallery",
      "name": "Inspection gallery — оглядова галерея",
      "international": "Inspection gallery",
      "ukrainian": "оглядова галерея",
@@ -533,6 +541,7 @@
    },
    "hotspots": [
     {
+     "id": "stay-vanes",
      "name": "Stay vanes — статор (колони)",
      "international": "Stay vanes",
      "ukrainian": "статор (колони)",
@@ -541,6 +550,7 @@
      "tail": null
     },
     {
+     "id": "head-cover",
      "name": "Head cover — кришка турбіни",
      "international": "Head cover",
      "ukrainian": "кришка турбіни",
@@ -673,6 +683,7 @@
    },
    "hotspots": [
     {
+     "id": "deflector",
      "name": "Deflector — відхилювач струменя",
      "international": "Deflector",
      "ukrainian": "відхилювач струменя",
@@ -681,6 +692,7 @@
      "tail": null
     },
     {
+     "id": "kaplan-blade-servo",
      "name": "Kaplan blade servo — сервомотор лопатей",
      "international": "Kaplan blade servo",
      "ukrainian": "сервомотор лопатей",
@@ -844,6 +856,7 @@
    },
    "hotspots": [
     {
+     "id": "excitation",
      "name": "Excitation — збудження",
      "international": "Excitation",
      "ukrainian": "збудження",
@@ -852,6 +865,7 @@
      "tail": null
     },
     {
+     "id": "brake-jacks",
      "name": "Brake jacks — гальма й домкрати",
      "international": "Brake jacks",
      "ukrainian": "гальма й домкрати",
@@ -991,6 +1005,7 @@
    },
    "hotspots": [
     {
+     "id": "fish-ladder",
      "name": "Fish ladder — рибохід",
      "international": "Fish ladder",
      "ukrainian": "рибохід",
@@ -999,6 +1014,7 @@
      "tail": null
     },
     {
+     "id": "sediment-flushing",
      "name": "Sediment flushing — промивання наносів",
      "international": "Sediment flushing",
      "ukrainian": "промивання наносів",
@@ -1105,6 +1121,7 @@
    },
    "hotspots": [
     {
+     "id": "reversal",
      "name": "Reversal — реверс агрегату",
      "international": "Reversal",
      "ukrainian": "реверс агрегату",
@@ -1113,6 +1130,7 @@
      "tail": null
     },
     {
+     "id": "variable-speed-unit",
      "name": "Variable-speed unit — агрегат змінної швидкості",
      "international": "Variable-speed unit",
      "ukrainian": "агрегат змінної швидкості",
@@ -1186,6 +1204,7 @@
    },
    "hotspots": [
     {
+     "id": "kakhovka",
      "name": "Kakhovka — Каховська ГЕС",
      "international": "Kakhovka",
      "ukrainian": "Каховська ГЕС",

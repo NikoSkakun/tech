@@ -117,6 +117,7 @@
    },
    "hotspots": [
     {
+     "id": "insulation",
      "name": "Insulation — ізоляція",
      "international": "Insulation",
      "ukrainian": "ізоляція",
@@ -125,6 +126,7 @@
      "tail": null
     },
     {
+     "id": "grain",
      "name": "Grain — зерно (кристаліт)",
      "international": "Grain",
      "ukrainian": "зерно (кристаліт)",
@@ -291,6 +293,7 @@
    },
    "hotspots": [
     {
+     "id": "nucleus",
      "name": "Nucleus — ядро",
      "international": "Nucleus",
      "ukrainian": "ядро",
@@ -299,6 +302,7 @@
      "tail": null
     },
     {
+     "id": "electron-cloud",
      "name": "Electron cloud — електронна хмара",
      "international": "Electron cloud",
      "ukrainian": "електронна хмара",
@@ -495,6 +499,7 @@
    },
    "hotspots": [
     {
+     "id": "proton",
      "name": "Proton — протон",
      "international": "Proton",
      "ukrainian": "протон",
@@ -503,6 +508,7 @@
      "tail": null
     },
     {
+     "id": "neutron",
      "name": "Neutron — нейтрон",
      "international": "Neutron",
      "ukrainian": "нейтрон",
@@ -511,6 +517,7 @@
      "tail": null
     },
     {
+     "id": "isotope-card",
      "name": "Isotope card — картка ізотопу",
      "international": "Isotope card",
      "ukrainian": "картка ізотопу",
@@ -703,6 +710,7 @@
    },
    "hotspots": [
     {
+     "id": "up-quark",
      "name": "Up quark — u-кварк",
      "international": "Up quark",
      "ukrainian": "u-кварк",
@@ -711,6 +719,7 @@
      "tail": null
     },
     {
+     "id": "down-quark",
      "name": "Down quark — d-кварк",
      "international": "Down quark",
      "ukrainian": "d-кварк",
@@ -719,6 +728,7 @@
      "tail": null
     },
     {
+     "id": "gluon",
      "name": "Gluon — глюон",
      "international": "Gluon",
      "ukrainian": "глюон",
@@ -906,6 +916,7 @@
    },
    "hotspots": [
     {
+     "id": "spin-arrow",
      "name": "Spin arrow — стрілка спіну",
      "international": "Spin arrow",
      "ukrainian": "стрілка спіну",
@@ -914,6 +925,7 @@
      "tail": null
     },
     {
+     "id": "electron-glow",
      "name": "Electron glow — свічення електрона",
      "international": "Electron glow",
      "ukrainian": "свічення електрона",
@@ -1135,6 +1147,7 @@
    },
    "hotspots": [
     {
+     "id": "nodal-surface",
      "name": "Nodal surface — вузлова поверхня",
      "international": "Nodal surface",
      "ukrainian": "вузлова поверхня",
@@ -1143,6 +1156,7 @@
      "tail": null
     },
     {
+     "id": "bohr-radius-sphere",
      "name": "Bohr radius sphere — сфера радіуса a₀",
      "international": "Bohr radius sphere",
      "ukrainian": "сфера радіуса a₀",
@@ -1317,6 +1331,7 @@
    },
    "hotspots": [
     {
+     "id": "4s-electron",
      "name": "4s electron — валентний електрон міді",
      "international": "4s electron",
      "ukrainian": "валентний електрон міді",
@@ -1325,6 +1340,7 @@
      "tail": null
     },
     {
+     "id": "shell-m",
      "name": "Shell M — оболонка M",
      "international": "Shell M",
      "ukrainian": "оболонка M",
@@ -1333,6 +1349,7 @@
      "tail": null
     },
     {
+     "id": "noble-gases-column",
      "name": "Noble gases column — стовпчик інертних газів",
      "international": "Noble gases column",
      "ukrainian": "стовпчик інертних газів",
@@ -1541,6 +1558,7 @@
    },
    "hotspots": [
     {
+     "id": "ionization-limit",
      "name": "Ionization limit — межа іонізації",
      "international": "Ionization limit",
      "ukrainian": "межа іонізації",
@@ -1549,6 +1567,7 @@
      "tail": null
     },
     {
+     "id": "spectrum-strip",
      "name": "Spectrum strip — смуга спектра",
      "international": "Spectrum strip",
      "ukrainian": "смуга спектра",
@@ -1695,6 +1714,7 @@
    },
    "hotspots": [
     {
+     "id": "element-card",
      "name": "Element card — картка елемента",
      "international": "Element card",
      "ukrainian": "картка елемента",
@@ -1703,6 +1723,7 @@
      "tail": null
     },
     {
+     "id": "stability-badge",
      "name": "Stability badge — позначка стабільності",
      "international": "Stability badge",
      "ukrainian": "позначка стабільності",
@@ -1881,6 +1902,7 @@
    },
    "hotspots": [
     {
+     "id": "photon",
      "name": "Photon — фотон γ",
      "international": "Photon",
      "ukrainian": "фотон γ",
@@ -1889,6 +1911,7 @@
      "tail": null
     },
     {
+     "id": "neutrinos",
      "name": "Neutrinos — нейтрино",
      "international": "Neutrinos",
      "ukrainian": "нейтрино",
@@ -1897,6 +1920,7 @@
      "tail": null
     },
     {
+     "id": "higgs",
      "name": "Higgs — бозон Гіґґса",
      "international": "Higgs",
      "ukrainian": "бозон Гіґґса",

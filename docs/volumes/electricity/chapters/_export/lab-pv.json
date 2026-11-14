@@ -129,6 +129,7 @@
    },
    "hotspots": [
     {
+     "id": "atmosphere",
      "name": "Atmosphere — атмосфера",
      "international": "Atmosphere",
      "ukrainian": "атмосфера",
@@ -137,6 +138,7 @@
      "tail": null
     },
     {
+     "id": "1-m-frame",
      "name": "1 m² frame — квадрат 1 m²",
      "international": "1 m² frame",
      "ukrainian": "квадрат 1 m²",
@@ -286,6 +288,7 @@
    },
    "hotspots": [
     {
+     "id": "built-in-field",
      "name": "Built-in field — вбудоване поле",
      "international": "Built-in field",
      "ukrainian": "вбудоване поле",
@@ -294,6 +297,7 @@
      "tail": null
     },
     {
+     "id": "hole",
      "name": "Hole — дірка",
      "international": "Hole",
      "ukrainian": "дірка",
@@ -466,6 +470,7 @@
    },
    "hotspots": [
     {
+     "id": "silver-fingers",
      "name": "Silver fingers — срібні пальці",
      "international": "Silver fingers",
      "ukrainian": "срібні пальці",
@@ -474,6 +479,7 @@
      "tail": null
     },
     {
+     "id": "mono-vs-poly",
      "name": "Mono vs poly — моно й полікристал",
      "international": "Mono vs poly",
      "ukrainian": "моно й полікристал",
@@ -482,6 +488,7 @@
      "tail": null
     },
     {
+     "id": "bifacial",
      "name": "Bifacial — двосторонні",
      "international": "Bifacial",
      "ukrainian": "двосторонні",
@@ -659,6 +666,7 @@
    },
    "hotspots": [
     {
+     "id": "label",
      "name": "Label — етикетка",
      "international": "Label",
      "ukrainian": "етикетка",
@@ -667,6 +675,7 @@
      "tail": null
     },
     {
+     "id": "frame",
      "name": "Frame — рама",
      "international": "Frame",
      "ukrainian": "рама",
@@ -675,6 +684,7 @@
      "tail": null
     },
     {
+     "id": "mc4",
      "name": "MC4 — роз’єм",
      "international": "MC4",
      "ukrainian": "роз’єм",
@@ -817,6 +827,7 @@
    },
    "hotspots": [
     {
+     "id": "i-sc",
      "name": "I_sc — точка короткого замикання",
      "international": "I_sc",
      "ukrainian": "точка короткого замикання",
@@ -825,6 +836,7 @@
      "tail": null
     },
     {
+     "id": "v-oc",
      "name": "V_oc — точка неробочого ходу",
      "international": "V_oc",
      "ukrainian": "точка неробочого ходу",
@@ -983,6 +995,7 @@
    },
    "hotspots": [
     {
+     "id": "thermometer",
      "name": "Thermometer — термометр комірки",
      "international": "Thermometer",
      "ukrainian": "термометр комірки",
@@ -991,6 +1004,7 @@
      "tail": null
     },
     {
+     "id": "mounting-gap",
      "name": "Mounting gap — зазор під модулем",
      "international": "Mounting gap",
      "ukrainian": "зазор під модулем",
@@ -1168,6 +1182,7 @@
    },
    "hotspots": [
     {
+     "id": "bypass-diode",
      "name": "Bypass diode — обхідний діод",
      "international": "Bypass diode",
      "ukrainian": "обхідний діод",
@@ -1176,6 +1191,7 @@
      "tail": null
     },
     {
+     "id": "hot-cell",
      "name": "Hot cell — гаряча комірка",
      "international": "Hot cell",
      "ukrainian": "гаряча комірка",
@@ -1184,6 +1200,7 @@
      "tail": null
     },
     {
+     "id": "optimizer",
      "name": "Optimizer — оптимізатор",
      "international": "Optimizer",
      "ukrainian": "оптимізатор",
@@ -1369,6 +1386,7 @@
    },
    "hotspots": [
     {
+     "id": "sun-path",
      "name": "Sun path — сонячна дуга",
      "international": "Sun path",
      "ukrainian": "сонячна дуга",
@@ -1377,6 +1395,7 @@
      "tail": null
     },
     {
+     "id": "east-west-roof",
      "name": "East–west roof — дах схід–захід",
      "international": "East–west roof",
      "ukrainian": "дах схід–захід",
@@ -1385,6 +1404,7 @@
      "tail": null
     },
     {
+     "id": "tracker",
      "name": "Tracker — трекер",
      "international": "Tracker",
      "ukrainian": "трекер",
@@ -1548,6 +1568,7 @@
    },
    "hotspots": [
     {
+     "id": "dc-isolator",
      "name": "DC isolator — роз’єднувач постійного струму",
      "international": "DC isolator",
      "ukrainian": "роз’єднувач постійного струму",
@@ -1556,6 +1577,7 @@
      "tail": null
     },
     {
+     "id": "spd",
      "name": "SPD — ПЗІП (захист від імпульсних перенапруг)",
      "international": "SPD",
      "ukrainian": "ПЗІП (захист від імпульсних перенапруг)",
@@ -1564,6 +1586,7 @@
      "tail": null
     },
     {
+     "id": "earthing",
      "name": "Earthing — заземлення рами",
      "international": "Earthing",
      "ukrainian": "заземлення рами",
@@ -1726,6 +1749,7 @@
    },
    "hotspots": [
     {
+     "id": "climber",
      "name": "Climber — альпініст",
      "international": "Climber",
      "ukrainian": "альпініст",
@@ -1734,6 +1758,7 @@
      "tail": null
     },
     {
+     "id": "two-mppt-inputs",
      "name": "Two MPPT inputs — два входи MPPT",
      "international": "Two MPPT inputs",
      "ukrainian": "два входи MPPT",
@@ -1906,6 +1931,7 @@
    },
    "hotspots": [
     {
+     "id": "microcracks",
      "name": "Microcracks — мікротріщини",
      "international": "Microcracks",
      "ukrainian": "мікротріщини",
@@ -1914,6 +1940,7 @@
      "tail": null
     },
     {
+     "id": "glass",
      "name": "Glass — скло",
      "international": "Glass",
      "ukrainian": "скло",

@@ -91,6 +91,7 @@
    },
    "hotspots": [
     {
+     "id": "spray-ponds",
      "name": "Spray ponds — бризкальні басейни",
      "international": "Spray ponds",
      "ukrainian": "бризкальні басейни",
@@ -99,6 +100,7 @@
      "tail": null
     },
     {
+     "id": "diesel-generators",
      "name": "Diesel generators — дизель-генератори",
      "international": "Diesel generators",
      "ukrainian": "дизель-генератори",
@@ -107,6 +109,7 @@
      "tail": null
     },
     {
+     "id": "dry-storage",
      "name": "Dry storage — сухе сховище",
      "international": "Dry storage",
      "ukrainian": "сухе сховище",
@@ -221,6 +224,7 @@
    },
    "hotspots": [
     {
+     "id": "u-238",
      "name": "U-238",
      "international": "U-238",
      "ukrainian": null,
@@ -229,6 +233,7 @@
      "tail": null
     },
     {
+     "id": "antineutrino",
      "name": "Antineutrino — антинейтрино",
      "international": "Antineutrino",
      "ukrainian": "антинейтрино",
@@ -392,6 +397,7 @@
    },
    "hotspots": [
     {
+     "id": "neutron-generation-time",
      "name": "Neutron generation time — час життя покоління нейтронів",
      "international": "Neutron generation time",
      "ukrainian": "час життя покоління нейтронів",
@@ -552,6 +558,7 @@
    },
    "hotspots": [
     {
+     "id": "b-c",
      "name": "B₄C — карбід бору",
      "international": "B₄C",
      "ukrainian": "карбід бору",
@@ -560,6 +567,7 @@
      "tail": null
     },
     {
+     "id": "negative-feedback",
      "name": "Negative feedback — від’ємний зворотний зв’язок",
      "international": "Negative feedback",
      "ukrainian": "від’ємний зворотний зв’язок",
@@ -702,6 +710,7 @@
    },
    "hotspots": [
     {
+     "id": "spacer-grid",
      "name": "Spacer grid — дистанціювальна решітка",
      "international": "Spacer grid",
      "ukrainian": "дистанціювальна решітка",
@@ -710,6 +719,7 @@
      "tail": null
     },
     {
+     "id": "plenum",
      "name": "Plenum — газова порожнина",
      "international": "Plenum",
      "ukrainian": "газова порожнина",
@@ -718,6 +728,7 @@
      "tail": null
     },
     {
+     "id": "guide-tubes",
      "name": "Guide tubes — напрямні канали",
      "international": "Guide tubes",
      "ukrainian": "напрямні канали",
@@ -839,6 +850,7 @@
    },
    "hotspots": [
     {
+     "id": "surveillance-specimens",
      "name": "Surveillance specimens — зразки-свідки",
      "international": "Surveillance specimens",
      "ukrainian": "зразки-свідки",
@@ -847,6 +859,7 @@
      "tail": null
     },
     {
+     "id": "in-core-instrumentation",
      "name": "In-core instrumentation — внутрішньореакторний контроль",
      "international": "In-core instrumentation",
      "ukrainian": "внутрішньореакторний контроль",
@@ -994,6 +1007,7 @@
    },
    "hotspots": [
     {
+     "id": "horizontal-steam-generator",
      "name": "Horizontal steam generator — горизонтальний парогенератор",
      "international": "Horizontal steam generator",
      "ukrainian": "горизонтальний парогенератор",
@@ -1002,6 +1016,7 @@
      "tail": null
     },
     {
+     "id": "loop-isolation-valves",
      "name": "Loop isolation valves — головні запірні засувки",
      "international": "Loop isolation valves",
      "ukrainian": "головні запірні засувки",
@@ -1138,6 +1153,7 @@
    },
    "hotspots": [
     {
+     "id": "shift-supervisor",
      "name": "Shift supervisor — начальник зміни",
      "international": "Shift supervisor",
      "ukrainian": "начальник зміни",
@@ -1285,6 +1301,7 @@
    },
    "hotspots": [
     {
+     "id": "hydro-accumulator",
      "name": "Hydro-accumulator — гідроємність",
      "international": "Hydro-accumulator",
      "ukrainian": "гідроємність",
@@ -1293,6 +1310,7 @@
      "tail": null
     },
     {
+     "id": "hydrogen-recombiners",
      "name": "Hydrogen recombiners — рекомбінатори водню",
      "international": "Hydrogen recombiners",
      "ukrainian": "рекомбінатори водню",
@@ -1301,6 +1319,7 @@
      "tail": null
     },
     {
+     "id": "new-safe-confinement",
      "name": "New Safe Confinement — Новий безпечний конфайнмент",
      "international": "New Safe Confinement",
      "ukrainian": "Новий безпечний конфайнмент",
@@ -1424,6 +1443,7 @@
    },
    "hotspots": [
     {
+     "id": "positive-void-coefficient",
      "name": "Positive void coefficient — додатний паровий коефіцієнт",
      "international": "Positive void coefficient",
      "ukrainian": "додатний паровий коефіцієнт",
@@ -1569,6 +1589,7 @@
    },
    "hotspots": [
     {
+     "id": "centrifuge",
      "name": "Centrifuge — газова центрифуга",
      "international": "Centrifuge",
      "ukrainian": "газова центрифуга",
@@ -1577,6 +1598,7 @@
      "tail": null
     },
     {
+     "id": "onkalo",
      "name": "Onkalo — Онкало",
      "international": "Onkalo",
      "ukrainian": "Онкало",
@@ -1659,6 +1681,7 @@
    },
    "hotspots": [
     {
+     "id": "znpp-status",
      "name": "ZNPP status — стан ЗАЕС",
      "international": "ZNPP status",
      "ukrainian": "стан ЗАЕС",

@@ -90,6 +90,7 @@
    },
    "hotspots": [
     {
+     "id": "stack",
      "name": "Stack — димова труба",
      "international": "Stack",
      "ukrainian": "димова труба",
@@ -98,6 +99,7 @@
      "tail": null
     },
     {
+     "id": "cooling-tower",
      "name": "Cooling tower — градирня",
      "international": "Cooling tower",
      "ukrainian": "градирня",
@@ -106,6 +108,7 @@
      "tail": null
     },
     {
+     "id": "boiler-house",
      "name": "Boiler house — котельня",
      "international": "Boiler house",
      "ukrainian": "котельня",
@@ -114,6 +117,7 @@
      "tail": null
     },
     {
+     "id": "turbine-hall",
      "name": "Turbine hall — машинний зал",
      "international": "Turbine hall",
      "ukrainian": "машинний зал",
@@ -122,6 +126,7 @@
      "tail": null
     },
     {
+     "id": "switchyard",
      "name": "Switchyard — ВРП",
      "international": "Switchyard",
      "ukrainian": "ВРП",
@@ -211,6 +216,7 @@
    },
    "hotspots": [
     {
+     "id": "coal-seam",
      "name": "Coal seam — вугільний пласт",
      "international": "Coal seam",
      "ukrainian": "вугільний пласт",
@@ -309,6 +315,7 @@
    },
    "hotspots": [
     {
+     "id": "car-dumper",
      "name": "Car dumper — вагоноперекидач",
      "international": "Car dumper",
      "ukrainian": "вагоноперекидач",
@@ -317,6 +324,7 @@
      "tail": null
     },
     {
+     "id": "stacker-reclaimer",
      "name": "Stacker-reclaimer — штабелер-перевантажувач",
      "international": "Stacker-reclaimer",
      "ukrainian": "штабелер-перевантажувач",
@@ -325,6 +333,7 @@
      "tail": null
     },
     {
+     "id": "classifier",
      "name": "Classifier — сепаратор млина",
      "international": "Classifier",
      "ukrainian": "сепаратор млина",
@@ -482,6 +491,7 @@
    },
    "hotspots": [
     {
+     "id": "burner",
      "name": "Burner — пальник",
      "international": "Burner",
      "ukrainian": "пальник",
@@ -490,6 +500,7 @@
      "tail": null
     },
     {
+     "id": "soot-blowers",
      "name": "Soot blowers — обдувальні апарати",
      "international": "Soot blowers",
      "ukrainian": "обдувальні апарати",
@@ -498,6 +509,7 @@
      "tail": null
     },
     {
+     "id": "bottom-ash-hopper",
      "name": "Bottom ash hopper — шлакова воронка",
      "international": "Bottom ash hopper",
      "ukrainian": "шлакова воронка",
@@ -651,6 +663,7 @@
    },
    "hotspots": [
     {
+     "id": "critical-point",
      "name": "Critical point — критична точка",
      "international": "Critical point",
      "ukrainian": "критична точка",
@@ -659,6 +672,7 @@
      "tail": null
     },
     {
+     "id": "alloy",
      "name": "Alloy — жароміцна сталь",
      "international": "Alloy",
      "ukrainian": "жароміцна сталь",
@@ -774,6 +788,7 @@
    },
    "hotspots": [
     {
+     "id": "turning-gear",
      "name": "Turning gear — валоповоротний пристрій",
      "international": "Turning gear",
      "ukrainian": "валоповоротний пристрій",
@@ -782,6 +797,7 @@
      "tail": null
     },
     {
+     "id": "stop-and-control-valves",
      "name": "Stop and control valves — стопорні й регулювальні клапани",
      "international": "Stop and control valves",
      "ukrainian": "стопорні й регулювальні клапани",
@@ -790,6 +806,7 @@
      "tail": null
     },
     {
+     "id": "hydrogen-cooling",
      "name": "Hydrogen cooling — водневе охолодження генератора",
      "international": "Hydrogen cooling",
      "ukrainian": "водневе охолодження генератора",
@@ -905,6 +922,7 @@
    },
    "hotspots": [
     {
+     "id": "vacuum-pump-ejector",
      "name": "Vacuum pump / ejector — вакуумний насос / ежектор",
      "international": "Vacuum pump / ejector",
      "ukrainian": "вакуумний насос / ежектор",
@@ -913,6 +931,7 @@
      "tail": null
     },
     {
+     "id": "water-treatment",
      "name": "Water treatment — хімводоочищення",
      "international": "Water treatment",
      "ukrainian": "хімводоочищення",
@@ -1035,6 +1054,7 @@
    },
    "hotspots": [
     {
+     "id": "rapping",
      "name": "Rapping — струшування",
      "international": "Rapping",
      "ukrainian": "струшування",
@@ -1043,6 +1063,7 @@
      "tail": null
     },
     {
+     "id": "stack",
      "name": "Stack — димова труба",
      "international": "Stack",
      "ukrainian": "димова труба",
@@ -1051,6 +1072,7 @@
      "tail": null
     },
     {
+     "id": "gypsum",
      "name": "Gypsum — гіпс",
      "international": "Gypsum",
      "ukrainian": "гіпс",
@@ -1171,6 +1193,7 @@
    },
    "hotspots": [
     {
+     "id": "ash-pond",
      "name": "Ash pond — золовідвал",
      "international": "Ash pond",
      "ukrainian": "золовідвал",
@@ -1179,6 +1202,7 @@
      "tail": null
     },
     {
+     "id": "storage-formation",
      "name": "Storage formation — пласт-сховище",
      "international": "Storage formation",
      "ukrainian": "пласт-сховище",
@@ -1297,6 +1321,7 @@
    },
    "hotspots": [
     {
+     "id": "heat-exchanger",
      "name": "Heat exchanger — мережний підігрівник",
      "international": "Heat exchanger",
      "ukrainian": "мережний підігрівник",
@@ -1305,6 +1330,7 @@
      "tail": null
     },
     {
+     "id": "heat-accumulator",
      "name": "Heat accumulator — бак-акумулятор тепла",
      "international": "Heat accumulator",
      "ukrainian": "бак-акумулятор тепла",
@@ -1378,6 +1404,7 @@
    },
    "hotspots": [
     {
+     "id": "map-marker",
      "name": "Map marker — точка на карті",
      "international": "Map marker",
      "ukrainian": "точка на карті",

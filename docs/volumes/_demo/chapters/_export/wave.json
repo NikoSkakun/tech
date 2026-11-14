@@ -67,6 +67,7 @@
    },
    "hotspots": [
     {
+     "id": "bead",
      "name": "Bead — кулька",
      "international": "Bead",
      "ukrainian": "кулька",

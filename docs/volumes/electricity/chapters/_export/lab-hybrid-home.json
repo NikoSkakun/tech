@@ -117,6 +117,7 @@
    },
    "hotspots": [
     {
+     "id": "hybrid-inverter",
      "name": "Hybrid inverter — гібридний інвертор",
      "international": "Hybrid inverter",
      "ukrainian": "гібридний інвертор",
@@ -125,6 +126,7 @@
      "tail": null
     },
     {
+     "id": "battery-cabinet",
      "name": "Battery cabinet — шафа батареї",
      "international": "Battery cabinet",
      "ukrainian": "шафа батареї",
@@ -133,6 +135,7 @@
      "tail": null
     },
     {
+     "id": "neighbours",
      "name": "Neighbours — сусіди",
      "international": "Neighbours",
      "ukrainian": "сусіди",
@@ -269,6 +272,7 @@
    },
    "hotspots": [
     {
+     "id": "ct-clamp",
      "name": "CT clamp — CT-кліщі",
      "international": "CT clamp",
      "ukrainian": "CT-кліщі",
@@ -277,6 +281,7 @@
      "tail": null
     },
     {
+     "id": "main-panel",
      "name": "Main panel — головний щит",
      "international": "Main panel",
      "ukrainian": "головний щит",
@@ -399,6 +404,7 @@
    },
    "hotspots": [
     {
+     "id": "export-arrow",
      "name": "Export arrow — стрілка експорту",
      "international": "Export arrow",
      "ukrainian": "стрілка експорту",
@@ -407,6 +413,7 @@
      "tail": null
     },
     {
+     "id": "water-heater",
      "name": "Water heater — бойлер",
      "international": "Water heater",
      "ukrainian": "бойлер",
@@ -529,6 +536,7 @@
    },
    "hotspots": [
     {
+     "id": "reserve-mark",
      "name": "Reserve mark — риска резерву",
      "international": "Reserve mark",
      "ukrainian": "риска резерву",
@@ -537,6 +545,7 @@
      "tail": null
     },
     {
+     "id": "two-zone-meter",
      "name": "Two-zone meter — двозонний лічильник",
      "international": "Two-zone meter",
      "ukrainian": "двозонний лічильник",
@@ -688,6 +697,7 @@
    },
    "hotspots": [
     {
+     "id": "grid-relay",
      "name": "Grid relay — реле мережі",
      "international": "Grid relay",
      "ukrainian": "реле мережі",
@@ -696,6 +706,7 @@
      "tail": null
     },
     {
+     "id": "n-pe-relay",
      "name": "N-PE relay — реле N-PE",
      "international": "N-PE relay",
      "ukrainian": "реле N-PE",
@@ -704,6 +715,7 @@
      "tail": null
     },
     {
+     "id": "neighbours",
      "name": "Neighbours — сусіди",
      "international": "Neighbours",
      "ukrainian": "сусіди",
@@ -817,6 +829,7 @@
    },
    "hotspots": [
     {
+     "id": "observation-timer",
      "name": "Observation timer — таймер спостереження",
      "international": "Observation timer",
      "ukrainian": "таймер спостереження",
@@ -964,6 +977,7 @@
    },
    "hotspots": [
     {
+     "id": "interlock",
      "name": "Interlock — блокування",
      "international": "Interlock",
      "ukrainian": "блокування",
@@ -972,6 +986,7 @@
      "tail": null
     },
     {
+     "id": "backfeed",
      "name": "Backfeed — зворотне живлення",
      "international": "Backfeed",
      "ukrainian": "зворотне живлення",
@@ -980,6 +995,7 @@
      "tail": null
     },
     {
+     "id": "co",
      "name": "CO — чадний газ",
      "international": "CO",
      "ukrainian": "чадний газ",
@@ -988,6 +1004,7 @@
      "tail": null
     },
     {
+     "id": "inverter-generator",
      "name": "Inverter generator — інверторний генератор",
      "international": "Inverter generator",
      "ukrainian": "інверторний генератор",
@@ -1201,6 +1218,7 @@
    },
    "hotspots": [
     {
+     "id": "dark-bar",
      "name": "Dark bar — темна смуга",
      "international": "Dark bar",
      "ukrainian": "темна смуга",
@@ -1209,6 +1227,7 @@
      "tail": null
     },
     {
+     "id": "curtailment-area",
      "name": "Curtailment area — обмеження",
      "international": "Curtailment area",
      "ukrainian": "обмеження",
@@ -1359,6 +1378,7 @@
    },
    "hotspots": [
     {
+     "id": "winter-arc",
      "name": "Winter arc — грудневе Сонце",
      "international": "Winter arc",
      "ukrainian": "грудневе Сонце",
@@ -1367,6 +1387,7 @@
      "tail": null
     },
     {
+     "id": "ageing-margin",
      "name": "Ageing margin — запас на старіння",
      "international": "Ageing margin",
      "ukrainian": "запас на старіння",
@@ -1495,6 +1516,7 @@
    },
    "hotspots": [
     {
+     "id": "battery-fuse",
      "name": "Battery fuse — запобіжник батареї",
      "international": "Battery fuse",
      "ukrainian": "запобіжник батареї",
@@ -1503,6 +1525,7 @@
      "tail": null
     },
     {
+     "id": "smoke-detector",
      "name": "Smoke detector — датчик диму",
      "international": "Smoke detector",
      "ukrainian": "датчик диму",
@@ -1511,6 +1534,7 @@
      "tail": null
     },
     {
+     "id": "pv-cables",
      "name": "PV cables — кабелі від панелей",
      "international": "PV cables",
      "ukrainian": "кабелі від панелей",
@@ -1519,6 +1543,7 @@
      "tail": null
     },
     {
+     "id": "backup-panel",
      "name": "Backup panel — щит критичних навантажень",
      "international": "Backup panel",
      "ukrainian": "щит критичних навантажень",
@@ -1527,6 +1552,7 @@
      "tail": null
     },
     {
+     "id": "battery-room",
      "name": "Battery room — місце для батареї",
      "international": "Battery room",
      "ukrainian": "місце для батареї",
@@ -1535,6 +1561,7 @@
      "tail": null
     },
     {
+     "id": "firefighter-label",
      "name": "Firefighter label — табличка для рятувальників",
      "international": "Firefighter label",
      "ukrainian": "табличка для рятувальників",
@@ -1656,6 +1683,7 @@
    },
    "hotspots": [
     {
+     "id": "power-station",
      "name": "Power station — зарядна станція",
      "international": "Power station",
      "ukrainian": "зарядна станція",
@@ -1664,6 +1692,7 @@
      "tail": null
     },
     {
+     "id": "ev",
      "name": "EV — електромобіль",
      "international": "EV",
      "ukrainian": "електромобіль",
@@ -1782,6 +1811,7 @@
    },
    "hotspots": [
     {
+     "id": "transformer-substation",
      "name": "Transformer substation — ТП",
      "international": "Transformer substation",
      "ukrainian": "ТП",

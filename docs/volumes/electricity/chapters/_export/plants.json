@@ -82,6 +82,7 @@
    },
    "hotspots": [
     {
+     "id": "grid",
      "name": "Мережа",
      "international": null,
      "ukrainian": "Мережа",
@@ -190,6 +191,7 @@
    },
    "hotspots": [
     {
+     "id": "exciter",
      "name": "Exciter — система збудження",
      "international": "Exciter",
      "ukrainian": "система збудження",
@@ -198,6 +200,7 @@
      "tail": null
     },
     {
+     "id": "shaft",
      "name": "Shaft — вал",
      "international": "Shaft",
      "ukrainian": "вал",
@@ -303,6 +306,7 @@
    },
    "hotspots": [
     {
+     "id": "waste-heat-branch",
      "name": "Waste-heat branch — гілка втрат",
      "international": "Waste-heat branch",
      "ukrainian": "гілка втрат",
@@ -311,6 +315,7 @@
      "tail": null
     },
     {
+     "id": "hydro-chain",
      "name": "Hydro chain — ланцюг ГЕС",
      "international": "Hydro chain",
      "ukrainian": "ланцюг ГЕС",
@@ -429,6 +434,7 @@
    },
    "hotspots": [
     {
+     "id": "cold-reservoir",
      "name": "Cold reservoir — холодний резервуар",
      "international": "Cold reservoir",
      "ukrainian": "холодний резервуар",
@@ -561,6 +567,7 @@
    },
    "hotspots": [
     {
+     "id": "pump",
      "name": "Pump — живильний насос",
      "international": "Pump",
      "ukrainian": "живильний насос",
@@ -569,6 +576,7 @@
      "tail": null
     },
     {
+     "id": "condenser",
      "name": "Condenser — конденсатор",
      "international": "Condenser",
      "ukrainian": "конденсатор",
@@ -675,6 +683,7 @@
    },
    "hotspots": [
     {
+     "id": "compressor",
      "name": "Compressor — компресор",
      "international": "Compressor",
      "ukrainian": "компресор",
@@ -783,6 +792,7 @@
    },
    "hotspots": [
     {
+     "id": "cooling-tower",
      "name": "Cooling tower — градирня",
      "international": "Cooling tower",
      "ukrainian": "градирня",
@@ -791,6 +801,7 @@
      "tail": null
     },
     {
+     "id": "acc",
      "name": "ACC — повітряний конденсатор",
      "international": "ACC",
      "ukrainian": "повітряний конденсатор",
@@ -948,6 +959,7 @@
    },
    "hotspots": [
     {
+     "id": "discount-rate",
      "name": "Discount rate — ставка дисконтування",
      "international": "Discount rate",
      "ukrainian": "ставка дисконтування",
@@ -1072,6 +1084,7 @@
    },
    "hotspots": [
     {
+     "id": "base-mid-peak",
      "name": "Base / mid / peak — база / напівпік / пік",
      "international": "Base / mid / peak",
      "ukrainian": "база / напівпік / пік",
@@ -1178,6 +1191,7 @@
    },
    "hotspots": [
     {
+     "id": "data-note",
      "name": "Data note — примітка до даних",
      "international": "Data note",
      "ukrainian": "примітка до даних",

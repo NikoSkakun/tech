@@ -147,6 +147,7 @@
    },
    "hotspots": [
     {
+     "id": "switchgear-10kv",
      "name": "ЗРУ-10 kV",
      "international": null,
      "ukrainian": "ЗРУ-10 kV",
@@ -155,6 +156,7 @@
      "tail": null
     },
     {
+     "id": "normal-open-point",
      "name": "Точка нормального розмикання",
      "international": null,
      "ukrainian": "Точка нормального розмикання",
@@ -163,6 +165,7 @@
      "tail": null
     },
     {
+     "id": "diagram-colours",
      "name": "Кольори схеми",
      "international": null,
      "ukrainian": "Кольори схеми",
@@ -275,6 +278,7 @@
    },
    "hotspots": [
     {
+     "id": "recloser",
      "name": "Реклоузер",
      "international": null,
      "ukrainian": "Реклоузер",
@@ -283,6 +287,7 @@
      "tail": null
     },
     {
+     "id": "cable-termination",
      "name": "Кабельна муфта",
      "international": null,
      "ukrainian": "Кабельна муфта",
@@ -291,6 +296,7 @@
      "tail": null
     },
     {
+     "id": "fault-indicator",
      "name": "Індикатор КЗ",
      "international": null,
      "ukrainian": "Індикатор КЗ",
@@ -445,6 +451,7 @@
    },
    "hotspots": [
     {
+     "id": "fuses-10kv",
      "name": "Запобіжники 10 kV",
      "international": null,
      "ukrainian": "Запобіжники 10 kV",
@@ -453,6 +460,7 @@
      "tail": null
     },
     {
+     "id": "nameplate-dyn11",
      "name": "Табличка Dyn11",
      "international": null,
      "ukrainian": "Табличка Dyn11",
@@ -461,6 +469,7 @@
      "tail": null
     },
     {
+     "id": "feeder-fuses",
      "name": "Ножові запобіжники на фідерах",
      "international": null,
      "ukrainian": "Ножові запобіжники на фідерах",
@@ -469,6 +478,7 @@
      "tail": null
     },
     {
+     "id": "substation-earthing",
      "name": "Заземлення ТП",
      "international": null,
      "ukrainian": "Заземлення ТП",
@@ -643,6 +653,7 @@
    },
    "hotspots": [
     {
+     "id": "abc-neutral-core",
      "name": "Жила N у СІП",
      "international": null,
      "ukrainian": "Жила N у СІП",
@@ -651,6 +662,7 @@
      "tail": null
     },
     {
+     "id": "farthest-house",
      "name": "Найдальший будинок",
      "international": null,
      "ukrainian": "Найдальший будинок",
@@ -659,6 +671,7 @@
      "tail": null
     },
     {
+     "id": "unloaded-phase",
      "name": "Ненавантажена фаза",
      "international": null,
      "ukrainian": "Ненавантажена фаза",
@@ -852,6 +865,7 @@
    },
    "hotspots": [
     {
+     "id": "pen-split",
      "name": "Точка розділення PEN",
      "international": null,
      "ukrainian": "Точка розділення PEN",
@@ -860,6 +874,7 @@
      "tail": null
     },
     {
+     "id": "unearthed-socket",
      "name": "Розетка без заземлювального контакту",
      "international": null,
      "ukrainian": "Розетка без заземлювального контакту",
@@ -868,6 +883,7 @@
      "tail": null
     },
     {
+     "id": "voltage-relay",
      "name": "Реле напруги",
      "international": null,
      "ukrainian": "Реле напруги",
@@ -1029,6 +1045,7 @@
    },
    "hotspots": [
     {
+     "id": "seal",
      "name": "Пломба",
      "international": null,
      "ukrainian": "Пломба",
@@ -1037,6 +1054,7 @@
      "tail": null
     },
     {
+     "id": "pulse-led",
      "name": "Світлодіод імпульсів",
      "international": null,
      "ukrainian": "Світлодіод імпульсів",
@@ -1045,6 +1063,7 @@
      "tail": null
     },
     {
+     "id": "service-drop",
      "name": "СІП-відгалуження",
      "international": null,
      "ukrainian": "СІП-відгалуження",
@@ -1219,6 +1238,7 @@
    },
    "hotspots": [
     {
+     "id": "spectrum",
      "name": "Спектр",
      "international": null,
      "ukrainian": "Спектр",
@@ -1227,6 +1247,7 @@
      "tail": null
     },
     {
+     "id": "office-neutral",
      "name": "Нейтраль в офісі",
      "international": null,
      "ukrainian": "Нейтраль в офісі",
@@ -1235,6 +1256,7 @@
      "tail": null
     },
     {
+     "id": "voltage-dip",
      "name": "Провал",
      "international": null,
      "ukrainian": "Провал",
@@ -1243,6 +1265,7 @@
      "tail": null
     },
     {
+     "id": "how-we-count",
      "name": "Як рахуємо",
      "international": null,
      "ukrainian": "Як рахуємо",
@@ -1427,6 +1450,7 @@
    },
    "hotspots": [
     {
+     "id": "wall-inverter",
      "name": "Інвертор на стіні",
      "international": null,
      "ukrainian": "Інвертор на стіні",
@@ -1435,6 +1459,7 @@
      "tail": null
     },
     {
+     "id": "bidirectional-meter",
      "name": "Двонапрямний лічильник",
      "international": null,
      "ukrainian": "Двонапрямний лічильник",
@@ -1443,6 +1468,7 @@
      "tail": null
     },
     {
+     "id": "ev-charger",
      "name": "Зарядка електромобіля",
      "international": null,
      "ukrainian": "Зарядка електромобіля",
@@ -1509,6 +1535,7 @@
    },
    "hotspots": [
     {
+     "id": "home-panel",
      "name": "Домашній щиток",
      "international": null,
      "ukrainian": "Домашній щиток",
