@@ -1,1 +1,0 @@
-var e=Object.assign({});export{e as default};
