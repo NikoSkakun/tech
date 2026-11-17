@@ -1,1 +1,0 @@
-import{t as e}from"./placeholder-CiVvHNGW.js";import t from"./content-CPS480em.js";var n=e(t,{core:2,sheath:1},{holdNav:[`core`]});export{n as default};

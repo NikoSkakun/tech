@@ -1,1 +1,0 @@
-import{a as e}from"./text3d-DD8R4f1P.js";function t(e){return e.replace(/(?<=[\p{L}\p{N}])_([\p{L}\p{N}]{1,5})(?![\p{L}\p{N}_{])/gu,`_{$1}`).replace(/\^\(([^()]{1,10})\)/g,`^{$1}`).replace(/\^([−-]?\d{2,})/g,`^{$1}`)}var n=RegExp("`[^`\\n]{1,28}`",`g`);function r(r,i=!0){return i?e(t(r).replace(n,e=>e.replace(/ /g,`\xA0`)),!0):e(r,!1)}export{r as n,t};

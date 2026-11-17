@@ -1,1 +1,0 @@
-import{A as e,K as t,vt as n,yt as r}from"./three-DWXlCPAH.js";import{t as i}from"./style-D10H0tay.js";function a(){let a=new e,o=new t(new n(.5,28,20),i.toon({color:`coral`,gloss:.5})),s=new t(new r(.82,.07,10,48),i.glow({color:`cyan`,intensity:1.6,falloff:0}));return s.rotation.x=1.25,a.add(o,s),a}export{a as default};
