@@ -1,29 +1,46 @@
 /**
  * The plus strip's way UNDER the battery (owner 2026-11-19: «може пустити цю частину дроту знизу, під
- * батарейкою?»). It used to go from the contact plate in front of the «+» nub up the battery's end and back along
- * its top to the slider; lifted with the slider during the unfolding, that stretch hung over the «+» end and read as
- * cutting it. Now it goes the other way round, in the torch already: from the plate down in front of the «+» end,
- * back along the housing's bottom under the can, up its far wall to the slider. As the strips rise it lifts off the
- * wall to a clear gap round the can; while the battery travels (lifted) and the slider follows behind it, it stays
- * under the battery; once the slider has come round the «+» end to its block, the way under folds away and the strip
- * is the stand's straight piece.
+ * батарейкою?»): from the contact plate on the «+» nub down in front of the «+» end, back under the can's front
+ * end, up its far side as a band, and back along the battery's top to the slider's contact. Never over the «+»
+ * end: lifted with the slider, a strip that came over it read as cutting the can.
  *
- * All of it in the battery's own frame, at a set distance from its axis, so it goes round the can, never through it.
+ * In the unfolding the slider rides forward along the battery's top (`unfold.ts`), so the strip only gets shorter
+ * under it: the run along the top goes; the slider's contact then pushes the band forward off the can's end, and as
+ * the slider steps off in front of «+» the band opens into what is left — one soft hook hanging from the plate to
+ * the slider (`hook`), which draws straight as both come down on their terminals.
+ *
+ * On the can the way is runs along the axis and circles round it only: on those the strip's flat side, carried
+ * along, stays toward the can. All of it in the battery's own frame; a pure function of its inputs.
  */
-import { Quaternion, Vector3, type Object3D } from 'three';
+import { CubicBezierCurve3, Quaternion, Vector3, type Object3D } from 'three';
 import { G } from '@/kit';
 import { BATTERY } from './layout';
 import { resample } from './dyn-tube';
 
 const L = BATTERY.length;
-/** Distance of the way from the axis in the torch: on the housing's bottom and far wall, like the minus strip. */
-export const IN_TORCH = 0.303;
-/** … and once lifted off the wall: the can's radius + a clear gap (the strip's half width fits in it). */
-export const CLEAR = BATTERY.radius + 0.09;
-/** Least distance from the axis anywhere along the can (radius + the strip's half width and thickness) and the nub. */
-const KEEP = BATTERY.radius + 0.08;
-const NUB_KEEP = 0.105 + 0.08;
-const TAU = Math.PI * 2;
+/**
+ * Distance of the strip's middle from the axis where it lies on the can: the can's metal ring (radius + 0.007),
+ * half the strip's thickness, a hair of air.
+ */
+export const ON_CAN = BATTERY.radius + 0.0185;
+/**
+ * Where the band goes up the far side (from the battery's centre): round the can's very front end. There the
+ * housing has begun to flare, so the minus strip on its far wall passes outside the band with air between them
+ * (`torchPath`); beside the slider the two would have to lie one on the other.
+ */
+export const BAND = L / 2 - 0.065;
+/**
+ * The slider's contact pushes the band off the can: the band begins to move as the contact comes within `PUSH` of
+ * it, and has come to rest `OFF` in front of the plate once the contact has gone `PUSHED` farther (eased at both
+ * ends: it is nudged, not struck).
+ */
+const PUSH = 0.12;
+const PUSHED = 0.36;
+const OFF = 0.02;
+/** The band opens into the hook while the contact goes this far on, from a little behind the plate. */
+const OPENS = 0.45;
+/** Radius of the strip's bends on the can. */
+const BEND = 0.09;
 const DEG = Math.PI / 180;
 const clamp01 = (x: number): number => Math.min(Math.max(x, 0), 1);
 const smooth = (x: number): number => {
@@ -35,79 +52,114 @@ const smooth = (x: number): number => {
 
 export interface PlusWay {
   /**
-   * Lay the strip (`out`: its two ends already on the parts) on the way under the battery. `clear`: its distance
-   * from the battery's axis (`IN_TORCH` on the housing's wall … `CLEAR` once lifted off it); `straight` 0…1: the
-   * drop under the «+» end folds into the stand's straight piece (both parts in place). Returns the normal of the
-   * strip's flat side at its start. `into`: a point the strip passes just before its end (from under the slider).
+   * Lay the strip (`out`: its two ends already on the parts; the slider stands as the battery does). Returns the
+   * normal of the strip's flat side at its start.
    */
-  apply(out: Vector3[], battery: Object3D, clear: number, straight: number, into: Vector3): Vector3;
+  apply(out: Vector3[], battery: Object3D): Vector3;
 }
 
 export function createPlusWay(): PlusWay {
   const inv = new Quaternion();
   const A = new Vector3();
   const B = new Vector3();
-  const In = new Vector3();
   const tmp = new Vector3();
   const normal = new Vector3();
+  const pts: Vector3[] = [];
+  const hung: Vector3[] = [];
+  const curve = new CubicBezierCurve3(A, new Vector3(), new Vector3(), B);
   const toLocal = (p: Vector3, b: Object3D, o: Vector3): Vector3 =>
     o.copy(p).sub(b.position).applyQuaternion(inv);
   const at = (x: number, a: number, r: number): Vector3 => new Vector3(x, r * Math.sin(a), r * Math.cos(a));
+  /**
+   * The strip free of the can, hanging from the plate (`A`) to the slider's contact (`B`) in the upright plane
+   * through both: while the slider is still over the plate it leaves the plate downward, as it lay on the «+» end,
+   * and curls up to the contact; the farther ahead the slider is, the more it leaves the plate forward and comes to
+   * the contact level — at the end both ends are level and it is the stand's straight piece. Returns how far it has
+   * turned from down to forward, 0…1.
+   */
+  const hook = (n: number): number => {
+    const ahead = smooth((B.x - A.x - 0.08) / 0.34);
+    const reach = Math.max(0.08, 0.42 * A.distanceTo(B));
+    const a = (ahead * Math.PI) / 2;
+    curve.v1.set(A.x + Math.sin(a) * reach, A.y - Math.cos(a) * reach, A.z);
+    // (to the contact from below and a little from the front at first: the curl stays in front of the «+» end)
+    const b = (1 - ahead) * 105 * DEG;
+    curve.v2.set(B.x - Math.cos(b) * reach, B.y - Math.sin(b) * reach, B.z);
+    resample(curve.getPoints(40), n, hung);
+    return ahead;
+  };
 
   return {
-    apply(out, battery, clear, straight, into) {
+    apply(out, battery) {
       const n = out.length;
       inv.copy(battery.quaternion).invert();
       toLocal(out[0]!, battery, A);
       toLocal(out[n - 1]!, battery, B);
-      // straight runs along the axis and circles round it only: on those the strip's flat side, carried along,
-      // stays toward the can (on a slanted winding it would turn edge-on into it). Down from the plate in front of
-      // the «+» end, back under the can to the slider's x, round the far side up to the slider. The slider past
-      // the «+» end: nothing to go under any more, the run back folds away
-      toLocal(into, battery, In);
-      const fold = smooth((In.x - (L / 2 - 0.2)) / 0.5);
-      const back = Math.min(Math.max(In.x, -L / 2 + 0.3), L / 2 - 0.25);
-      const x = back + (A.x - back) * fold;
-      // round the far side at the set distance up to the slider's own angle, if it is there or near the can (in the
-      // torch: inside the housing, up its far wall onto the top); if the slider is high above (lifted), only to the
-      // far side, then straight up the far side to its height and over to it — the minus strip, sweeping over the
-      // battery's top meanwhile, passes under that, not through a climb in the middle
-      let side = Math.atan2(In.y, In.z);
-      if (side < -Math.PI / 4) side += TAU;
-      const down = (3 * Math.PI) / 2;
-      const high = Math.hypot(In.y, In.z) > clear + 0.05 && In.y > 0;
-      // (past the «+» end there is nothing to go round: the circle folds away with the run back, or it would loop in
-      // front of the nub)
-      const end = Math.min(Math.max(side, high ? Math.PI : 0), down) * (1 - fold) + down * fold;
-      const way = [A.clone(), new Vector3(A.x, -clear, 0), at(x, down, clear)];
-      const steps = Math.ceil((down - end) / (10 * DEG));
-      // (in the torch the circle ends on the slider's way in: its last part widens to that distance, in its plane)
-      const reach = high ? 0 : (Math.hypot(In.y, In.z) - clear) * (1 - fold);
-      for (let k = 1; k <= steps; k++)
-        way.push(at(x, down + ((end - down) * k) / steps, clear + reach * smooth((k / steps - 0.6) / 0.4)));
-      if (high && side < Math.PI) way.push(new Vector3(x, In.y, -clear));
-      way.push(In.clone(), B.clone());
-      const pts = resample(G.roundPath(way, 0.09, 4), n);
-      for (let i = 0; i < n; i++) {
-        const c = pts[i]!;
-        // both parts in place: the stand's straight piece
-        c.lerp(tmp.copy(A).lerp(B, i / (n - 1)), straight);
-        // whatever a frame between two ways does, the strip keeps clear of the can and of the nub
-        const keep = c.x < L / 2 + 0.01 ? Math.min(KEEP, clear - 0.01) : c.x < L / 2 + 0.11 ? NUB_KEEP : 0;
-        const r = Math.hypot(c.y, c.z);
-        if (r < keep && r > 1e-6) c.multiply(tmp.set(1, keep / r, keep / r));
-        out[i]!.copy(c).applyQuaternion(battery.quaternion).add(battery.position);
+      // on the can: down from the plate, back under the front end, the band up the far side to the slider's own
+      // height and side, back along the top into the contact (the bit seen under the slider of the closed
+      // flashlight). Past the can's end the contact pushes the band ahead of it, off the can
+      const x = BAND + (A.x + OFF - BAND) * smooth((B.x - (BAND - PUSH)) / PUSHED);
+      // (every run in a plane through the axis or square to it — straight down from the plate, straight back along
+      // the top beside the lamp strip: on a slanted run the flat side, carried along, would tilt off the can)
+      const down = 270 * DEG;
+      const end = Math.atan2(B.y, B.z);
+      const top = Math.hypot(B.y, B.z);
+      // the bend from the «+» end's face under the can, in the plane through the axis
+      const foot = at(A.x, down, ON_CAN);
+      const drop = A.distanceTo(foot);
+      const d0 = Math.min(BEND, 0.45 * Math.max(A.x - x, 0));
+      const way = [A.clone()];
+      const from = foot.clone().lerp(A, Math.min(BEND, 0.48 * drop) / Math.max(drop, 1e-6));
+      const to = at(A.x - d0, down, ON_CAN);
+      for (let k = 0; k <= 5; k++) {
+        const t = k / 5;
+        way.push(
+          new Vector3()
+            .addScaledVector(from, (1 - t) * (1 - t))
+            .addScaledVector(foot, 2 * t * (1 - t))
+            .addScaledVector(to, t * t),
+        );
       }
-      // flat side toward the «+» end at the plate (as in the torch), then carried round; once the slider is past the
-      // «+» end, toward the slider (so that, carried down the drop and over to it, the strip lies flat, not on edge);
-      // down on the stand
-      tmp.set(In.x - A.x, 0, In.z);
-      if (tmp.lengthSq() > 1e-8) normal.set(1, 0, 0).lerp(tmp.normalize(), fold);
-      else normal.set(1, 0, 0);
-      if (normal.lengthSq() < 1e-6) normal.set(1, 0, 0);
+      // the rest lies on the can: its corners are rounded on the can's unrolled surface (along the axis, round it;
+      // the distance from the axis rides along as the third number) and rolled back on — so every bend stays on
+      // the can and the flat side, carried along, stays toward it
+      const flat = (px: number, a: number, r: number): Vector3 => new Vector3(px, a * ON_CAN, r);
+      const mid = down + (end - down) * 0.6;
+      const rolled = G.roundPath(
+        [
+          flat(A.x - d0, down, ON_CAN),
+          flat(x, down, ON_CAN),
+          flat(x, mid, ON_CAN),
+          flat(x, end, top),
+          flat(B.x, end, top),
+        ],
+        BEND,
+        5,
+      );
+      for (let i = 1; i < rolled.length; i++) {
+        const p = rolled[i - 1]!;
+        const q = rolled[i]!;
+        const pieces = Math.max(1, Math.ceil(Math.hypot(q.x - p.x, q.y - p.y) / 0.03));
+        for (let k = 1; k <= pieces; k++) {
+          tmp.copy(p).lerp(q, k / pieces);
+          way.push(at(tmp.x, tmp.y / ON_CAN, tmp.z));
+        }
+      }
+      resample(way, n, pts);
+      // the slider stepping off in front of «+»: the band, off the can by now, opens into the hook
+      const open = smooth((B.x - (A.x - 0.06)) / OPENS);
+      const ahead = open > 0 ? hook(n) : 0;
+      for (let i = 0; i < n; i++)
+        out[i]!
+          .copy(pts[i]!)
+          .lerp(hung[i] ?? pts[i]!, open)
+          .applyQuaternion(battery.quaternion)
+          .add(battery.position);
+      // flat side toward the «+» end at the plate (as in the torch), carried round the can; the hook's flat side
+      // turns up as it leaves the plate forward (it hangs like a ribbon, its face to the reader above)
       return normal
-        .normalize()
-        .lerp(tmp.set(0, -1, 0), straight)
+        .set(1, 0, 0)
+        .lerp(tmp.set(0, 1, 0), open * ahead)
         .normalize()
         .applyQuaternion(battery.quaternion);
     },

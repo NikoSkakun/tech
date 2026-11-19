@@ -6,15 +6,17 @@
  *   2  0.8–2.1   the housing leaves the picture: the far half (mirror and glass nested in it) rises over the back
  *                and out of the top, the near half runs off low to the left; out of the frame they are gone
  *   3  1.45–2.45 the mounts grow out of the board in a wave from left to right (every 55 ms)
- *   4  1.55–4.1  each part visibly travelling and settling: the lamp slides out of the head along the axis, rises
- *                a little and screws one turn into the socket; the slider is lifted off the torch's top, goes straight
- *                back and down behind the battery; the strips leave the torch LOW (`STRIPS`): the minus strip drops
- *                onto the board (`unfold-minus.ts`), the plus strip goes round under the battery (`unfold-plus.ts`)
- *                (owner 2026-11-19); battery → cradle, spring → minus clamp, over the minus strip; the slider comes
- *                low under the travelling battery and round the «+» end to its block. The strips follow without
- *                letting go and never pass over the parts or through one
- *   5  3.8–5.0   the strips round into wires, the sheath grows from the clamps, the wires settle on the staples'
- *                pedestals; then (4.85–5.6) each staple's arch closes round its wire, one after another (`ARCH`)
+ *   4  1.9–4.45  THE LOOP OPENS, one move (`OPEN`): in the torch the parts and strips are the stand's loop squashed
+ *                flat — spring, battery, slider and lamp in a row, the minus strip behind them on the far wall. The
+ *                row comes toward the reader into the cradle and the clamps; the minus strip unrolls behind it to
+ *                the left and far sides (`unfurl.ts`); the lamp goes out of the head and round to the far right
+ *                corner, turning upright, and screws one turn into the socket; the lamp strip unrolls between slider
+ *                and lamp; the slider rides forward along the battery's top and steps down in front of «+» onto its
+ *                block, the plus strip (under the battery's front end, `unfold-plus.ts`) getting shorter under it
+ *                and hanging in one soft hook at the end. Nothing crosses anything, no strip goes over a part
+ *                (owner 2026-11-19). The strips round into wires while they are drawn out (`ROUND`)
+ *   5  4.3–5.6   the sheath grows from the clamps along the laid wires; then (4.85–5.6) each staple's arch closes
+ *                round its wire, one after another (`ARCH`)
  *   6  5.0–6.0   rest (camera, magnifier — `beat6` 0…1 is exported for them)
  *
  * No contact ever opens: every strip end is computed from the part it touches, so the lamp never has a reason
@@ -30,8 +32,8 @@ import { TORCH, torchPath, type Torch, type TorchDims } from './torch';
 import { BULB, type BulbDims } from './bulb';
 import { WIRE_IDS, standPath, type WireId } from './wires';
 import { resample } from './dyn-tube';
-import { CLEAR, IN_TORCH, createPlusWay } from './unfold-plus';
-import { createMinusWay, ropeBetween } from './unfold-minus';
+import { createPlusWay } from './unfold-plus';
+import { createUnfurl, fitEndFlat, liftEnd } from './unfurl';
 
 export const UNFOLD_SECONDS = 6;
 /**
@@ -50,6 +52,8 @@ const clamp01 = (x: number): number => Math.min(Math.max(x, 0), 1);
 const ramp = (t: number, a: number, b: number): number => clamp01((t - a) / (b - a));
 const smooth = (x: number): number => x * x * (3 - 2 * x);
 const inOut = (x: number): number => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
+/** Smoothstep with zero acceleration at both ends: the long moves start and stop without a visible moment. */
+const calm = (x: number): number => x * x * x * (x * (6 * x - 15) + 10);
 const backOut = (x: number): number => 1 + 2.4 * (x - 1) ** 3 + 1.4 * (x - 1) ** 2;
 const hump = (x: number): number => Math.sin(Math.PI * clamp01(x));
 
@@ -57,46 +61,54 @@ const hump = (x: number): number => Math.sin(Math.PI * clamp01(x));
 const YAW = -0.52;
 const HOVER_LIFT = 0.3;
 /**
- * The strips leave the torch LOW, never over the parts (owner 2026-11-19: «дріт … перетинає частини»; «тей дріт,
- * котрий згори … щоб його низом пустити»): as the housing has gone (`leave`, s) the minus strip drops off the torch
- * onto the board (`unfold-minus.ts`) and the plus strip lifts off the housing's wall to go round under the battery
- * (`unfold-plus.ts`); then each moves from its way in the torch to its way on the stand (`across`) while the parts
- * travel over them. The lamp strip goes straight from the slider to the lamp, wherever those are.
+ * THE LOOP OPENS (owner 2026-11-19: «щоб він зробив анімацію провода гарно»). In the torch the circuit is the
+ * stand's loop squashed flat: spring, battery, slider and lamp in a row, the minus strip behind them. Once the
+ * housing has gone it opens in one move (`open`, s): the row comes toward the reader, the minus strip unrolls
+ * behind it to the left and far sides (`unfurl.ts`) carrying the lamp on its end to the far right corner, the lamp
+ * strip unrolls between slider and lamp, the slider slides forward along the battery and steps down in front of
+ * «+». Nothing crosses anything, no strip goes over a part.
  */
-const STRIPS = { leave: [1.75, 2.05], across: [2.45, 4.7] } as const;
-/** The slider is lifted this much off the torch's top as the strips leave, and goes on from up there. */
-const SLIDER_LIFT = 0.45;
-/** The minus strip's low way hands over to the stand's path once that is all it is (s): `across` has ended. */
-const MINUS_HANDOVER = [4.7, 4.85] as const;
-/** How far the feet of its drops stand off the spring (back off the coil) and off the lamp's axis (beyond the thread). */
-const MINUS_OFF = [0.06, 0.18] as const;
+const OPEN = [1.9, 4.4] as const;
+/** When the battery travels to its place (s). */
+const BATTERY_MOVE = [2.0, 4.4] as const;
 /** Height of the battery's arc on its way to the cradle. */
 const BATTERY_ARC = 0.2;
+/** The lamp turns upright and rises over the socket (s), then sinks one turn into it (`LAMP_SCREW`). */
+const LAMP_MOVE = [1.9, 3.9] as const;
+const LAMP_SCREW = [3.85, 4.45] as const;
+/** Height of the lamp's arc on its way, and how far over the socket's floor it stands before the turn down. */
+const LAMP_ARC = 0.22;
+const LAMP_OVER = 0.28;
 /**
- * Height of the lamp's arc on its way to the socket (was 0.75): low, so the minus strip, which comes up to it from the
- * board, rises no higher than it must.
+ * The lamp's way over the board: out of the head along the torch's axis (this far ahead is the curve's first
+ * handle), then round to the far right corner, coming to the socket from the reader's side (the second handle,
+ * from the socket) — the side the lamp strip follows it on; the minus wire comes to it from the left.
  */
-const LAMP_ARC = 0.4;
-/** How far the lamp first slides out of the head along the torch's axis. */
-const LAMP_OUT = 0.45;
+const LAMP_WAY = [1.4, new Vector3(-0.2, 0, 1.05)] as const;
 /** How far out of the socket's rim the lamp's strip ends wait while the lamp sinks into it. */
 const RIM_WAIT = 0.1;
+/** The last share of the minus wire that sweeps up to the lamp while that is above the wire's level. */
+const MINUS_SWEEP = 0.3;
+/** … and of the lamp strip (it is short, and the lamp is all it goes to). */
+const LAMP_SWEEP = 0.62;
+/**
+ * The slider's way (s), in the battery's own frame: forward along its top, over the «+» end and down in front of
+ * it to where its block stands — it rides on the battery like a bead until it steps off. Handles of the curve:
+ * forward and a little up from the top; from above the block.
+ */
+const SLIDER_MOVE = [2.3, 4.2] as const;
+const SLIDER_WAY = [new Vector3(1.03, 0.055, 0), new Vector3(0, 0.69, 0)] as const;
+/** The strips round into wires as they are drawn out (s), before the long sweep across the board. */
+const ROUND = [2.6, 3.9] as const;
+/** … the short plus strip sooner: it is a wire by the time it comes out from under the battery. */
+const ROUND_PLUS = [3.3, 4.0] as const;
+/** The sheath grows from the clamps once the wires lie (s). */
+const COVER = [4.3, 5.0] as const;
 /**
  * The staples' arches (`staple-arch.ts`): the first begins as the wires have lain on them,
  * each sweeps round the wire in `each` s, the next `step` s later.
  */
 const ARCH = { at: 4.85, step: 0.1, each: 0.35 };
-/** When the battery travels to its place (s). */
-const BATTERY_MOVE = [2.75, 4.1] as const;
-/** When the slider goes back off the torch and when it comes round to its block (s). */
-const SLIDER_MOVE = [
-  [2.0, 2.45],
-  [2.95, 3.7],
-] as const;
-/** The slider's way (board frame): this far behind the torch, down to this height; the handles of its way in. */
-const SLIDER_BACK = 1.5;
-const SLIDER_LOW = 0.36;
-const SLIDER_ROUND = [new Vector3(0.6, 0, 0.3), new Vector3(-0.2, 0.05, -0.9)] as const;
 /** Points per strip while it moves (the finished stand uses the exact paths). */
 const SAMPLES: Record<WireId, number> = { m: 164, p1: 90, p2: 90 };
 
@@ -251,85 +263,13 @@ export function createUnfold(stand: Stand, torch: Torch, T: TorchDims = TORCH, B
     torch.near.visible = kNear < 1;
   };
 
-  /* ------------------------------------------- beats 3–4: mounts grow, the parts take their places */
+  /* ------------------------------------------------ the strip ends: each on the part it touches */
   const bulbP = new Vector3();
   const bulbQ = new Quaternion();
   const sliderP = new Vector3();
   const sliderQ = new Quaternion();
-  const e = { batt: 0, back: 0, slider: 0, bulb: 0, screw: 0 };
-  const bezier = (): CubicBezierCurve3 =>
-    new CubicBezierCurve3(new Vector3(), new Vector3(), new Vector3(), new Vector3());
-  const sliderWay = [bezier(), bezier()] as const;
-  // in the order the loop runs: up the left side, along the far side, down the right
-  const arches = STAPLES.map((_, i) => stapleArch(stand.mounts[`staple${i}`]!));
-  const parts = (t: number, open: number): void => {
-    stand.mountOrder.forEach((name, i) => {
-      const g = backOut(ramp(t, 1.45 + i * 0.055, 1.83 + i * 0.055));
-      const m = stand.mounts[name]!;
-      m.visible = g > 1e-3;
-      m.scale.setScalar(Math.max(g, 1e-3));
-    });
-    // the staples' arches close round the wire once it lies in them, one after another along the loop
-    arches.forEach((arch, i) =>
-      arch.set(smooth(ramp(t, ARCH.at + i * ARCH.step, ARCH.at + i * ARCH.step + ARCH.each))),
-    );
-    e.batt = smooth(ramp(t, ...BATTERY_MOVE));
-    place(stand.battery.group, torchPose(local.battT), pose(PLACE.battery), e.batt, BATTERY_ARC);
-    place(stand.spring.group, torchPose(local.springT), pose(PLACE.spring), e.batt, BATTERY_ARC);
-    const len = T.springLength + (PLACE.springLength - T.springLength) * e.batt;
-    stand.spring.group.scale.set(len / stand.spring.length, 1, 1);
-
-    // the slider leaves first, straight BACK off the torch and down behind the battery (away from the reader, before
-    // the minus strip sweeps over the battery), and later comes low under the travelling battery and round the «+»
-    // end to its block — so the plus strip, hanging from the «+» contact under the battery, never goes over the
-    // battery's end (`plusStrip`), and nothing passes between the slider and the reader
-    const s0 = torchPose(local.sliderT);
-    const behind = sliderWay[0].v3
-      .copy(s0.p)
-      .addScaledVector(tmp.copy(Z).applyQuaternion(carrierQ), -SLIDER_BACK)
-      .setY(SLIDER_LOW);
-    // it is first lifted off the torch's top, and leaves from up there
-    sliderWay[0].v0.copy(s0.p).addScaledVector(Y, SLIDER_LIFT * smooth(ramp(t, ...STRIPS.leave)));
-    sliderWay[0].v1
-      .copy(sliderWay[0].v0)
-      .lerp(behind, 0.6)
-      .setY(sliderWay[0].v0.y + 0.1);
-    sliderWay[0].v2.copy(behind).setY(SLIDER_LOW + 0.3);
-    sliderWay[1].v0.copy(behind);
-    sliderWay[1].v1.copy(behind).add(SLIDER_ROUND[0]);
-    sliderWay[1].v2.copy(PLACE.slider).add(SLIDER_ROUND[1]);
-    sliderWay[1].v3.copy(PLACE.slider);
-    e.back = smooth(ramp(t, ...SLIDER_MOVE[0]));
-    e.slider = smooth(ramp(t, ...SLIDER_MOVE[1]));
-    if (e.slider > 0) sliderWay[1].getPoint(e.slider, stand.slider.position);
-    else sliderWay[0].getPoint(e.back, stand.slider.position);
-    stand.slider.quaternion.copy(s0.q).slerp(tmpQ.identity(), e.slider);
-    sliderP.copy(stand.slider.position);
-    sliderQ.copy(stand.slider.quaternion);
-    // open = back along the slider's own −x: toward the flashlight's tail in the torch, to the left on the
-    // stand — the same local direction all the way, so the hand-over never makes it jump
-    stand.slider.position.addScaledVector(
-      tmp.copy(X).applyQuaternion(sliderQ),
-      -clamp01(open) * SLIDER_TRAVEL,
-    );
-
-    // the lamp: out of the mirror's place and up above the socket, turning upright; then one turn down into it
-    const travel = smooth(ramp(t, 1.85, 3.15));
-    const screw = smooth(ramp(t, 3.1, 3.7));
-    e.screw = screw;
-    e.bulb = clamp01(0.75 * travel + 0.25 * screw);
-    const from = torchPose(local.bulbT, bulbUp);
-    bulbP.copy(from.p).lerp(tmp.copy(PLACE.bulb).addScaledVector(Y, 0.44), travel);
-    bulbP.addScaledVector(Y, LAMP_ARC * hump(travel) - 0.44 * screw);
-    // first straight out of the head along the torch's axis, away from the «+» end: the strip to its bottom contact
-    // then never hangs at the battery's end
-    bulbP.addScaledVector(state.axis, LAMP_OUT * smooth(ramp(t, 1.55, 2.0)) * (1 - travel));
-    bulbQ.copy(from.q).slerp(tmpQ.identity(), travel);
-    stand.bulb.group.position.copy(bulbP);
-    stand.bulb.group.quaternion.copy(bulbQ).multiply(tmpQ.setFromAxisAngle(Y, Math.PI * 2 * screw));
-  };
-
-  /* ------------------------------------------- beats 4–5: the strips follow, then become the wires */
+  /** Progress of each part's move, and of the contacts that slide from a part onto its terminal at the end. */
+  const e = { batt: 0, slider: 0, bulb: 0, screw: 0, open: 0, clampK: 0, blockK: 0 };
   const first = (id: WireId): Vector3 => paths[id].torch[0]!;
   const last = (id: WireId): Vector3 => paths[id].torch[paths[id].torch.length - 1]!;
   const unBulb = bulbUp.clone().invert();
@@ -348,6 +288,8 @@ export function createUnfold(stand: Stand, torch: Torch, T: TorchDims = TORCH, B
       term(LAMP.x, LAMP.z + LAMP.term - INSET).sub(PLACE.bulb),
     ],
   } as const;
+  const wrap = (x: number): number => x - Math.PI * 2 * Math.round(x / (Math.PI * 2));
+  /** Where the end `key` is when its part stands at `p`, `q` and the end has gone `k` of its way to the terminal. */
   const end = (key: keyof typeof ends, p: Vector3, q: Quaternion, k: number, out: Vector3): Vector3 => {
     out.copy(ends[key][0]).lerp(ends[key][1], k);
     // the lamp's two ends leave its base sideways first and only then go down to the post's terminals: the lamp
@@ -356,13 +298,9 @@ export function createUnfold(stand: Stand, torch: Torch, T: TorchDims = TORCH, B
       const kh = smooth(clamp01(k / 0.4));
       const [from, to] = ends[key];
       if (key === 'mb') {
-        // the minus strip's end goes round the lamp's base the long way (front, far side, back): the lamp strip's end
-        // comes out the short way to the side the minus one starts from, and both hang down from the lamp — on the
-        // same side they would cross
+        // round the lamp's base, the short way (by its far side: the lamp strip's end comes out on the near one)
         const a0 = Math.atan2(from.z, from.x);
-        const a1 = Math.atan2(to.z, to.x);
-        const turn = a1 - a0 - Math.sign(a1 - a0) * Math.PI * 2;
-        const a = a0 + turn * kh;
+        const a = a0 + wrap(Math.atan2(to.z, to.x) - a0) * kh;
         const r = Math.hypot(from.x, from.z) + (Math.hypot(to.x, to.z) - Math.hypot(from.x, from.z)) * kh;
         out.x = r * Math.cos(a);
         out.z = r * Math.sin(a);
@@ -379,102 +317,121 @@ export function createUnfold(stand: Stand, torch: Torch, T: TorchDims = TORCH, B
     }
     return out.applyQuaternion(q).add(p);
   };
-  // which way the flat side of each strip faces in the torch (carrier axes): against the wall it runs along; the
-  // minus strip leaves the spring facing it and keeps that side, transported along the whole strip (no twist)
-  const flat: Record<WireId, Vector3> = { m: X, p1: X, p2: Y };
+  /** How each long strip unrolls from the torch onto the stand (`unfurl.ts`). */
+  const unfurl = {
+    m: createUnfurl(paths.m.torch, paths.m.stand, qH, resample(torchPath('m', T, B, true), SAMPLES.m)),
+    p2: createUnfurl(paths.p2.torch, paths.p2.stand, qH, resample(torchPath('p2', T, B, true), SAMPLES.p2)),
+  };
+  /* ----------------------------------------------- beats 3–4: mounts grow, the loop opens (the parts) */
+  // the slider's way in the battery's frame (`SLIDER_MOVE`)
+  const sliderFrom = new Vector3(T.sliderX - T.batteryX, T.body - 0.005, 0);
+  const sliderTo = PLACE.slider.clone().sub(PLACE.battery);
+  const sliderWay = new CubicBezierCurve3(
+    sliderFrom,
+    sliderFrom.clone().add(SLIDER_WAY[0]),
+    sliderTo.clone().add(SLIDER_WAY[1]),
+    sliderTo,
+  );
+  const lampWay = new CubicBezierCurve3(
+    new Vector3(),
+    new Vector3(),
+    PLACE.bulb.clone().add(LAMP_WAY[1]),
+    PLACE.bulb.clone(),
+  );
+  // in the order the loop runs: up the left side, along the far side, down the right
+  const arches = STAPLES.map((_, i) => stapleArch(stand.mounts[`staple${i}`]!));
+  const parts = (t: number, open: number): void => {
+    stand.mountOrder.forEach((name, i) => {
+      const g = backOut(ramp(t, 1.45 + i * 0.055, 1.83 + i * 0.055));
+      const m = stand.mounts[name]!;
+      m.visible = g > 1e-3;
+      m.scale.setScalar(Math.max(g, 1e-3));
+    });
+    // the staples' arches close round the wire once it lies in them, one after another along the loop
+    arches.forEach((arch, i) =>
+      arch.set(smooth(ramp(t, ARCH.at + i * ARCH.step, ARCH.at + i * ARCH.step + ARCH.each))),
+    );
+    e.open = calm(ramp(t, ...OPEN));
+    e.batt = calm(ramp(t, ...BATTERY_MOVE));
+    const battery = stand.battery.group;
+    place(battery, torchPose(local.battT), pose(PLACE.battery), e.batt, BATTERY_ARC);
+    place(stand.spring.group, torchPose(local.springT), pose(PLACE.spring), e.batt, BATTERY_ARC);
+    const len = T.springLength + (PLACE.springLength - T.springLength) * e.batt;
+    stand.spring.group.scale.set(len / stand.spring.length, 1, 1);
+    // the wire ends on the spring and on the «+» plate slide onto the clamps' terminals only as the battery comes
+    // down between the clamps; those on the slider onto the block's terminals as it comes down on the block
+    e.clampK = smooth(ramp(e.batt, 0.55, 1));
+
+    // the slider rides on the battery: forward along its top, over the «+» end, down in front of it to its block
+    e.slider = calm(ramp(t, ...SLIDER_MOVE));
+    e.blockK = smooth(ramp(e.slider, 0.6, 1));
+    sliderWay.getPoint(e.slider, sliderP).applyQuaternion(battery.quaternion).add(battery.position);
+    sliderQ.copy(battery.quaternion);
+    stand.slider.quaternion.copy(sliderQ);
+    // open = back along the slider's own −x: toward the flashlight's tail in the torch, to the left on the
+    // stand — the same local direction all the way, so the hand-over never makes it jump
+    stand.slider.position
+      .copy(sliderP)
+      .addScaledVector(tmp.copy(X).applyQuaternion(sliderQ), -clamp01(open) * SLIDER_TRAVEL);
+
+    // the lamp: out of the head and round to the far right corner (`LAMP_WAY`), turning upright and rising to stand
+    // over the socket; then one turn down into it
+    const travel = calm(ramp(t, ...LAMP_MOVE));
+    const screw = smooth(ramp(t, ...LAMP_SCREW));
+    e.screw = screw;
+    e.bulb = clamp01(0.75 * travel + 0.25 * screw);
+    const from = torchPose(local.bulbT, bulbUp);
+    bulbQ.copy(from.q).slerp(tmpQ.identity(), travel);
+    lampWay.v0.copy(from.p);
+    lampWay.v1.copy(from.p).addScaledVector(state.axis, LAMP_WAY[0]);
+    lampWay.getPoint(travel, bulbP);
+    const over = PLACE.bulb.y + LAMP_OVER;
+    bulbP.y = from.p.y + (over - from.p.y) * travel + LAMP_ARC * hump(travel) - LAMP_OVER * screw;
+    stand.bulb.group.position.copy(bulbP);
+    stand.bulb.group.quaternion.copy(bulbQ).multiply(tmpQ.setFromAxisAngle(Y, Math.PI * 2 * screw));
+  };
+
+  /* ------------------------------------------- beats 4–5: the strips unroll, then become the wires */
   const up = new Vector3();
-  /** The plus strip goes under the battery (`unfold-plus.ts`): on the housing's wall, lifted off it as the strips leave. */
+  /** The plus strip goes under the battery (`unfold-plus.ts`), on the can, and folds away as the slider steps off. */
   const plusWay = createPlusWay();
-  const into = new Vector3();
-  const plusStrip = (t: number, out: Vector3[]): void => {
-    const clear = IN_TORCH + (CLEAR - IN_TORCH) * smooth(ramp(t, ...STRIPS.leave));
-    const away = e.back * (1 - smooth(ramp(e.slider, 0.6, 1)));
-    // it comes to the slider's contact along the torch's top (as it always did: the bit seen under the slider of the
-    // closed flashlight is unchanged), from the slider's back once that has left the torch (level with it: the minus
-    // strip lies low under it), and on the stand from the side, as the wire lies
-    into
-      .set(0.12 * (1 - e.back) - 0.12 * away, 0.04 * away, 0)
-      .applyQuaternion(sliderQ)
-      .add(out[out.length - 1]!);
-    up.copy(plusWay.apply(out, stand.battery.group, clear, smooth(ramp(t, 3.45, 3.75)), into));
-  };
-  /**
-   * The minus strip goes LOW (`unfold-minus.ts`): it drops off the torch as the strips leave and lies on the board,
-   * the parts travelling over it, until it is the stand's wire; the low way then hands over to the stand's path.
-   */
-  const minusWay = createMinusWay();
-  const standM: Vector3[] = [];
-  const offA = new Vector3();
-  const offB = new Vector3();
-  const lampAxis = new Vector3();
-  const torchM: Vector3[] = [];
-  const minusStrip = (t: number, out: Vector3[], w: number): void => {
-    const drop = smooth(ramp(t, ...STRIPS.leave));
-    const handOver = smooth(ramp(t, MINUS_HANDOVER[0], MINUS_HANDOVER[1]));
-    out.forEach((p, i) => (standM[i] ??= new Vector3()).copy(p));
-    if (drop > 0) {
-      paths.m.torch.forEach((p, i) => inTorch(p, (torchM[i] ??= new Vector3())));
-      ropeBetween(torchM, paths.m.stand, w, out);
-    }
-    // the drop at the spring stands a little back off its coil; the one at the lamp out from the lamp's axis, clear of
-    // its thread
-    offA.set(-MINUS_OFF[0], 0, 0).applyQuaternion(stand.spring.group.quaternion).setY(0);
-    const B = out[out.length - 1]!;
-    lampAxis.copy(Y).applyQuaternion(bulbQ);
-    // straight out from the lamp's axis (never up: the strip goes down from there)
-    offB.copy(B).sub(bulbP);
-    offB.addScaledVector(lampAxis, -offB.dot(lampAxis));
-    offB.y = Math.min(offB.y, 0);
-    if (offB.lengthSq() > 1e-8) offB.setLength(MINUS_OFF[1]);
-    up.copy(minusWay.apply(out, drop, up, offA, offB));
-    if (handOver > 0) out.forEach((p, i) => p.lerp(standM[i]!, handOver));
-  };
   const wires = (t: number): void => {
     if (t >= UNFOLD_SECONDS - 1e-6) return stand.wires.setStand();
-    const w = smooth(ramp(t, ...STRIPS.across));
-    const round = smooth(ramp(t, 4.05, 4.75));
-    const cover = smooth(ramp(t, 4.2, 5.0));
+    const round = smooth(ramp(t, ...ROUND));
+    const roundPlus = smooth(ramp(t, ...ROUND_PLUS));
+    const cover = smooth(ramp(t, ...COVER));
     const battery = stand.battery.group;
-    const spring = stand.spring.group;
     for (const id of WIRE_IDS) {
-      const { torch: from, stand: to, out } = paths[id];
-      const n = from.length;
-      for (let i = 0; i < n; i++) inTorch(from[i]!, (out[i] ??= new Vector3())).lerp(to[i]!, w);
-      // pin both ends to the parts they touch; the correction fades quadratically along the piece
-      const start =
-        id === 'm'
-          ? end('ma', spring.position, spring.quaternion, e.batt, a)
-          : id === 'p1'
-            ? end('p1a', battery.position, battery.quaternion, e.batt, a)
-            : end('p2a', sliderP, sliderQ, e.slider, a);
-      const finish =
-        id === 'm'
-          ? end('mb', bulbP, bulbQ, e.bulb, b)
-          : id === 'p1'
-            ? end('p1b', sliderP, sliderQ, e.slider, b)
-            : end('p2b', bulbP, bulbQ, e.bulb, b);
-      start.sub(out[0]!);
-      finish.sub(out[n - 1]!);
-      for (let i = 0; i < n; i++) {
-        const s = i / (n - 1);
-        out[i]!.addScaledVector(start, (1 - s) ** 2).addScaledVector(finish, s ** 2);
+      const out = paths[id].out;
+      if (id === 'm') {
+        // unrolled from the spring as far as the loop has opened, then brought to the lamp whole (`fitEndFlat`);
+        // its last stretch sweeps up to the lamp while that is above the wire's level
+        const spring = stand.spring.group;
+        unfurl.m.lay(end('ma', spring.position, spring.quaternion, e.clampK, a), carrierQ, e.open, out);
+        end('mb', bulbP, bulbQ, e.bulb, b);
+        fitEndFlat(out, b);
+        liftEnd(out, b.y - out[out.length - 1]!.y, MINUS_SWEEP);
+        // a strip standing on edge, as on the torch's wall: that is how a strip bends round a corner of the loop
+        tmp.copy(out[1]!).sub(out[0]!);
+        up.set(tmp.z, 0, -tmp.x);
+        if (up.lengthSq() < 1e-10) up.copy(X).applyQuaternion(carrierQ);
+        up.normalize();
+      } else if (id === 'p2') {
+        unfurl.p2.lay(end('p2a', sliderP, sliderQ, e.blockK, a), carrierQ, e.open, out);
+        // brought to the lamp in the board's plane; its height changes only past the battery's «+» end, which
+        // its first stretch runs over
+        end('p2b', bulbP, bulbQ, e.bulb, b);
+        fitEndFlat(out, b);
+        liftEnd(out, b.y - out[out.length - 1]!.y, LAMP_SWEEP);
+        up.copy(Y).applyQuaternion(carrierQ);
+      } else {
+        const n = SAMPLES.p1;
+        for (let i = 0; i < n; i++) out[i] ??= new Vector3();
+        end('p1a', battery.position, battery.quaternion, e.clampK, out[0]!);
+        end('p1b', sliderP, sliderQ, e.blockK, out[n - 1]!);
+        up.copy(plusWay.apply(out, battery));
       }
-      up.copy(flat[id]).applyQuaternion(carrierQ);
-      if (id === 'p1') plusStrip(t, out);
-      if (id === 'm') minusStrip(t, out, w);
-      // away from the torch the lamp strip first leaves the slider straight out of its end (as in the torch), then
-      // goes its way — never back through the slider's thumb; while the slider comes round to its block (the strip's
-      // way still trailing behind it) it also clears the thumb's top
-      const outward = id === 'p2' ? 0.22 * e.back * (1 - e.slider) : 0;
-      const over = id === 'p2' ? 0.12 * smooth(ramp(e.slider, 0, 0.3)) * (1 - smooth(ramp(e.slider, 0.6, 1))) : 0;
-      if (outward > 0 || over > 0) {
-        tmp.copy(X).applyQuaternion(sliderQ);
-        for (let i = 1; i < n; i++) {
-          const s = i / (n - 1);
-          out[i]!.addScaledVector(tmp, outward * hump(s / 0.16)).addScaledVector(Y, over * hump(s / 0.3));
-        }
-      }
-      stand.wires.setShape(id, { path: out, round, cover, copper: 1, up });
+      stand.wires.setShape(id, { path: out, round: id === 'p1' ? roundPlus : round, cover, copper: 1, up });
     }
   };
 

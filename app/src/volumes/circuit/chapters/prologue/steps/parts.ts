@@ -13,7 +13,7 @@ import type { CircuitWorld } from '@circuit/shared/world';
 import type { Unfolding } from './unfold';
 
 /** When each part has landed, in seconds of the stage's six-beat timeline (`unfold × UNFOLD_SECONDS`). */
-const LANDS = { battery: 3.25, lamp: 3.6, switch: 3.8, wire: 5.0 } as const;
+const LANDS = { battery: 4.4, lamp: 4.45, switch: 4.2, wire: 5.0 } as const;
 /** Seconds the names stay after the stand has stopped. */
 const STAY = 3;
 
