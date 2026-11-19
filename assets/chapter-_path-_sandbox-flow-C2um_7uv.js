@@ -1,1 +1,0 @@
-import{t as e}from"./placeholder-D8evvptf.js";import t from"./content-CiqF80zs.js";var n=e(t,{drift:1,same:1},{scrub:{drift:{label:1,marks:[2,3,4]}}});export{n as default};
