@@ -208,19 +208,22 @@ glass 16.5 % of the height; wire 22 px (core 12 px); switch 8.2 % of the width, 
 body, half on each half) · `0.8–2.1` the housing leaves the picture: the far half (mirror and glass fly into its
 head) rises over the back and out of the top of the frame, the near half runs off low to the left; out of the
 frame they are hidden — at `unfold = 1` no part of the flashlight is in the scene (there is no shelf behind the stand any more) ·
-`1.45–2.45` mounts grow left → right · `1.9–4.45` THE LOOP OPENS in one move: in the torch the parts and strips
-are the stand's loop squashed flat (spring, battery, slider, lamp in a row; the minus strip behind them on the far
-wall), and it only has to open — the row comes toward the reader, the minus strip unrolls behind it to the left and
-far sides, the lamp goes round to the far right corner and screws in, the lamp strip unrolls between slider and
-lamp, the slider rides forward along the battery and steps down in front of «+»; the strips round into wires on
-the way (`2.6–3.9`) · `4.3–5.0` sheath grows from the clamps · `4.85–5.6` the staples' arches close ·
-`5.0–6.0` magnifier into its holder (`unfolding.beat6`).
+`1.45–2.45` mounts grow left → right · `1.65–4.45` THE LOOP OPENS in one move: in the torch the parts stand in a
+row (spring, battery, slider, lamp) with the minus strip along the near wall, where the reader sees it. The strip
+first swings under the battery to the far side (`1.75–2.5`); parts and strips are then the stand's loop squashed
+flat, and it only has to open — the row comes toward the reader, the minus strip unrolls behind it to the left and
+far sides, the lamp goes round to the far right corner and comes down into the socket with one turn, the lamp
+strip unrolls between slider and lamp, the slider rides forward along the battery, steps down in front of «+» and
+glides onto its block; the strips round into wires on the way (`2.6–3.9`) · `4.3–5.0` sheath grows from the
+clamps · `4.85–5.6` the staples' arches close · `5.0–6.0` magnifier into its holder (`unfolding.beat6`).
 How a strip moves is `unfurl.ts`: it UNROLLS — each piece of it turns from its direction in the torch to its
 direction on the stand and grows to its length there (after its bent tip has eased), so nothing shrinks, folds
-or kinks; it is then brought onto the part at its far end whole (`fitEndFlat`, a similarity in the board's plane)
-and its last stretch sweeps up to the lamp (`liftEnd`). Designed curves, not a simulated rope: a pure function of
-`unfold`, one pass over the points per frame. The short plus strip has its own way under the battery's front end
-(`unfold-plus.ts`).
+or kinks; it is then brought onto the part at its far end whole (`fitEndFlat`, a similarity in the board's plane).
+Designed curves, not a simulated rope: a pure function of `unfold`, one pass over the points per frame.
+The lamp's height is taken from the minus wire (its end on the lamp stays at the wire's own level), so no wire end
+climbs to the lamp and the lamp lands with the battery. The short plus strip has its own way under the battery
+(`unfold-plus.ts`): a band up the far side beside the slider that rides with it and unwinds behind the «+» end as
+the slider steps down; it is drawn with finer rings while it moves (`WireShape.rings`), the stand's own at the end.
 The lamp's light is a `PointLight` parented to the filament, so light and shadows travel with the lamp; no
 contact opens (every strip end is computed from the part it touches). No wire piece passes through a part at
 any moment: `__tests__/unfold-clear.test.ts` checks every 0.005 of `unfold` against simple solids of the
@@ -367,7 +370,7 @@ shot (≈ 6 px-eq there; `flow/count` keeps «0,3 A» as its caption), but in th
 - `stand.ts` — Everything that stands on the board, assembled in the BOARD FRAME, with each thing on its permanent place (VISUAL.md §2): mounts, the one ba…
 - `torch.ts` — The flashlight (VISUAL.md §5.1): a pocket torch for one AA battery — a cylinder with a wider head, a glass, a cone mirror inside, the yellow…
 - `unfold.ts` — The unfolding of the flashlight into the stand (VISUAL.md §5.1) as ONE pure function of `u` ∈ 0…1, so the reader can drag it, stop it and le…
-- `unfold-plus.ts` — The plus strip's way under the battery's front end and its hook to the slider while the flashlight unfolds.
+- `unfold-plus.ts` — The plus strip's way under the battery, its band beside the slider and its hook to the slider while the flashlight unfolds.
 - `unfurl.ts` — How a strip gets from its shape in the flashlight to its shape on the stand: it unrolls (`createUnfurl`, `fitEndFlat`, `liftEnd`).
 - `wires.ts` — The loop of wire (VISUAL.md §2): three pieces that together with the battery, the switch and the lamp close the rounded rectangle.
 - `tools/crawl-lane.ts` — The geometry of the crawl (the owner's snail scene, DECISIONS §60 r–s): the wire's run from the battery's minus clamp to the lamp — the way…
@@ -389,5 +392,5 @@ shot (≈ 6 px-eq there; `flow/count` keeps «0,3 A» as its caption), but in th
   it is whole again. It applies to any shape of `m` whose path ends with the straight far stretch.
 - `WireShape.thin` + `wires.setEmber` — the snake of `resistance/shape` is the far stretch of `m` itself
   (`farWirePath(k)`); `wires.shapeOf(id)` tells a chapter when the stand re-laid its piece; `wires.sheath(id)`.
-- The flashlight's minus strip is one strip `torchPath('m')` on the housing's FAR wall, its flat side transported
+- The flashlight's minus strip is one strip `torchPath('m')` on the housing's near wall, its flat side transported
   along the whole strip (it stands on edge while it unrolls, as a strip bends round a corner).

@@ -18,9 +18,10 @@ export interface Unfurl {
   readonly n: number;
   /**
    * Lay the wire from `start`: `w` 0 = its shape in the torch (turned by `torch`, the flashlight's frame now) …
-   * 1 = its shape on the stand. `out` gets `n` points.
+   * 1 = its shape on the stand. `out` gets `n` points. `normal` (optional) gets the normal of the strip's flat
+   * side at its start: the one it has in the torch (`flat`), carried through the turns of its first piece.
    */
-  lay(start: Vector3, torch: Quaternion, w: number, out: Vector3[]): void;
+  lay(start: Vector3, torch: Quaternion, w: number, out: Vector3[], normal?: Vector3): void;
 }
 
 const d = new Vector3();
@@ -47,13 +48,15 @@ function turnOf(a: Vector3, b: Vector3, up: Vector3): { axis: Vector3; angle: nu
  * measured from there, so all of them turn the same way round. `eased` (optional, torch frame, as `from`): the
  * strip as it lies once nothing presses its tips onto their contacts — in the torch a strip's tip is bent sharply
  * onto the lamp; drawn out, such a bend would ride along as a claw at the end of a long wire, so it straightens
- * first, over the very beginning of the unrolling, and the wire unrolls from that.
+ * first, over the very beginning of the unrolling, and the wire unrolls from that. `flat` (optional, torch frame):
+ * the normal of the strip's flat side at its start.
  */
 export function createUnfurl(
   from: readonly Vector3[],
   to: readonly Vector3[],
   home: Quaternion,
   eased?: readonly Vector3[],
+  flat?: Vector3,
 ): Unfurl {
   const n = from.length;
   const back = home.clone().invert();
@@ -100,7 +103,7 @@ export function createUnfurl(
   };
   return {
     n,
-    lay(start, torch, w, out) {
+    lay(start, torch, w, out, normal) {
       (out[0] ??= new Vector3()).copy(start);
       const x = Math.min(Math.max(w / EASED_BY, 0), 1);
       const e = x * x * (3 - 2 * x);
@@ -110,6 +113,12 @@ export function createUnfurl(
         if (p.ease.angle > 1e-6) turned(d, p.ease.axis, p.ease.angle * e);
         if (w > 0) turned(d, p.turn.axis, p.turn.angle * w);
         d.applyQuaternion(torch);
+        if (i === 0 && normal && flat) {
+          normal.copy(flat);
+          if (p.ease.angle > 1e-6) turned(normal, p.ease.axis, p.ease.angle * e);
+          if (w > 0) turned(normal, p.turn.axis, p.turn.angle * w);
+          normal.applyQuaternion(torch);
+        }
         (out[i + 1] ??= new Vector3()).copy(out[i]!).addScaledVector(d, len[i]! + grow[i]! * w);
       }
       out.length = n;

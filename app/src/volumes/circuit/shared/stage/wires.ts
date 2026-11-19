@@ -85,6 +85,12 @@ export interface WireShape {
    * wire only; the snake of `resistance/shape`). `setEmber` warms only this thin stretch.
    */
   thin?: { from: number; core: number; sheath: number };
+  /**
+   * Draw the piece with this many rings along it instead of its own count — for a moving shape with more bends
+   * than the piece has on the stand (the unfolding's way of `p1` round the battery). The stand's own shapes never
+   * set it, so the finished stand is drawn exactly as before. Not with `gap`, `thin` or the second seat.
+   */
+  rings?: number;
 }
 
 /** Stripped copper at each end of a piece (the part that goes into a terminal, and a little more). */
@@ -178,6 +184,8 @@ export function createWires(): Wires {
       coreMesh: Mesh;
       skinMesh: Mesh;
       pts: Vector3[];
+      /** Tubes with another ring count (`WireShape.rings`), made when first asked for: [rings, core, sheath]. */
+      fine: [number, DynTube, DynTube] | null;
     }
   >;
   for (const id of WIRE_IDS) {
@@ -203,7 +211,7 @@ export function createWires(): Wires {
     skinMesh.castShadow = true;
     skinMesh.renderOrder = 2;
     group.add(coreMesh, skinMesh);
-    pieces[id] = { core, skin, coreMat, skinMat, coreMesh, skinMesh, pts: [] };
+    pieces[id] = { core, skin, coreMat, skinMat, coreMesh, skinMesh, pts: [], fine: null };
   }
 
   // the ember of the far wire's thin stretch: a per-vertex emissive, ring by ring (`thin` share of each ring)
@@ -227,7 +235,21 @@ export function createWires(): Wires {
   const along: number[] = [];
   const setShape = (id: WireId, shape: WireShape): void => {
     const p = pieces[id];
-    const n = RINGS[id];
+    const n = shape.rings ?? RINGS[id];
+    // the piece's own tubes, or finer ones for a shape that asks for them (kept for the next frame)
+    let core = p.core;
+    let skin = p.skin;
+    if (n !== RINGS[id]) {
+      if (p.fine?.[0] !== n) {
+        p.fine?.[1].geometry.dispose();
+        p.fine?.[2].geometry.dispose();
+        p.fine = [n, new DynTube(n, RADIAL[id]), new DynTube(n, RADIAL[id])];
+      }
+      core = p.fine[1];
+      skin = p.fine[2];
+    }
+    if (p.coreMesh.geometry !== core.geometry) p.coreMesh.geometry = core.geometry;
+    if (p.skinMesh.geometry !== skin.geometry) p.skinMesh.geometry = skin.geometry;
     resample(shape.path, n, p.pts);
     const r = clamp01(shape.round);
     const w = STRIP[0] + (WIRE.core - STRIP[0]) * r;
@@ -269,7 +291,7 @@ export function createWires(): Wires {
     };
     const tc = thin?.core ?? WIRE.core;
     const ts = thin?.sheath ?? WIRE.sheath;
-    p.core.update(corePts, up, (i, out) => {
+    core.update(corePts, up, (i, out) => {
       const f = thinAt(coreAt(i));
       if (id === 'm') thinMask[i] = f;
       if (broken && collapsed(i)) {
@@ -284,7 +306,7 @@ export function createWires(): Wires {
     // a short length at both ends (and at the seat's cut) stays bare — the stripped copper of the terminals
     const front = shape.cover * 1.08;
     const [bare0, bare1] = shape.bare ?? [BARE, BARE];
-    p.skin.update(skinPts, up, (i, out) => {
+    skin.update(skinPts, up, (i, out) => {
       if (cut && collapsed(i)) {
         out[0] = out[1] = 0;
         return;

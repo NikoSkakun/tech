@@ -57,62 +57,64 @@ export const TORCH: TorchDims = torchDims();
 
 /** The slider's two contacts sit this far to either side of the top line: the two strips run side by side, apart. */
 const CONTACT_Z = 0.078;
-/** How much farther out the minus strip runs past the plus strip's band (the housing flares there). */
-const BAND_ROOM = 0.02;
-
 /** How far a strip's tip stays turned toward its contact once nothing presses it on (`torchPath`, `eased`). */
 const EASED = (20 * Math.PI) / 180;
+/** The minus strip lies this far below the axis' level on the housing's wall. */
+export const MINUS_Y = -0.06;
 
 /**
  * Local strip paths (torch frame). Each matches one wire piece of the stand, start → end. `eased`: the same strip
  * as it lies once nothing presses its tip onto the lamp — the sharp last bend (the minus strip's in from the wall
  * to the thread, the lamp strip's down to the bottom contact) opened to a slight one, the lengths kept; the
- * unfolding lets the strips ease into this before it draws them out (`unfurl.ts`).
+ * unfolding lets the strips ease into this before it draws them out (`unfurl.ts`). `off`: the minus strip this
+ * much farther from the axis than the housing's wall held it (its two ends where they are).
  */
-export function torchPath(id: WireId, T: TorchDims = TORCH, B: BulbDims = BULB, eased = false): Vector3[] {
+export function torchPath(
+  id: WireId,
+  T: TorchDims = TORCH,
+  B: BulbDims = BULB,
+  eased = false,
+  off = 0,
+): Vector3[] {
   const top = T.body - T.wall - 0.012;
-  const side = T.body - T.wall - 0.012;
+  const side = T.body - T.wall - 0.012 + off;
   const plate = T.batteryX + BATTERY.length / 2 + 0.125;
   // (beside the top line the round wall is a little lower)
   const under = top - 0.004;
-  // length of the minus strip's tip, from the wall in to the lamp's thread
-  const tipM = Math.hypot(0.04, side + BAND_ROOM - B.threadRadius - 0.01);
+  // the minus strip's place on the wall, scaled out with `off`, and the length of its tip in to the lamp's thread
+  const y = MINUS_Y * (side / (side - off));
+  const tipM = Math.hypot(0.04, side - B.threadRadius - 0.01);
   switch (id) {
-    // minus strip, one piece: tail contact under the spring → along the FAR wall → past the rivet → the lamp's
-    // thread (two bends of their own, one polyline). On the far wall the strips and the parts are the stand's loop
-    // squashed flat — spring, battery, slider and lamp in a row, this strip behind them — so the unfolding only has
-    // to open it (`unfold.ts`); on the near wall it had to cross the whole row to reach the stand's far side
+    // minus strip, one piece: tail contact under the spring → along the near wall, where the reader sees it beside
+    // the battery → past the rivet → the lamp's thread (two bends of their own, one polyline). The stand's loop has
+    // it on the other side of the battery: the unfolding first swings it under the battery to the far side
+    // (`unfold.ts`)
     case 'm':
       return [
         ...G.roundPath(
           [
             new Vector3(T.springX - 0.02, 0, 0),
-            new Vector3(T.springX - 0.02, -0.06, -side),
-            new Vector3(-0.35, -0.06, -side),
+            new Vector3(T.springX - 0.02, y, side),
+            new Vector3(-0.35, y, side),
           ],
           0.12,
           5,
         ),
         ...G.roundPath(
           [
-            new Vector3(-0.35, -0.06, -side),
-            // where the housing begins to flare the strip follows its wall a little: round the can's front end
-            // the plus strip's band goes up this side (`unfold-plus.ts`), and the two pass with air between
-            new Vector3(T.flare, -0.06, -side),
-            new Vector3(T.flare + 0.045, -0.06, -side - BAND_ROOM),
-            new Vector3(T.bulbX + 0.16, -0.06, -side - BAND_ROOM),
+            new Vector3(-0.35, y, side),
+            new Vector3(T.bulbX + 0.16, y, side),
             eased
-              ? new Vector3(T.bulbX + 0.16 + tipM * Math.cos(EASED), -0.04, -side - BAND_ROOM + tipM * Math.sin(EASED))
-              : new Vector3(T.bulbX + 0.2, -0.04, -(B.threadRadius + 0.01)),
+              ? new Vector3(T.bulbX + 0.16 + tipM * Math.cos(EASED), -0.04, side - tipM * Math.sin(EASED))
+              : new Vector3(T.bulbX + 0.2, -0.04, B.threadRadius + 0.01),
           ],
           0.08,
           4,
         ).slice(1),
       ];
     // plus strip: from the contact plate on the battery's nub to the slider's first contact — it goes there under
-    // the battery's front end, up the far side and back along the top (`unfold-plus.ts` lays it), so its contact
-    // is the slider's far one; from the slider's near contact the lamp strip goes forward → down to the lamp's
-    // bottom contact
+    // the battery and up its far side (`unfold-plus.ts` lays it), so its contact is the slider's far one; from the
+    // slider's near contact the lamp strip goes forward → down to the lamp's bottom contact
     case 'p1':
       return [new Vector3(plate, 0, 0), new Vector3(T.sliderX - 0.12, under, -CONTACT_Z)];
     case 'p2':
