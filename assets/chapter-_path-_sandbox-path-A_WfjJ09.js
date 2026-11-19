@@ -1,0 +1,1 @@
+import{t as e}from"./placeholder-DNqW03Fg.js";import t from"./content-4aGxgNzm.js";var n=e(t,{core:2,sheath:1},{holdNav:[`core`]});export{n as default};
