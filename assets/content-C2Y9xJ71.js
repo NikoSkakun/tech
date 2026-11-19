@@ -1,1 +1,0 @@
-import{T as e}from"./index-DS8J_u-m.js";import{t}from"./_sandbox-circuit-crawl-YGP3hpIP.js";var n=e({id:`_sandbox-circuit-crawl`,steps:Object.entries(t).map(([e,t])=>({id:e,title:t.title,panel:[t.body]}))});export{n as default};
