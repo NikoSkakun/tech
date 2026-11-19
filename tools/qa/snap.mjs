@@ -11,7 +11,7 @@
 //   --touch            emulate a touch screen (coarse pointer)
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
-import { appErrors, appUrl, baseUrl, ensureDir, launch, openApp, parseArgs, parseSize, pickChapter } from './lib.mjs';
+import { appErrors, appUrl, baseUrl, ensureDir, launch, openApp, parseArgs, parseSize, pickChapter, QA_ROOT } from './lib.mjs';
 
 const args = parseArgs();
 
@@ -40,7 +40,7 @@ if (args.compare) {
 }
 
 const base = baseUrl(args);
-const out = ensureDir(String(args.out ?? `/srv/electricity/qa/${process.env.QA_ID ?? 'misc'}/snap`));
+const out = ensureDir(String(args.out ?? `${QA_ROOT}/${process.env.QA_ID ?? 'misc'}/snap`));
 const sizes = String(args.sizes ?? '1920x1080').split(',').map((s) => parseSize(s));
 const chapters = String(args.chapters ?? '').split(',').filter(Boolean);
 const q = String(args.q ?? 'high');

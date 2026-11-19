@@ -5,7 +5,7 @@
 //   --base <url>    full base URL instead of --port     (e.g. http://localhost:8080/)
 //   --size WxH      viewport in CSS px                  (default 1920x1080)
 //   --q <tier>      quality tier low|medium|high|ultra  (default high)
-//   --out <path>    output file or directory            (default /srv/electricity/qa/$QA_ID or .../misc)
+//   --out <path>    output file or directory            (default $ELECTRICITY_ROOT/qa/$QA_ID or .../misc)
 //   --hud dom|gl    interface renderer, passed as ?hud= (default: $QA_HUD, else none = the app's default;
 //                   docs/HUD_DOM.md §16; the app default is dom since D9b, `--hud gl` runs the WebGL
 //                   one). `openApp` reports the mode in effect (`gpu.hud`, one log line).
@@ -16,6 +16,13 @@ import { dirname } from 'node:path';
 // playwright-core is a devDependency of the app; resolve it from there so no extra install is needed.
 const require = createRequire(new URL('../../app/package.json', import.meta.url));
 const { chromium } = require('playwright-core');
+
+/**
+ * The project root: `/srv/electricity` on lenovo; another machine keeping the same layout (repo, wt, qa, www,
+ * logs, public) exports `ELECTRICITY_ROOT` (docs/ORCHESTRATOR.md «Local workstation»). QA output goes under `qa/`.
+ */
+export const ROOT = process.env.ELECTRICITY_ROOT || '/srv/electricity';
+export const QA_ROOT = `${ROOT}/qa`;
 
 /**
  * Without `--use-angle=vulkan` headless Chrome silently falls back to SwiftShader / the integrated GPU.
@@ -78,7 +85,7 @@ export function parseSize(value, fallback = [1920, 1080]) {
 }
 
 export function outRoot(args) {
-  return typeof args.out === 'string' ? args.out : `/srv/electricity/qa/${process.env.QA_ID ?? 'misc'}`;
+  return typeof args.out === 'string' ? args.out : `${QA_ROOT}/${process.env.QA_ID ?? 'misc'}`;
 }
 
 export function ensureDir(path) {

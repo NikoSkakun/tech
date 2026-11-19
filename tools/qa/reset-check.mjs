@@ -5,7 +5,7 @@
 //                                 [--from circuit/wire] [--out DIR]
 // `--hud dom` resets through the system bar (touch: the «Меню»), `--hud gl` through the settings overlay's
 // press-twice «Почати з нуля». `--freeze` runs the same flow on the frozen clock (`?freeze=1`, stepped by hand).
-import { launch, openApp, baseUrl, parseArgs, screenshot, ensureDir } from './lib.mjs';
+import { launch, openApp, baseUrl, parseArgs, screenshot, ensureDir, QA_ROOT } from './lib.mjs';
 
 const args = parseArgs();
 const touch = !!args.touch;
@@ -14,7 +14,7 @@ const hud = args.hud === 'gl' ? 'gl' : 'dom';
 const from = args.from ?? 'circuit/wire';
 const [width, height] = touch ? [390, 844] : [1280, 720];
 const base = baseUrl({ port: 5295, ...args });
-const out = args.out ?? `/srv/electricity/qa/reset-check/${hud}-${touch ? 'touch' : 'mouse'}-${freeze ? 'frozen' : 'live'}`;
+const out = args.out ?? `${QA_ROOT}/reset-check/${hud}-${touch ? 'touch' : 'mouse'}-${freeze ? 'frozen' : 'live'}`;
 ensureDir(out);
 const query = `?hud=${hud}&noaudio${freeze ? '&freeze=1' : ''}`;
 console.log(`reset-check: ${base}${query} — ${hud}, ${touch ? 'touch' : 'mouse'}, ${freeze ? 'frozen clock' : 'real time'}`);

@@ -17,7 +17,7 @@
 // border is crossed back with «Назад» and forward again. Console errors are collected per step.
 // `--touch`: 390×844, touch input, DPR 2. Output: `<out>/<size>/` frames + `walk.json`; exit 1 on any finding.
 import { writeFileSync } from 'node:fs';
-import { baseUrl, ensureDir, launch, openApp, parseArgs, parseSize } from './lib.mjs';
+import { baseUrl, ensureDir, launch, openApp, parseArgs, parseSize, QA_ROOT } from './lib.mjs';
 import { closingCard } from './next-chapter.mjs';
 import { mapWalk } from './walk-map.mjs';
 import { drain, frameDiff, installSampler, jumps, lightCourse, shoot } from './walk-parts.mjs';
@@ -34,7 +34,7 @@ const volume = String(args._[0] ?? 'circuit');
 const touch = !!args.touch;
 const [width, height] = touch ? [390, 844] : parseSize(args.size, [1280, 720]);
 const back = !args['no-back'];
-const out = ensureDir(`${args.out ?? '/srv/electricity/qa/volume-walk'}/${volume}-${width}x${height}`);
+const out = ensureDir(`${args.out ?? `${QA_ROOT}/volume-walk`}/${volume}-${width}x${height}`);
 const { browser, page, pageErrors } = await launch({
   width,
   height,

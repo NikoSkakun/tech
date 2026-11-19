@@ -9,13 +9,13 @@
 //
 // Frozen engine clock (`?freeze`), stepped by hand. Screenshots per profile in <out>/<profile>-NN-*.jpg.
 // Exit 1 on any failed check.
-import { launch, openApp, appUrl, baseUrl, parseArgs, ensureDir } from './lib.mjs';
+import { launch, openApp, appUrl, baseUrl, parseArgs, ensureDir, QA_ROOT } from './lib.mjs';
 import { PROFILES, PROFILE_ALIASES, settle } from './mobile-parts.mjs';
 import { touch } from './touch.mjs';
 
 const args = parseArgs();
 const base = baseUrl({ port: 5298, ...args });
-const out = args.out ?? '/srv/electricity/qa/desk-toggle';
+const out = args.out ?? `${QA_ROOT}/desk-toggle`;
 ensureDir(out);
 // plus a large phone held sideways (932 × 430, iPhone Pro Max class) next to mobile-check's profiles
 const ALL = { ...PROFILES, 'phone-large-land': { width: 932, height: 430, dpr: 3, safe: '0,59,21,59', shell: 'side' } };

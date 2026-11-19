@@ -13,7 +13,7 @@
 //   read:<name>                    print the chapter state published with ctx.qa.expose(name)
 //
 //   DO="pick:model:quantum,pick:orbital:3d,wait:7" node tools/qa/shot.mjs atom/models --size 1280x720 \
-//     --script app/src/volumes/electricity/chapters/atom/qa/scenario.mjs --out /srv/electricity/qa/P-atom/3d.jpg
+//     --script app/src/volumes/electricity/chapters/atom/qa/scenario.mjs --out $ELECTRICITY_ROOT/qa/P-atom/3d.jpg
 import { advance, at, click, clickProbe, dragProbe, hold, pick, read, slide } from './helpers.mjs';
 
 export default async (page) => {

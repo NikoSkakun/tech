@@ -2,7 +2,7 @@
 /* global process, console, window */
 // Audio acceptance check (run on lenovo, dev server up):
 //
-//   QA_PORT=5203 node app/src/audio/qa/audio-check.mjs [--out /srv/electricity/qa/F3-fx/audio.json]
+//   QA_PORT=5203 node app/src/audio/qa/audio-check.mjs [--out $ELECTRICITY_ROOT/qa/F3-fx/audio.json]
 //
 // 1. locked: every API call before the first gesture is a silent no-op without errors;
 // 2. live: a real click unlocks audio, then every one-shot / loop / mood is triggered and the master
@@ -11,11 +11,11 @@
 //    non-silent (loops / moods: RMS > 0.001; one-shots: peak > 0.01) and non-clipping (peak < 0.99);
 // 4. `?noaudio`: the same calls stay locked and silent, without errors.
 import { writeFileSync } from 'node:fs';
-import { appErrors, baseUrl, launch, openApp, parseArgs } from '../../../../tools/qa/lib.mjs';
+import { appErrors, baseUrl, launch, openApp, parseArgs, QA_ROOT } from '../../../../tools/qa/lib.mjs';
 
 const args = parseArgs();
 const base = baseUrl(args);
-const out = typeof args.out === 'string' ? args.out : '/srv/electricity/qa/F3-fx/audio.json';
+const out = typeof args.out === 'string' ? args.out : `${QA_ROOT}/F3-fx/audio.json`;
 const url = (noaudio) => `${base}?debug&overlay=0&q=high${noaudio ? '&noaudio' : ''}#/_sandbox-fx/characters`;
 const failures = [];
 const check = (ok, message) => {

@@ -20,6 +20,7 @@ import {
   parseArgs,
   parseSize,
   screenshot,
+  QA_ROOT,
 } from '../../../../../../../tools/qa/lib.mjs';
 import { STEPS } from './interaction-steps.mjs';
 
@@ -28,7 +29,7 @@ const [width, height] = parseSize(args.size ?? '1280x720');
 const out = ensureDir(
   typeof args.out === 'string'
     ? args.out
-    : `/srv/electricity/qa/B-plant-hydro/interaction-${width}x${height}`,
+    : `${QA_ROOT}/B-plant-hydro/interaction-${width}x${height}`,
 );
 const only = typeof args.only === 'string' ? args.only.split(',') : null;
 const failures = [];

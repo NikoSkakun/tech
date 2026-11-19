@@ -6,7 +6,7 @@
 //   --browsers firefox,webkit   which engines (default both; `chromium` = system Chrome on the GPU)
 //   --size WxH                  viewport (default 960x540 — software GL is acceptable and slow)
 //   --q <tier>                  quality tier (default medium)
-//   --out <dir>                 output (default /srv/electricity/qa/$QA_ID/xbrowser)
+//   --out <dir>                 output (default $ELECTRICITY_ROOT/qa/$QA_ID/xbrowser)
 //   --port / --base             where the app is served
 //
 // For each browser it checks: WebGL2 context, no shader compile/link errors, no console errors or warnings,
@@ -35,7 +35,7 @@ for (const name of browsers) {
   try {
     browser =
       name === 'chromium'
-        ? await playwright.chromium.launch({ executablePath: '/usr/bin/google-chrome', headless: true, args: GPU_ARGS })
+        ? await playwright.chromium.launch({ executablePath: process.env.QA_CHROME ?? '/usr/bin/google-chrome', headless: true, args: GPU_ARGS })
         : await playwright[name].launch({
             // Firefox has no GL at all in true headless mode on Linux ("Exhausted GL driver options"): it needs
             // a display. Run this tool under `xvfb-run -a` and Firefox starts headed inside the virtual display.

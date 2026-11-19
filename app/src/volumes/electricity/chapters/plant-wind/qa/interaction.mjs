@@ -10,12 +10,12 @@
 // the «Див. також» chips of step 11. Positions come from `__ui.locate` / `__app.locate` in CSS px, so the same
 // script runs at 1280×720, 1920×1080 and 3840×2160; only hooks that exist in production builds are used.
 // Fails (exit 1) on a failed check or on any console error / warning. The clock is frozen and stepped by hand.
-import { appErrors, appUrl, baseUrl, ensureDir, launch, openApp, parseArgs, parseSize, screenshot } from '../../../../../../../tools/qa/lib.mjs';
+import { appErrors, appUrl, baseUrl, ensureDir, launch, openApp, parseArgs, parseSize, screenshot, QA_ROOT } from '../../../../../../../tools/qa/lib.mjs';
 import { STEPS } from './interaction-steps.mjs';
 
 const args = parseArgs();
 const [width, height] = parseSize(args.size ?? '1280x720');
-const out = ensureDir(typeof args.out === 'string' ? args.out : `/srv/electricity/qa/P-plant-wind/interaction-${width}x${height}`);
+const out = ensureDir(typeof args.out === 'string' ? args.out : `${QA_ROOT}/P-plant-wind/interaction-${width}x${height}`);
 const only = typeof args.only === 'string' ? args.only.split(',') : null;
 const failures = [];
 let checks = 0;

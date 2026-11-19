@@ -4,7 +4,7 @@
 //   node tools/qa/shot.mjs <route> [options]
 //   <route>: `volume/chapter/step`, or `chapter/step` (default volume first, then the others)
 //
-//   --out <file.jpg>     output file (default /srv/electricity/qa/$QA_ID/<chapter>-<step>-<W>x<H>.jpg)
+//   --out <file.jpg>     output file (default $ELECTRICITY_ROOT/qa/$QA_ID/<chapter>-<step>-<W>x<H>.jpg)
 //   --size WxH           viewport (default 1920x1080)        --q <tier>  quality (default high)
 //   --freeze <seconds>   deterministic clock: simulate N s after entering the step (default 3; "off" = real time)
 //   --wait <ms>          extra real-time wait before the shot (only useful with --freeze off)

@@ -12,12 +12,12 @@
 // Exit code 1 if any check fails.
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { appErrors, appUrl, baseUrl, ensureDir, launch, openApp, parseArgs, screenshot } from '../../../../../../../tools/qa/lib.mjs';
+import { appErrors, appUrl, baseUrl, ensureDir, launch, openApp, parseArgs, screenshot, QA_ROOT } from '../../../../../../../tools/qa/lib.mjs';
 
 const args = parseArgs();
 const base = baseUrl(args);
 const only = new Set(String(args.only ?? 'touch,tiers,layouts,motion').split(','));
-const out = ensureDir(typeof args.out === 'string' ? args.out : '/srv/electricity/qa/B-plant-gas/robustness');
+const out = ensureDir(typeof args.out === 'string' ? args.out : `${QA_ROOT}/B-plant-gas/robustness`);
 const sheetTool = fileURLToPath(new URL('../../../../../../../tools/qa/sheet.sh', import.meta.url));
 const STEPS = ['overview', 'natural-gas', 'gas-turbine', 'brayton-sim', 'hot-section', 'combined-cycle', 'flexibility', 'gas-engines', 'emissions-hydrogen', 'role'];
 const failures = [];

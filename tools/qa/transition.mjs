@@ -5,7 +5,7 @@
 //
 //   --frames N     number of captured frames across the transition (default 12)
 //   --size WxH     viewport (default 1280x720)     --q <tier> (default high)
-//   --out <dir>    output directory (default /srv/electricity/qa/$QA_ID/transitions)
+//   --out <dir>    output directory (default $ELECTRICITY_ROOT/qa/$QA_ID/transitions)
 //
 // Pass 1 (deterministic): the clock is paused, the transition is stepped in fixed increments and a screenshot
 // is taken at each — proves "no blank frame" and shows the scale-zoom.

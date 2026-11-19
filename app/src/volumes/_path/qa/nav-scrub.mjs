@@ -10,11 +10,12 @@ import {
   ensureDir,
   screenshot,
   parseSize,
+  QA_ROOT,
 } from '../../../../../tools/qa/lib.mjs';
 
 const args = parseArgs();
 const base = baseUrl(args);
-const out = ensureDir(String(args.out ?? '/srv/electricity/qa/_path-nav-scrub'));
+const out = ensureDir(String(args.out ?? `${QA_ROOT}/_path-nav-scrub`));
 const [w, hh] = parseSize(args.size, [1280, 720]);
 const fails = [];
 const check = (ok, what, detail = '') => {
