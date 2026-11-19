@@ -10,19 +10,21 @@
 import { Vector3 } from 'three';
 import { resolveEase, type ChapterContext, type Shot, type Vec3Like } from '@/engine/api';
 import type { StepUiApi } from '@/hud';
-import type { SliderSpec } from '@/hud/step-ui-types';
-import { STAGE_SHOTS, UNFOLD_PLAY } from '@circuit/shared/stage';
+import type { ControlSpec } from '@/hud/step-ui-types';
+import { STAGE_SHOTS, UNFOLD_PLAY, edgeLineShown, setEdgeLine } from '@circuit/shared/stage';
 import { unfoldCamera, unfoldMoon } from './unfold';
 
 /** The one switch of the dev tool: false removes the slider from `click` (nothing else changes). */
 export const DEV_UNFOLD_SCRUB = true;
+/** The dev switch on `click` that hides the line along the board's edge (false removes it; the line stays on). */
+export const DEV_EDGE_LINE = true;
 
 /** Seconds of a glide over the whole track (a click on the track): twice the play's speed. */
 const GLIDE_SECONDS = UNFOLD_PLAY.seconds / 2;
 
 export interface UnfoldScrub {
   /** The slider (empty when the tool is off). */
-  readonly controls: readonly SliderSpec[];
+  readonly controls: readonly ControlSpec[];
   /** Where the scrub stands now, 0 … 1 (0 = untouched: today's `click`). */
   readonly value: number;
   /** Back to 0 without touching the scene (step entry: the step's own params set the scene). */
@@ -57,7 +59,7 @@ export function unfoldScrub(ctx: ChapterContext, ui: StepUiApi, lampOn: () => vo
     ui.patch('unfoldScrub', { current: p });
   };
 
-  const controls: SliderSpec[] = DEV_UNFOLD_SCRUB
+  const controls: ControlSpec[] = DEV_UNFOLD_SCRUB
     ? [
         {
           type: 'slider',
@@ -79,6 +81,15 @@ export function unfoldScrub(ctx: ChapterContext, ui: StepUiApi, lampOn: () => vo
         },
       ]
     : [];
+  // DEV (owner 2026-11-19): the line along the board's edge off / on, for the whole session (`setEdgeLine`)
+  if (DEV_EDGE_LINE)
+    controls.push({
+      type: 'toggle',
+      id: 'edgeLine',
+      label: 'dev · лінія по краю',
+      value: edgeLineShown(),
+      onChange: (on) => setEdgeLine(on),
+    });
 
   return {
     controls,

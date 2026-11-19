@@ -84,18 +84,11 @@ export function torchPath(id: WireId, T: TorchDims = TORCH, B: BulbDims = BULB):
           4,
         ).slice(1),
       ];
-    // plus strip: contact plate on the battery's nub → up → back along the top to the slider's first contact;
-    // from the slider's second contact forward again → down to the lamp's bottom contact
+    // plus strip: from the contact plate on the battery's nub to the slider's first contact — it goes there under
+    // the battery and up the far wall (`unfold-plus.ts` lays it); from the slider's second contact forward again →
+    // down to the lamp's bottom contact
     case 'p1':
-      return G.roundPath(
-        [
-          new Vector3(plate, 0, 0.07),
-          new Vector3(plate, top, 0.07),
-          new Vector3(T.sliderX - 0.12, top, 0.07),
-        ],
-        0.1,
-        5,
-      );
+      return [new Vector3(plate, 0, 0.07), new Vector3(T.sliderX - 0.12, top, 0.07)];
     case 'p2':
       return G.roundPath(
         [

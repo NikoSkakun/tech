@@ -23,7 +23,7 @@ import { createThermal } from './bulb-thermal';
 import { UNFOLD_PLAY, createUnfold, type Unfold } from './unfold';
 
 export * from './layout';
-export { BOARD_Y } from './base';
+export { BOARD_Y, edgeLineShown, setEdgeLine } from './base';
 export { HANDOVER, LENS_OVER_WIRE, STAGE_FOV, STAGE_POST, STAGE_SHOTS, boardToWorld } from './shots';
 export { filamentColor } from './light';
 export { BEATS, UNFOLD_PLAY, UNFOLD_SECONDS } from './unfold';

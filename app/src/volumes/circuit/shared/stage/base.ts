@@ -54,6 +54,23 @@ function wedgeGeometry(): BufferGeometry {
   return toCreasedNormals(g, 0.95);
 }
 
+/**
+ * DEV (owner 2026-11-19: «додай dev перемикач, щоб прибрати візуальну лінію по всьому периметру стенду»): the
+ * pressed-in line along the edge can be hidden for the whole session — every base built now or later follows
+ * (`setEdgeLine`, the switch on `prologue/click`). On by default.
+ */
+let edgeLineOn = true;
+const edgeLines = new Set<WeakRef<Mesh>>();
+export function setEdgeLine(on: boolean): void {
+  edgeLineOn = on;
+  for (const ref of edgeLines) {
+    const line = ref.deref();
+    if (line) line.visible = on;
+    else edgeLines.delete(ref);
+  }
+}
+export const edgeLineShown = (): boolean => edgeLineOn;
+
 export interface Base {
   /** World-space group: wedge and feet. */
   group: Group;
@@ -128,6 +145,8 @@ export function createBase(): Base {
   line.position.y = 0.0025;
   line.receiveShadow = true;
   line.name = 'edge-line';
+  line.visible = edgeLineOn;
+  edgeLines.add(new WeakRef(line));
   frame.add(line);
   return { group, frame, face: wedge };
 }
