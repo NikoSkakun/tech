@@ -62,6 +62,7 @@ export type { Actor, ActorOptions, AppearMode, ColorParam, Param, PoseSpec, Stag
 export {
   samePosition,
   DEFAULT_READING_LEVEL,
+  FRESH_START,
   isReadingLevel,
   type ReadingLevel,
   type AppState,

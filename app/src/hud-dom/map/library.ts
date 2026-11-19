@@ -40,7 +40,7 @@ export function domLibrary(dom: DomHud, stage: () => HomeStage | null): Overlay 
   const enter = (volume: VolumeManifest): void => {
     hud.close();
     // inside the volume the reader lands where they left it; a first visit starts on the volume's home screen
-    const first = store.get().lastIn[volume.id] === undefined;
+    const first = !store.freshStart && store.get().lastIn[volume.id] === undefined; // FRESH_START: no home screen
     if (first) hud.landing.arm();
     void nav.gotoVolume(volume.id).then((ok) => {
       if (ok && first) hud.open('home');

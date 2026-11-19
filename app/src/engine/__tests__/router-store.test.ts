@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Router, formatHash, parseHash, type LocationHost } from '../router';
-import { DEFAULT_SETTINGS, Store, migrateV1, type StorageLike } from '../store';
+import { DEFAULT_SETTINGS, FRESH_START, Store, migrateV1, type StorageLike } from '../store';
 
 function fakeHost(hash = ''): LocationHost & { fire(): void; replaced: string[] } {
   const listeners = new Set<() => void>();
@@ -128,9 +128,9 @@ describe('store', () => {
     expect(seen).toEqual(['first']);
   });
 
-  it('persists settings, progress and last positions — and survives corrupt storage', () => {
+  it('resume mode (FRESH_START off) persists settings, progress and last positions — and survives corrupt storage', () => {
     const storage = memoryStorage();
-    const a = new Store(storage);
+    const a = new Store(storage, 'electricity', false);
     const nucleus = { volumeId: 'electricity', chapterId: 'atom', stepId: 'nucleus' };
     a.updateSettings({ quality: 'low', textScale: 1.2 });
     a.markVisited({ ...nucleus, stepId: 'intro' });
@@ -140,7 +140,7 @@ describe('store', () => {
     a.settle(nucleus);
     a.settle({ volumeId: 'radio', chapterId: 'atom', stepId: 'clock' });
     a.set({ chapterId: 'atom' });
-    const b = new Store(storage);
+    const b = new Store(storage, 'electricity', false);
     expect(b.get().settings.quality).toBe('low');
     expect(b.get().settings.textScale).toBe(1.2);
     expect(b.get().settings.audio).toBe(DEFAULT_SETTINGS.audio); // defaults fill missing keys
@@ -155,7 +155,40 @@ describe('store', () => {
     expect(broken.get().settings).toEqual(DEFAULT_SETTINGS);
   });
 
-  it('migrates data saved before the library of volumes (electricity:v1) into the default volume', () => {
+  it('fresh-start mode keeps the settings but neither restores nor saves progress and positions', () => {
+    const nucleus = { volumeId: 'electricity', chapterId: 'atom', stepId: 'nucleus' };
+    // a profile saved in resume mode, then opened in fresh-start mode
+    const storage = memoryStorage();
+    const old = new Store(storage, 'electricity', false);
+    old.updateSettings({ audio: false, deskShell: true });
+    old.markVisited(nucleus);
+    old.settle(nucleus);
+    const a = new Store(storage, 'electricity', true);
+    expect(a.freshStart).toBe(true);
+    expect(a.get().settings.audio).toBe(false);
+    expect(a.get().settings.deskShell).toBe(true);
+    expect(a.get().progress.visited).toEqual({});
+    expect(a.get().last).toBeNull();
+    expect(a.get().lastIn).toEqual({});
+    // within the session progress lives in memory as usual
+    a.markVisited(nucleus);
+    a.settle(nucleus);
+    expect(a.get().progress.visited).toEqual({ 'electricity/atom': ['nucleus'] });
+    expect(a.get().last).toEqual(nucleus);
+    // …but is not written: the saved record holds the settings and empty progress
+    const saved = JSON.parse(storage.data['electricity:v2']!);
+    expect(saved.settings.audio).toBe(false);
+    expect(saved.progress).toEqual({ visited: {} });
+    expect(saved.last).toBeNull();
+    expect(saved.lastIn).toEqual({});
+    expect(new Store(storage, 'electricity', true).get().progress.visited).toEqual({});
+  });
+
+  it('the default store follows FRESH_START', () => {
+    expect(new Store(null).freshStart).toBe(FRESH_START);
+  });
+
+  it('resume mode: migrates data saved before the library of volumes (electricity:v1) into the default volume', () => {
     const v1 = {
       v: 1,
       settings: { quality: 'medium', volume: 0.4 },
@@ -163,7 +196,7 @@ describe('store', () => {
       last: { chapterId: 'plant-wind', stepId: 'hook' },
     };
     const storage = memoryStorage({ 'electricity:v1': JSON.stringify(v1) });
-    const store = new Store(storage, 'electricity');
+    const store = new Store(storage, 'electricity', false);
     const s = store.get();
     expect(s.settings.quality).toBe('medium');
     expect(s.settings.volume).toBe(0.4);
@@ -181,7 +214,7 @@ describe('store', () => {
       ...v1,
       last: { chapterId: 'atom', stepId: 'dive-in' },
     });
-    expect(new Store(storage).get().last?.chapterId).toBe('plant-wind');
+    expect(new Store(storage, 'electricity', false).get().last?.chapterId).toBe('plant-wind');
     // tolerant of odd old data
     expect(
       migrateV1({ v: 1, progress: { visited: { atom: 'x' as unknown as string[] } }, last: null }, 'e'),

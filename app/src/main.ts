@@ -6,6 +6,7 @@ import { createBootUi, hasWebGL2 } from '@/engine/boot-ui';
 import { installDebugApi, installErrorCapture } from '@/engine/debug/api';
 import { discoverVolumes, LIBRARY_CONFIG } from '@/engine/discover';
 import { Library } from '@/engine/library';
+import { FRESH_START } from '@/engine/store';
 import { loadFonts } from '@/text/fonts';
 
 type PluginModule = { plugin?: EnginePlugin };
@@ -33,6 +34,9 @@ const boot = createBootUi();
 
 async function start(): Promise<Engine> {
   const flags = parseFlags(window.location.search);
+  // FRESH_START (engine/store.ts): a reload starts at the beginning as well — the step address the app wrote
+  // into the bar is dropped (query flags stay); a deep link opened in a new tab or pasted still opens its step
+  if (FRESH_START && isReload()) history.replaceState(history.state, '', location.pathname + location.search);
   if (!hasWebGL2()) {
     boot.fatal('webgl');
     throw new Error('WebGL2 is not available');
@@ -77,6 +81,11 @@ async function start(): Promise<Engine> {
   offError();
   canvas.focus({ preventScroll: true });
   return engine;
+}
+
+function isReload(): boolean {
+  const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+  return nav?.type === 'reload';
 }
 
 const ready = start();

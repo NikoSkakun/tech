@@ -14,6 +14,16 @@ export type ReadingLevel = 'simple' | 'detailed';
 /** Pilot of the simple layer: new visitors start on «Докладно». Flip to `simple` once the pilot is approved. */
 export const DEFAULT_READING_LEVEL: ReadingLevel = 'detailed';
 
+/**
+ * Owner, 2026-11-19: «Одразу починай з першої глави поки що, без мапи. і з початку. тобто без кешу прогресу».
+ * For now (поки що) every page load starts afresh: the plain address opens straight on the default volume's first
+ * step (no home screen in front, `hud/index.ts`), and progress and the last position are neither restored nor
+ * kept — they live in memory for the session; the saved record holds only the settings (theme, sound, desk shell…)
+ * and its progress fields are written empty. Deep links still open their step. Set to `false` to bring back
+ * resume, saved progress and the landing home screen.
+ */
+export const FRESH_START = true;
+
 export function isReadingLevel(v: unknown): v is ReadingLevel {
   return v === 'simple' || v === 'detailed';
 }
@@ -196,10 +206,12 @@ export class Store {
    * @param storage pass `null` to disable persistence (tests, private mode failures).
    * @param legacyVolume volume that data saved before the library of volumes belongs to
    *   (`library.json → legacyVolume`; not the default volume, which may change).
+   * @param freshStart progress and last position are not restored nor saved (`FRESH_START`).
    */
   constructor(
     private storage: StorageLike | null = null,
     private readonly legacyVolume = 'electricity',
+    readonly freshStart = FRESH_START,
   ) {
     this.state = initialState();
     this.load();
@@ -309,9 +321,13 @@ export class Store {
       this.state = {
         ...this.state,
         settings: { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) },
-        progress: { visited: { ...(data.progress?.visited ?? {}) } },
-        last: data.last ?? null,
-        lastIn: { ...(data.lastIn ?? {}) },
+        ...(this.freshStart
+          ? {}
+          : {
+              progress: { visited: { ...(data.progress?.visited ?? {}) } },
+              last: data.last ?? null,
+              lastIn: { ...(data.lastIn ?? {}) },
+            }),
       };
       if (!isReadingLevel(this.state.settings.readingLevel))
         this.state.settings = { ...this.state.settings, readingLevel: DEFAULT_READING_LEVEL };
@@ -323,12 +339,13 @@ export class Store {
 
   private save(): void {
     if (!this.storage) return;
+    const fresh = this.freshStart;
     const data: Persisted = {
       v: 2,
       settings: this.state.settings,
-      progress: this.state.progress,
-      last: this.state.last,
-      lastIn: this.state.lastIn,
+      progress: fresh ? { visited: {} } : this.state.progress,
+      last: fresh ? null : this.state.last,
+      lastIn: fresh ? {} : this.state.lastIn,
     };
     try {
       this.storage.setItem(STORAGE_KEY, JSON.stringify(data));

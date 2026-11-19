@@ -1,6 +1,6 @@
 // «Почати з нуля» end to end, in real time by default (the clock runs, nothing frozen): note the first visit of
 // the start address, walk into a later step, reset, and check the reload lands exactly where a first visit does —
-// same address, the volume's title screen open, progress empty, query flags kept, no app errors.
+// same address, the volume's title screen open (none with FRESH_START), progress empty, query flags kept, no app errors.
 //   node tools/qa/reset-check.mjs [--port 5295 | --base URL] [--hud dom|gl] [--touch] [--freeze]
 //                                 [--from circuit/wire] [--out DIR]
 // `--hud dom` resets through the system bar (touch: the «Меню»), `--hud gl` through the settings overlay's
@@ -38,6 +38,7 @@ const state = () =>
       search: location.search,
       overlay: window.__ui.overlay(),
       visited: Object.keys(window.__app.engine.store.get().progress.visited).length,
+      fresh: window.__app.engine.store.freshStart === true,
       savedVisited: saved ? Object.keys(JSON.parse(saved).progress?.visited ?? {}).length : 0,
       errors: window.__app.errors(),
     };
@@ -113,7 +114,11 @@ try {
   await ready();
   const fresh = await state();
   console.log(`  first visit: ${fresh.hash}, overlay ${fresh.overlay}`);
-  check(fresh.overlay === 'home', 'a first visit opens the title screen', String(fresh.overlay));
+  // FRESH_START (engine/store.ts): no title screen, the first step is on screen and counts as visited
+  const landing = fresh.fresh ? null : 'home';
+  const startVisited = fresh.fresh ? 1 : 0;
+  console.log(`  mode: ${fresh.fresh ? 'fresh start' : 'resume'}`);
+  check(fresh.overlay === landing, fresh.fresh ? 'a first visit opens straight on the step' : 'a first visit opens the title screen', String(fresh.overlay));
   await screenshot(page, `${out}/00-fresh.jpg`, 85);
   // the reader walks on: a later chapter, progress recorded (the reset must not come back here)
   await page.evaluate((a) => window.__app.goto(a), from);
@@ -129,9 +134,9 @@ try {
   const after = await state();
   console.log(`  after reset: ${after.hash}${after.search}, overlay ${after.overlay}`);
   check(after.hash === fresh.hash, 'reloaded at the beginning (same address as a first visit)', `${after.hash} vs ${fresh.hash}`);
-  check(after.overlay === 'home', 'the title screen is open, as on a first visit', String(after.overlay));
+  check(after.overlay === landing, 'the same view as on a first visit', String(after.overlay));
   check(after.search === fresh.search, 'query flags kept', after.search);
-  check(after.visited === 0 && after.savedVisited === 0, 'progress empty (store and saved)', `${after.visited}/${after.savedVisited}`);
+  check(after.visited === startVisited && after.savedVisited === 0, 'progress empty (store and saved)', `${after.visited}/${after.savedVisited}`);
   check(after.errors.length === 0, 'no app errors', JSON.stringify(after.errors).slice(0, 200));
   await screenshot(page, `${out}/03-after.jpg`, 85);
 } catch (e) {

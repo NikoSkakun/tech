@@ -216,13 +216,13 @@ describe('saved data survives the change of the default volume', () => {
   it('progress and positions of electricity in an existing profile are kept; #/ opens the front door', async () => {
     const storage = new MemoryStorage();
     // a profile saved while electricity was the default (and only) volume
-    const before = new Store(storage, 'electricity');
+    const before = new Store(storage, 'electricity', false);
     before.markVisited(at('atom', 'intro'));
     before.markVisited(at('atom', 'quarks'));
     before.settle(at('atom', 'quarks'));
     before.updateSettings({ textScale: 1.25 });
     await flush();
-    const store = new Store(storage, makeLibrary().legacyVolume.id);
+    const store = new Store(storage, makeLibrary().legacyVolume.id, false);
     expect(store.get().progress.visited).toEqual({ 'electricity/atom': ['intro', 'quarks'] });
     expect(store.get().lastIn['electricity']).toEqual(at('atom', 'quarks'));
     expect(store.get().settings.textScale).toBe(1.25);
@@ -243,7 +243,7 @@ describe('saved data survives the change of the default volume', () => {
         last: { chapterId: 'atom', stepId: 'intro' },
       }),
     );
-    const store = new Store(storage, makeLibrary().legacyVolume.id);
+    const store = new Store(storage, makeLibrary().legacyVolume.id, false);
     expect(store.get().progress.visited).toEqual({ 'electricity/atom': ['intro'] });
     expect(store.get().last).toEqual(at('atom', 'intro'));
   });

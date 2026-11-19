@@ -104,7 +104,7 @@ export function createLibrary(hud: Hud, map: () => HomeStage | null): Overlay {
   const enter = (volume: VolumeManifest): void => {
     hud.close();
     // inside the volume the user lands where they left it; a first visit starts on the volume's home screen
-    const first = store.get().lastIn[volume.id] === undefined;
+    const first = !store.freshStart && store.get().lastIn[volume.id] === undefined; // FRESH_START: no home screen
     // the volume's first step loads behind its home screen: not visited until the learner reaches it
     if (first) hud.landing.arm();
     void nav.gotoVolume(volume.id).then((ok) => {

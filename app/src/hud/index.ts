@@ -136,8 +136,9 @@ export const plugin: EnginePlugin = {
       views.set(volume.id, v);
       return v;
     }
-    // no deep link in the address bar → land on the home screen of the volume once its first chapter is up
-    let landing = engine.router.route.chapterId === null;
+    // no deep link in the address bar → land on the home screen of the volume once its first chapter is up —
+    // unless every load starts afresh (`FRESH_START`): then the reader is put straight on the first step
+    let landing = engine.router.route.chapterId === null && !engine.store.freshStart;
     // the step that loads behind that home screen is not "visited" until the learner reaches it
     if (landing) h.landing.arm();
     let shownFor = '';

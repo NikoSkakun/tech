@@ -3,7 +3,9 @@
 // dev-only demo volume `_demo` next to volume 1 and asserts what makes the project a library:
 //
 //   1. landing        one published volume in the main flow → no library level: `#/` opens the default volume's
-//                     home (its lobby while it has no chapters), with one button per aside volume (DECISIONS §60)
+//                     home (its lobby while it has no chapters), with one button per aside volume (DECISIONS §60);
+//                     with FRESH_START (engine/store.ts) it opens straight on the first step and the home is
+//                     opened through its button. The checks below follow the mode the build runs in.
 //   1b. aside         each aside button opens that volume on its home screen; its way back returns to `#/`
 //   2. library        the library screen lists the listed volumes (not the sandbox pseudo-volume)
 //   3. enter          a volume card opens that volume (first visit: its home); its map uses its own axis
@@ -76,7 +78,19 @@ try {
   console.log(`library-check @ ${base} ${width}x${height}`);
   // 1. landing ------------------------------------------------------------------------------------------
   await open('');
-  await waitOverlay('home');
+  await page.waitForFunction(() => window.__app.engine?.store !== undefined, null, { timeout: 20000 });
+  const fresh = await ev(() => window.__app.engine.store.freshStart === true);
+  console.log(`  mode: ${fresh ? 'fresh start (no landing home, progress not saved)' : 'resume'}`);
+  /** The home screen a landing opens by itself; in fresh-start mode the step is on screen and home is opened by hand. */
+  const landingHome = async (what) => {
+    if (!fresh) return waitOverlay('home');
+    await settle(10);
+    check((await ev(() => window.__ui.overlay())) === null, `${what}: fresh start — straight on the step, no home in front`, await where());
+    await ev(() => window.__ui.open('home'));
+    await waitOverlay('home');
+    await settle(30); // its buttons are laid out as it opens
+  };
+  await landingHome('landing');
   const volumes = await ev(() => window.__app.listVolumes());
   const def = volumes.find((v) => v.role === 'default').id;
   // the owner of pre-library links and data: volume 1 (`electricity`), wherever the front door is
@@ -124,7 +138,7 @@ try {
   await settle();
   check((await address()) === '_demo/wave/oscillation', 'enter: the card opens the first step of the demo volume', await address());
   check((await hash()) === '#/_demo/wave/oscillation', 'enter: the address is the full route', await hash());
-  await waitOverlay('home');
+  await landingHome('enter');
   check((await names()).includes('home-library'), 'enter: a first visit lands on the volume home, with the way back to the library');
   await shot('demo-home');
   await page.keyboard.press('m');
@@ -204,11 +218,11 @@ try {
   }
   await ev(() => window.localStorage.clear());
   await open(legacy);
-  await waitOverlay('home');
+  await landingHome(`link #/${legacy}`);
   check((await pos()).volumeId === legacy, `link #/${legacy} opens the volume on its home screen`, await address());
   await ev(() => window.localStorage.clear());
   await open(def);
-  await waitOverlay('home');
+  await landingHome(`link #/${def}`);
   check(((await ev(() => window.__app.lobby())) ?? (await pos()).volumeId) === def, `link #/${def} opens the volume on its home screen`, `${await where()} ${await hash()}`);
   check(!(await names()).includes('sys-library') && !(await names()).includes('volume-card-_dev'), 'the sandbox pseudo-volume has no library chrome');
 
@@ -230,13 +244,20 @@ try {
     const s = window.__app.engine.store.get();
     return { visited: s.progress.visited, last: s.last, volume: s.settings.volume, v2: window.localStorage.getItem('electricity:v2') !== null };
   });
-  check(
+  if (fresh) {
+    check(
+      migrated.volume === 0.35 && migrated.v2 && migrated.last?.volumeId === def && !migrated.visited[`${legacy}/atom`],
+      'migration (fresh start): settings taken over, the old progress and position are not restored',
+      JSON.stringify(migrated),
+    );
+  } else check(
     migrated.visited[`${legacy}/atom`]?.length === 3 && migrated.visited[`${legacy}/plant-wind`]?.includes('overview') && migrated.volume === 0.35 && migrated.v2,
     'migration: v1 progress and settings are taken over into the legacy volume',
     JSON.stringify(migrated),
   );
   // `#/` resumes the old position only while volume 1 is in the main flow; an aside volume resumes when entered
-  if (!aside.includes(legacy)) check((await address()) === `${legacy}/plant-wind/betz`, 'migration: the app resumes at the old last position', await address());
+  if (fresh) check((await address()).startsWith(`${def}/`), 'migration (fresh start): `#/` opens the first step of the default volume', await address());
+  else if (!aside.includes(legacy)) check((await address()) === `${legacy}/plant-wind/betz`, 'migration: the app resumes at the old last position', await address());
   else {
     check((await where()) === `lobby:${def}` || (await pos()).volumeId === def, 'migration: `#/` still opens the front door', await where());
     await open(legacy);
