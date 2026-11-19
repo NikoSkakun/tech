@@ -1,0 +1,1 @@
+import{t as e}from"./placeholder-rpgI1AEd.js";import t from"./content-DTVk07h5.js";var n=e(t,{core:2,sheath:1},{holdNav:[`core`]});export{n as default};
