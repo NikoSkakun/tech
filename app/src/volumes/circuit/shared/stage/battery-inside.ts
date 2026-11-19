@@ -102,7 +102,7 @@ export interface Outside {
   sleeve: Group;
   /** Dissolve the sleeve: 1 solid … 0 gone (dithered, no sorting). */
   setSleeveFade(k: number): void;
-  /** The printed «1,5 V» leaves with the sleeve: `k` 1 = as printed … 0 = gone, `shift` along the axis. */
+  /** The printed «1.5 V» leaves with the sleeve: `k` 1 = as printed … 0 = gone, `shift` along the axis. */
   setPrint(k: number, shift: number): void;
 }
 

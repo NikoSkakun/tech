@@ -67,7 +67,7 @@ export const CHAPTER_SHOTS = {
     fit: { center: v3(BATTERY_CENTRE.clone().add(new Vector3(0, -0.3, 0.15))), radius: 1.18 },
   },
   /**
-   * The battery and the meter together (`voltage`): the battery with its «1,5 V» in the upper half, both clamps,
+   * The battery and the meter together (`voltage`): the battery with its «1.5 V» in the upper half, both clamps,
    * the meter large below and left of it on the table, the probes' way between them; the needle, the scale and the
    * number read at 1280×720. Phones frame the same two things.
    */

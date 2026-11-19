@@ -1,7 +1,7 @@
 /**
  * «0,3 A» stamped on the lamp's base (VISUAL §5.5 / script `flow/count`: «погляньте на напис на лампочці»): small
  * print on the part of the brass thread that stands above the socket, turned toward the stand's camera side.
- * Like the battery's «1,5 V» it is unlit text that follows the room's light; `glow` lights it up faintly (the
+ * Like the battery's «1.5 V» it is unlit text that follows the room's light; `glow` lights it up faintly (the
  * takeaway of `flow/count`). At the stand shot it is a few pixels — the close-ups read it; on a phone a chapter
  * names it in the interface instead (`shown = false`, anchor `anchor`).
  */

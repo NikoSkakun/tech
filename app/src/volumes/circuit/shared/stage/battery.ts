@@ -17,11 +17,11 @@ export interface BatteryModel {
   group: Group;
   /** 1 fresh … 0 dead. */
   charge: number;
-  /** Whether «1,5 V» is printed on the jacket (off where it would be too small to read — label it in the interface). */
+  /** Whether «1.5 V» is printed on the jacket (off where it would be too small to read — label it in the interface). */
   printShown: boolean;
   /** Where the print sits, for a caption of the interface (`getWorldPosition`). */
   printAnchor: Object3D;
-  /** Brightness of the printed «1,5 V» 0…1 (the print is unlit text: it follows the room's light). */
+  /** Brightness of the printed «1.5 V» 0…1 (the print is unlit text: it follows the room's light). */
   light: number;
   /** Tips of the poles in the battery's local space (where the clamp's contact and the spring touch). */
   plusTip: Vector3;
@@ -126,7 +126,7 @@ function buildOutside(
   // pole marks, turned toward the reader
   // G.lathe: φ = 0 → +x; laid along x it becomes φ = π/2 → facing the reader (+z), φ = π → facing up
   const phi = Math.PI / 2 + 0.85;
-  // «+» in the middle of the band's visible part; «−», a clear gap, then «1,5 V», the group centred on the jacket
+  // «+» in the middle of the band's visible part; «−», a clear gap, then «1.5 V», the group centred on the jacket
   plus(b, L / 2 - 0.35, phi, 'white');
   minus(b, -L / 2 + 0.29, phi, 'mist');
 
@@ -169,8 +169,8 @@ export function createBattery(): BatteryModel {
   const model = { group: outside.group };
   model.group.add(sleeve.group);
 
-  // «1,5 V» printed on the jacket, on the same line as the pole marks
-  const print = new Text3D('1,5 V', {
+  // «1.5 V» printed on the jacket, on the same line as the pole marks
+  const print = new Text3D('1.5 V', {
     font: 'display',
     size: 0.19,
     color: 'mist',
