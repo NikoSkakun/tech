@@ -3,10 +3,12 @@
  * reader can drag it, stop it and lead it back (`build/flashlight` plays it backwards). Six beats over 6 s:
  *
  *   1  0.0–0.8   the housing splits lengthwise, the halves slide apart by their diameter
- *   2  0.8–1.6   halves, mirror and glass rise in an arc to the shelf; the parts hover in a row
+ *   2  0.8–2.1   the housing leaves the picture: the far half (mirror and glass nested in it) rises over the back
+ *                and out of the top, the near half runs off low to the left; out of the frame they are gone
  *   3  1.45–2.45 the mounts grow out of the board in a wave from left to right (every 55 ms)
  *   4  2.2–4.15  one part at a time, each visibly travelling and settling: lamp, battery, switch — battery → cradle, spring → minus clamp, lamp rises and screws one turn into the socket,
- *                slider → switch block; both strips follow without letting go
+ *                slider → switch block; the strips, raised over the parts first (`STRIP_RISE`, they lift the slider
+ *                with them), follow without letting go and cross over the parts — never through one
  *   5  3.8–5.0   the strips round into wires, the sheath grows from the clamps, the wires lie down on the staples
  *   6  5.0–6.0   rest (camera, magnifier — `beat6` 0…1 is exported for them)
  *
@@ -46,6 +48,20 @@ const hump = (x: number): number => Math.sin(Math.PI * clamp01(x));
 /** Torch frame in the board frame: lying on the board, head to the right and a little toward the reader. */
 const YAW = -0.52;
 const HOVER_LIFT = 0.3;
+/**
+ * The strips leave the torch OVER the parts (owner 2026-11-19: «дріт … перетинає частини»): in the torch the minus
+ * strip runs beside the battery and the plus strips over it, and on the stand they lie on the other sides — so
+ * every strip first rises (`up`, s) by `height` above where it lay, crosses (`across`: the morph torch → stand
+ * path) while the parts travel under it, and settles on the board (`down`) once all of them are in place. The
+ * rise is full along the whole strip but for `edge` (share of its length) at each end, where it is pinned to its part.
+ */
+const STRIP_RISE = { height: 0.5, up: [2.0, 2.35], across: [2.45, 4.7], down: [4.15, 4.85], edge: 0.12 };
+/** Height of the battery's arc on its way to the cradle: low, under the raised strips. */
+const BATTERY_ARC = 0.2;
+/** 0…1: how far the strips are raised over the parts at time `t` (s). */
+const riseOf = (t: number): number =>
+  smooth(ramp(t, STRIP_RISE.up[0], STRIP_RISE.up[1])) *
+  (1 - smooth(ramp(t, STRIP_RISE.down[0], STRIP_RISE.down[1])));
 /** Points per strip while it moves (the finished stand uses the exact paths). */
 const SAMPLES: Record<WireId, number> = { m: 164, p1: 24, p2: 90 };
 
@@ -104,25 +120,19 @@ export function createUnfold(stand: Stand, torch: Torch, T: TorchDims = TORCH, B
   };
   const inTorch = (local: Vector3, out: Vector3): Vector3 => out.copy(local).applyMatrix4(carrier);
 
-  // shelf poses of the housing (level in the world): the two halves lie round side up, one nested on the
-  // other, head to the left — away from the lamp, so its memory does not compete with it;
-  const shelfY = SHELF_WORLD.y;
+  // where the housing goes: out of the picture, and then it is gone (owner 2026-11-19: «нехай частини ліхтарика
+  // анімуються кудись за межі сцени і зникають»). The far half rises on and on over the back of the board, above
+  // the top edge of both shots (`flashlight`, `stand`); the near half runs off low to the left. Both keep the pose
+  // they turn into (round side up, head to the left), so the motion reads as one calm continuation.
   const turn = quat(Y, Math.PI);
-  const shelf = {
-    far: fromWorld(new Vector3(0.95, shelfY, SHELF_WORLD.z - 0.05), quat(X, -Math.PI / 2).multiply(turn)),
-    near: fromWorld(
-      new Vector3(1.2, shelfY + 0.09, SHELF_WORLD.z + 0.04),
-      quat(X, Math.PI / 2 - 0.05).multiply(turn),
-    ),
+  const away = {
+    far: fromWorld(new Vector3(0.8, 5.4, SHELF_WORLD.z - 5.6), quat(X, -Math.PI / 2).multiply(turn)),
+    near: fromWorld(new Vector3(-11, -1.8, -4.6), quat(X, Math.PI / 2 - 0.05).multiply(turn)),
   };
-  // the mirror and the glass go back where they belong — inside the head of the lower half — so the shelf
-  // holds one tidy thing, the housing
-  const stored = {
-    mirror: pose(shelf.far.p.clone(), shelf.far.q.clone()),
-    glass: pose(
-      new Vector3(T.glassX, 0, 0).applyQuaternion(shelf.far.q).add(shelf.far.p),
-      shelf.far.q.clone(),
-    ),
+  /** The mirror and the glass nest in the head of the far half and leave with it (board frame, from its pose). */
+  const nest = {
+    mirror: pose(new Vector3(), new Quaternion()),
+    glass: pose(new Vector3(), new Quaternion()),
   };
 
   // attachment points of the strip ends: local to the part that carries them, in the torch and on the stand
@@ -167,43 +177,43 @@ export function createUnfold(stand: Stand, torch: Torch, T: TorchDims = TORCH, B
 
   /* ---------------------------------------------------------------- beats 1–2: the housing leaves */
   const route = new CatmullRomCurve3(
-    [new Vector3(), new Vector3(-6.0, -1.0, 0.4), new Vector3(-5.9, -0.9, -2.9), new Vector3()],
+    [new Vector3(), new Vector3(-6.0, -1.0, 0.4), new Vector3(-8.6, -1.4, -2.2), away.near.p.clone()],
     false,
     'catmullrom',
     0.5,
   );
   const housing = (t: number): void => {
     const apart = inOut(ramp(t, 0, 0.8)) * T.head * 2;
-    for (const [half, sign, to, t0] of [
-      [torch.far, -1, shelf.far, 0.8],
-      [torch.near, 1, shelf.near, 0.86],
-    ] as const) {
-      // the far half slides straight aside; the near half — the one that would come at the reader — opens only
-      // a little toward the reader and mostly slides back along the torch's axis, tail first, away from the camera
-      const from = torchPose(sign < 0 ? tmp.set(0, 0, -apart) : tmp.set(-1.15 * apart, 0, 0.5 * apart));
-      const k = inOut(ramp(t, t0, t0 + (sign < 0 ? 0.68 : 0.9)));
-      if (sign < 0) {
-        place(half, from, to, k, 1.5);
-      } else {
-        // the near half must never cross the picture: it slides on the way it already goes (to the front
-        // left), drops below the level of the face beside the board — out of the flashlight shot — runs back
-        // along the board's left side and rises to the shelf from behind (Catmull-Rom through two low points)
-        route.points[0]!.copy(from.p);
-        route.points[3]!.copy(to.p);
-        route.getPoint(k, half.position);
-        half.quaternion.copy(from.q).slerp(to.q, k);
-      }
-    }
-    // mirror and glass first slide forward off the lamp, then follow the halves
+    // the far half slides straight aside, then rises in one long arc over the back of the board and out of the
+    // top of the frame; the near half — the one that would come at the reader — opens only a little toward the
+    // reader and mostly slides back along the torch's axis, tail first, away from the camera
+    const kFar = inOut(ramp(t, 0.8, 2.1));
+    place(torch.far, torchPose(tmp.set(0, 0, -apart)), away.far, kFar, 1.2);
+    // the near half must never cross the picture: it slides on the way it already goes (to the front left),
+    // drops below the level of the face beside the board — out of the flashlight shot — and runs on, low, to the
+    // left and back (Catmull-Rom through two low points)
+    const from = torchPose(tmp.set(-1.15 * apart, 0, 0.5 * apart));
+    const kNear = inOut(ramp(t, 0.86, 1.9));
+    route.points[0]!.copy(from.p);
+    route.getPoint(kNear, torch.near.position);
+    torch.near.quaternion.copy(from.q).slerp(away.near.q, kNear);
+    // mirror and glass first slide forward off the lamp, then fly into the head of the far half and leave with it
+    nest.mirror.p.copy(torch.far.position);
+    nest.mirror.q.copy(torch.far.quaternion);
+    nest.glass.p.set(T.glassX, 0, 0).applyQuaternion(torch.far.quaternion).add(torch.far.position);
+    nest.glass.q.copy(torch.far.quaternion);
     const off = smooth(ramp(t, 0.8, 1.05));
-    place(torch.mirror, torchPose(tmp.set(off * 1.25, 0, 0)), stored.mirror, inOut(ramp(t, 1.02, 1.6)), 1.1);
+    place(torch.mirror, torchPose(tmp.set(off * 1.25, 0, 0)), nest.mirror, inOut(ramp(t, 1.02, 1.6)), 1.1);
     place(
       torch.glass,
       torchPose(tmp.set(T.glassX + off * 1.6, 0, 0)),
-      stored.glass,
+      nest.glass,
       inOut(ramp(t, 0.98, 1.56)),
       1.3,
     );
+    // out of the picture they are gone — not lying anywhere in the scene (and back the same way)
+    torch.far.visible = torch.mirror.visible = torch.glass.visible = kFar < 1;
+    torch.near.visible = kNear < 1;
   };
 
   /* ------------------------------------------- beats 3–4: mounts grow, the parts take their places */
@@ -220,13 +230,15 @@ export function createUnfold(stand: Stand, torch: Torch, T: TorchDims = TORCH, B
       m.scale.setScalar(Math.max(g, 1e-3));
     });
     e.batt = smooth(ramp(t, 2.75, 3.85));
-    place(stand.battery.group, torchPose(local.battT), pose(PLACE.battery), e.batt, 0.4);
-    place(stand.spring.group, torchPose(local.springT), pose(PLACE.spring), e.batt, 0.4);
+    place(stand.battery.group, torchPose(local.battT), pose(PLACE.battery), e.batt, BATTERY_ARC);
+    place(stand.spring.group, torchPose(local.springT), pose(PLACE.spring), e.batt, BATTERY_ARC);
     const len = T.springLength + (PLACE.springLength - T.springLength) * e.batt;
     stand.spring.group.scale.set(len / stand.spring.length, 1, 1);
 
     e.slider = smooth(ramp(t, 3.2, 4.15));
     place(stand.slider, torchPose(local.sliderT), pose(PLACE.slider), e.slider, 0.35);
+    // the slider sits on the plus strips: they lift it with them while it is still in its place on the torch
+    stand.slider.position.addScaledVector(Y, STRIP_RISE.height * riseOf(t) * (1 - e.slider));
     sliderP.copy(stand.slider.position);
     sliderQ.copy(stand.slider.quaternion);
     // open = back along the slider's own −x: toward the flashlight's tail in the torch, to the left on the
@@ -267,16 +279,32 @@ export function createUnfold(stand: Stand, torch: Torch, T: TorchDims = TORCH, B
       term(LAMP.x, LAMP.z + LAMP.term - INSET).sub(PLACE.bulb),
     ],
   } as const;
-  const end = (key: keyof typeof ends, p: Vector3, q: Quaternion, k: number, out: Vector3): Vector3 =>
-    out.copy(ends[key][0]).lerp(ends[key][1], k).applyQuaternion(q).add(p);
+  const end = (key: keyof typeof ends, p: Vector3, q: Quaternion, k: number, out: Vector3): Vector3 => {
+    out.copy(ends[key][0]).lerp(ends[key][1], k);
+    // the lamp's two ends leave its base sideways first and only then go down to the post's terminals: the lamp
+    // sinks into the socket last (`screw`), and a straight way would cut through the socket's cup
+    if (key === 'mb' || key === 'p2b') {
+      const kh = smooth(clamp01(k / 0.75));
+      out.x = ends[key][0].x + (ends[key][1].x - ends[key][0].x) * kh;
+      out.z = ends[key][0].z + (ends[key][1].z - ends[key][0].z) * kh;
+    }
+    return out.applyQuaternion(q).add(p);
+  };
   // which way the flat side of each strip faces in the torch (carrier axes): against the wall it runs along; the
   // minus strip leaves the spring facing it and keeps that side, transported along the whole strip (no twist)
   const flat: Record<WireId, Vector3> = { m: X, p1: X, p2: Y };
   const up = new Vector3();
+  /** Which ends of a strip [start, end] sit on the slider — it rises with the strips, so they rise right to it. */
+  const rides: Record<WireId, readonly [boolean, boolean]> = {
+    m: [false, false],
+    p1: [false, true],
+    p2: [true, false],
+  };
   const wires = (t: number): void => {
     if (t >= UNFOLD_SECONDS - 1e-6) return stand.wires.setStand();
-    const w = smooth(ramp(t, 2.2, 4.7));
-    const lift = 0.14 * hump(ramp(t, 2.6, 4.95));
+    const R = STRIP_RISE;
+    const w = smooth(ramp(t, R.across[0], R.across[1]));
+    const lift = R.height * riseOf(t);
     const round = smooth(ramp(t, 4.05, 4.75));
     const cover = smooth(ramp(t, 4.2, 5.0));
     const battery = stand.battery.group;
@@ -289,7 +317,12 @@ export function createUnfold(stand: Stand, torch: Torch, T: TorchDims = TORCH, B
         const p = (out[i] ??= new Vector3());
         inTorch(from[i]!, p)
           .lerp(to[i]!, w)
-          .addScaledVector(Y, lift * Math.sin(Math.PI * s));
+          .addScaledVector(
+            Y,
+            lift *
+              (rides[id][0] ? 1 : smooth(clamp01(s / R.edge))) *
+              (rides[id][1] ? 1 : smooth(clamp01((1 - s) / R.edge))),
+          );
       }
       // pin both ends to the parts they touch; the correction fades quadratically along the piece
       const start =

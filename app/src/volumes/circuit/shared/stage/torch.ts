@@ -56,11 +56,7 @@ export function torchDims(bulb: BulbDims = BULB): TorchDims {
 export const TORCH: TorchDims = torchDims();
 
 /** Local strip paths (torch frame). Each matches one wire piece of the stand, start → end. */
-export function torchPath(
-  id: WireId,
-  T: TorchDims = TORCH,
-  B: BulbDims = BULB,
-): Vector3[] {
+export function torchPath(id: WireId, T: TorchDims = TORCH, B: BulbDims = BULB): Vector3[] {
   const top = T.body - T.wall - 0.012;
   const side = T.body - T.wall - 0.012;
   const plate = T.batteryX + BATTERY.length / 2 + 0.125;
@@ -147,13 +143,15 @@ function addHalf(b: Builder, name: string, sign: 1 | -1, T: TorchDims): void {
   const lay: [number, number, number] = [0, 0, -Math.PI / 2];
   p.add(shell, { slot: 'gloss', c: 'teal', rot: lay });
   if (caps) p.add(caps, { slot: 'toon', c: 'teal.dark', rot: lay });
-  // grip ribs on the body and the steel ring of the head — half rings that travel with their half
+  // grip ribs on the body and the steel ring of the head — half rings that travel with their half, cut along
+  // the same plane z = 0 as the shell: `G.ring`'s half arc lies on its +z side; the turn of −π/2 about z lays
+  // its axis on the torch axis and keeps the arc on +z (the near half), a half turn about x puts it on −z (far)
   for (const x of [-1.2, -0.95, -0.7, -0.45]) {
     p.add(G.ring(rb + 0.005, 0.03, 20, 8, Math.PI), {
       slot: 'gloss',
       c: 'teal.dark',
       at: [x, 0, 0],
-      rot: [sign > 0 ? Math.PI / 2 : -Math.PI / 2, 0, -Math.PI / 2],
+      rot: [sign > 0 ? 0 : Math.PI, 0, -Math.PI / 2],
     });
   }
   const bezel: G.Pt[] = [

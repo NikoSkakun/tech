@@ -93,8 +93,9 @@ export const LENS = {
 export const RULER = { x0: -1.9, x1: 1.9, z: 1.96, cm: 10 } as const;
 
 /**
- * The shelf behind the rear edge where the flashlight's housing rests. It is level in the WORLD (not tilted
- * with the face) and sits below the rear edge, so from the main shot only the tops of the housing show.
+ * The shelf behind the rear edge, level in the WORLD (not tilted with the face), below the rear edge. The
+ * flashlight's housing no longer rests on it — it leaves the picture in the unfolding (owner 2026-11-19); the
+ * empty shelf stays, as a part of the finished stand every chapter shows.
  */
 export const SHELF_WORLD = { y: 0.92, z: -3.02, depth: 1.56, width: 6.3 } as const;
 

@@ -80,8 +80,13 @@ export default defineScene((ctx) => {
         {
           anchor: world.stand.stand.slider,
           text: labels('click')[0] ?? '',
-          // not while «Назад» rewinds the dive and folds the stand: the name comes with the closed flashlight
-          visible: () => ctx.stage.current === 'click' && !unfolding.playing && !world.flying,
+          // not while «Назад» rewinds the dive and folds the stand, nor while the dev scrub has it part-way
+          // open: the name belongs to the closed flashlight
+          visible: () =>
+            ctx.stage.current === 'click' &&
+            !unfolding.playing &&
+            !world.flying &&
+            world.stand.unfold <= 1e-4,
         },
       ],
       goal: () => toggle.lightings >= 2 && world.stand.glow > 0.5,

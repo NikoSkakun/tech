@@ -204,12 +204,18 @@ glass 16.5 % of the height; wire 22 px (core 12 px); switch 8.2 % of the width, 
 
 ## The unfolding (`unfold.ts`) — VISUAL §5.1
 
-`0–0.8 s` the housing splits, the halves slide apart · `0.8–1.6` halves, mirror, glass go to the shelf, parts
-hover · `1.6–2.6` mounts grow left → right every 70 ms · `2.6–3.8` battery, spring, lamp (one screwing turn),
-slider take their places, the strips follow · `3.8–5.0` strips round into wires, sheath grows from the clamps,
-wires lie down on the staples · `5.0–6.0` magnifier into its holder (`unfolding.beat6`).
+`0–0.8 s` the housing splits, the halves slide apart (each decorative ring is cut along the same plane as the
+body, half on each half) · `0.8–2.1` the housing leaves the picture: the far half (mirror and glass fly into its
+head) rises over the back and out of the top of the frame, the near half runs off low to the left; out of the
+frame they are hidden — at `unfold = 1` no part of the flashlight is in the scene (the shelf stays, empty) ·
+`1.45–2.45` mounts grow left → right · `2.0–2.35` the strips rise (`STRIP_RISE`) and lift the slider with them ·
+`2.2–4.15` lamp, battery (low arc under the strips), spring, slider take their places while the strips cross
+over them · `4.05–5.0` strips round into wires, sheath grows from the clamps, wires lie down on the staples ·
+`5.0–6.0` magnifier into its holder (`unfolding.beat6`).
 The lamp's light is a `PointLight` parented to the filament, so light and shadows travel with the lamp; no
-contact opens (every strip end is computed from the part it touches). The camera is yours: `flashlight` for
+contact opens (every strip end is computed from the part it touches). No wire piece passes through a part at
+any moment: `__tests__/unfold-clear.test.ts` checks every 0.005 of `unfold` against simple solids of the
+battery, lamp, slider, mounts, board and housing — keep it green when you change a beat. The camera is yours: `flashlight` for
 beats 1–2, `stand` from beat 3 is what the showcase uses.
 
 ## The dive and the hand-over pose («жила дроту»)
