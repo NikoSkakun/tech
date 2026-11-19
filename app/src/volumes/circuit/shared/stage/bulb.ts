@@ -54,6 +54,8 @@ export function bulbDims(globe: number = LAMP.glass): BulbDims {
   };
 }
 export const BULB: BulbDims = bulbDims();
+/** The brass thread's pitch (local): one ridge per this much height — the lamp sinks this far per turn in a socket. */
+export const THREAD_PITCH = 0.05;
 
 export interface BulbModel {
   group: Group;
@@ -177,7 +179,7 @@ export function createBulb(B: BulbDims = BULB): BulbModel {
   );
   const thread: G.Pt[] = [[tr - 0.02, 0.11]];
   for (let i = 0; i < 4; i++) {
-    const y = 0.125 + i * 0.05;
+    const y = 0.125 + i * THREAD_PITCH;
     thread.push([tr - 0.018, y], [tr, y + 0.014], [tr, y + 0.03], [tr - 0.018, y + 0.044]);
   }
   // collar: its top edge is rolled in over the glass neck and the brass goes on down inside (no flat cap: seen

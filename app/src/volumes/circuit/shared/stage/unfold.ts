@@ -33,7 +33,7 @@ import { BOARD_Y } from './base';
 import { SLIDER_TRAVEL } from './small-parts';
 import { PLACE, type Stand } from './stand';
 import { MINUS_Y, TORCH, torchPath, type Torch, type TorchDims } from './torch';
-import { BULB, type BulbDims } from './bulb';
+import { BULB, THREAD_PITCH, type BulbDims } from './bulb';
 import { WIRE_IDS, standPath, type WireId } from './wires';
 import { resample } from './dyn-tube';
 import { createPlusWay, onCan } from './unfold-plus';
@@ -84,13 +84,40 @@ const BATTERY_MOVE = [2.0, 4.4] as const;
 /** Height of the battery's arc on its way to the cradle. */
 const BATTERY_ARC = 0.2;
 /**
- * The lamp turns upright on its way to the socket (s) and makes one turn as it comes down into it (`LAMP_SCREW`).
+ * The lamp turns upright on its way to the socket (s) and screws into it in a beat of its own (`SCREW_BEAT`; the
+ * strip ends wait at the rim over `LAMP_SCREW`).
  * How high it flies is not its own choice: it keeps the minus wire level — the wire's end on it at the height the
  * wire has along its whole length — so the lamp comes down into the socket as the battery comes down between its
  * clamps, wires and all in one move, and no wire end ever climbs to it.
  */
 const LAMP_MOVE = [1.9, 3.55] as const;
 const LAMP_SCREW = [3.6, 4.4] as const;
+/**
+ * Turns the lamp makes in the socket, one pitch of its thread per turn (`THREAD_PITCH`): the thread catches as its
+ * lowest edge (local 0.11) reaches the rim (local `LAMP.socketY − PLACE.bulb.y` = 0.2), 0.09 above home — rounded to
+ * two whole pitches, so the lamp ends turned as it started. A right-hand thread: going in, it turns clockwise seen
+ * from the glass; played backwards it unscrews.
+ */
+const SCREW_TURNS = 2;
+/**
+ * The screwing in is its own beat (s): from the catch the lamp no longer follows the minus wire's level (which comes
+ * down fast just then) but sinks the two pitches at a steady pace with soft ends — ≈ 0.93 s of the forward play,
+ * ≈ 2.7 turns/s at most. It lands on the catch height softly (`SCREW_LAND`, how close the wire's level comes before
+ * the lamp starts to slow on it). The strip ends keep the wire's level (they lie on the post's terminals).
+ */
+const SCREW_BEAT = [3.9, 4.7] as const;
+const SCREW_LAND = 0.06;
+/** Share of the screw beat over which the turning gathers speed, and again over which it stops. */
+const SCREW_EASE = 0.2;
+/** 0 … 1 at a steady speed with soft ends: the velocity ramps up over `a` of the way, holds, and ramps down. */
+const steady = (x: number, a: number): number => {
+  const v = 1 / (1 - a);
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  if (x < a) return (v * x * x) / (2 * a);
+  if (x > 1 - a) return 1 - (v * (1 - x) ** 2) / (2 * a);
+  return v * (x - a / 2);
+};
 /**
  * The lamp's way over the board: out of the head along the torch's axis (this far ahead is the curve's first
  * handle), then round to the far right corner, coming to the socket from the reader's side (the second handle,
@@ -450,8 +477,26 @@ export function createUnfold(stand: Stand, torch: Torch, T: TorchDims = TORCH, B
     layMinus(t);
     bulbP.y = 0;
     bulbP.y = paths.m.out[paths.m.out.length - 1]!.y - end('mb', bulbP, bulbQ, e.bulb, b).y;
+    // in the socket the lamp sinks on its own beat (`SCREW_BEAT`) once the wire's level comes to the catch: its
+    // height over home is the higher of the wire's level and the beat's, the two blended softly over `SCREW_LAND`
+    // (a smooth max whose width shrinks with the beat, so the lamp ends exactly home). The wires keep `bulbP`.
+    const reach = THREAD_PITCH * SCREW_TURNS;
+    let h = Math.max(bulbP.y - PLACE.bulb.y, 0);
+    if (travel >= 1) {
+      const beat = reach * (1 - steady(ramp(t, ...SCREW_BEAT), SCREW_EASE));
+      const k = (SCREW_LAND * beat) / reach;
+      const d = h - beat;
+      h = beat + (d >= k ? d : d > -k ? (d + k) ** 2 / (4 * k) : 0);
+    }
     stand.bulb.group.position.copy(bulbP);
-    stand.bulb.group.quaternion.copy(bulbQ).multiply(tmpQ.setFromAxisAngle(Y, Math.PI * 2 * screw));
+    stand.bulb.group.position.y = PLACE.bulb.y + h;
+    if (travel < 1) stand.bulb.group.position.y = bulbP.y;
+    // the turn about its own axis follows its height over home, one pitch per turn (+ about its up axis is
+    // counter-clockwise seen from the glass): the angle falls to 0 as it sinks, clockwise. Out of the thread's reach
+    // it is `SCREW_TURNS` whole turns, i.e. none — the flight and the closed flashlight do not change
+    const sunk = travel < 1 ? 0 : 1 - clamp01(h / reach);
+    const turn = t >= SCREW_BEAT[1] ? 0 : Math.PI * 2 * SCREW_TURNS * (1 - sunk);
+    stand.bulb.group.quaternion.copy(bulbQ).multiply(tmpQ.setFromAxisAngle(Y, turn));
   };
 
   /* ------------------------------------------- beats 4–5: the strips unroll, then become the wires */
