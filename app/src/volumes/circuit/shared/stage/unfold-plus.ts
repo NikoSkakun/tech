@@ -76,11 +76,13 @@ export function createPlusWay(): PlusWay {
       if (side < -Math.PI / 4) side += TAU;
       const down = (3 * Math.PI) / 2;
       const high = Math.hypot(In.y, In.z) > clear + 0.05 && In.y > 0;
-      const end = Math.min(Math.max(side, high ? Math.PI : 0), down);
+      // (past the «+» end there is nothing to go round: the circle folds away with the run back, or it would loop in
+      // front of the nub)
+      const end = Math.min(Math.max(side, high ? Math.PI : 0), down) * (1 - fold) + down * fold;
       const way = [A.clone(), new Vector3(A.x, -clear, 0), at(x, down, clear)];
       const steps = Math.ceil((down - end) / (10 * DEG));
       // (in the torch the circle ends on the slider's way in: its last part widens to that distance, in its plane)
-      const reach = high ? 0 : Math.hypot(In.y, In.z) - clear;
+      const reach = high ? 0 : (Math.hypot(In.y, In.z) - clear) * (1 - fold);
       for (let k = 1; k <= steps; k++)
         way.push(at(x, down + ((end - down) * k) / steps, clear + reach * smooth((k / steps - 0.6) / 0.4)));
       if (high && side < Math.PI) way.push(new Vector3(x, In.y, -clear));
@@ -96,9 +98,15 @@ export function createPlusWay(): PlusWay {
         if (r < keep && r > 1e-6) c.multiply(tmp.set(1, keep / r, keep / r));
         out[i]!.copy(c).applyQuaternion(battery.quaternion).add(battery.position);
       }
-      // flat side toward the «+» end at the plate (as in the torch), then carried round; down on the stand
+      // flat side toward the «+» end at the plate (as in the torch), then carried round; once the slider is past the
+      // «+» end, toward the slider (so that, carried down the drop and over to it, the strip lies flat, not on edge);
+      // down on the stand
+      tmp.set(In.x - A.x, 0, In.z);
+      if (tmp.lengthSq() > 1e-8) normal.set(1, 0, 0).lerp(tmp.normalize(), fold);
+      else normal.set(1, 0, 0);
+      if (normal.lengthSq() < 1e-6) normal.set(1, 0, 0);
       return normal
-        .set(1, 0, 0)
+        .normalize()
         .lerp(tmp.set(0, -1, 0), straight)
         .normalize()
         .applyQuaternion(battery.quaternion);
