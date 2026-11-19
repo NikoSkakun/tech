@@ -9,6 +9,7 @@ import { floorLadder } from '@/hud-dom/journey';
 import { AWAY_MOON, AWAY_POST, LENS_LEG, borderOf, mountWorld } from '@circuit/shared/world';
 import content from './content';
 import { PROLOGUE_SHOTS } from './shots';
+import { devVersionControls } from './steps/dev-versions';
 import { diveStep } from './steps/dive';
 import { mapStep } from './steps/map';
 import { partNames } from './steps/parts';
@@ -20,7 +21,10 @@ import { unfoldScrub } from './steps/unfold-scrub';
 /** Seconds of the dive's rewind before the flashlight folds («Назад» from `dive` below the stand plan). */
 const rewindSeconds = (span: number): number => Math.min(1.8, 0.4 + 0.55 * span);
 
-export default defineScene((ctx) => {
+export default defineScene(async (ctx) => {
+  // DEV TOOL (`DEV_VERSIONS`): the switch on `click` to the frozen earlier versions (only where they are deployed);
+  // awaited before anything is mounted — the manifest was requested when this chapter's code loaded
+  const versions = await devVersionControls();
   const world = mountWorld(ctx);
   ctx.camera.shots(PROLOGUE_SHOTS);
   const labels = (id: string): readonly string[] => content.steps.find((s) => s.id === id)?.labels ?? [];
@@ -75,7 +79,7 @@ export default defineScene((ctx) => {
   ui.define({
     click: {
       reset: true,
-      controls: scrub.controls,
+      controls: [...scrub.controls, ...versions],
       callouts: [
         {
           anchor: world.stand.stand.slider,
