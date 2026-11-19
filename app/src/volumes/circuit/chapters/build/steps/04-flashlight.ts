@@ -1,6 +1,6 @@
 /**
  * `flashlight` — «Знову ліхтарик». ONE slider «Скласти» 0 … 1 is the unfolding played backwards (DECISIONS §60 p;
- * `unfold` = 1 − fold): wires to strips, the parts close up in a row, the housing flies off the shelf and closes,
+ * `unfold` = 1 − fold): wires to strips, the parts close up in a row, the housing flies back into the picture and closes,
  * the mounts sink into the board — and the lamp shines all the way (the circuit is whole: the model says `lit`).
  * The camera rides with it from the stand plan to the flashlight's shot on the prologue's own timing (the same
  * move as `prologue`'s fold, as a function of the slider), the room's cold light goes down with the stand, the
@@ -110,7 +110,6 @@ export const flashlightStep: StepFactory = ({ ctx, ui, bench, lens, reached, rea
     },
     leave() {
       bench.ambient = AMBIENT;
-      bench.shelf = 1;
       rail.release();
       lens.idle = false;
       wiring.active = true;
@@ -135,8 +134,6 @@ export const flashlightStep: StepFactory = ({ ctx, ui, bench, lens, reached, rea
       if (Math.abs(stage.unfold - unfold) > 1e-6) ctx.stage.setParam('unfold', unfold, { instant: true });
       ctx.stage.setParam('moon', moonAt(unfold), { instant: true });
       ctx.stage.setParam('poles', 1 - smooth(x.shown / 0.6), { instant: true });
-      // the dead battery `drain` left on the shelf goes off it while the housing is taken from there
-      bench.shelf = 1 - smooth(x.shown / 0.35);
       // the camera rides the fold; until the slider first moves it is the reader's (orbit, zoom)
       if (Math.abs(x.shown - railFold) > 1e-6) {
         railFold = x.shown;

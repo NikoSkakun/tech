@@ -11,7 +11,6 @@ import { mountWorld, type CircuitWorld } from '@circuit/shared/world';
 import { caption } from './content';
 import { verdict, type Verdict } from './parts/circuit';
 import { createHands, type Hands } from './parts/hands';
-import { createShelfBattery } from './parts/shelf';
 import { createSwap, type Swap } from './parts/swap';
 import { switchPart, type SwitchPart } from './parts/switch';
 import { END_KEYS } from './parts/ends';
@@ -49,8 +48,6 @@ export interface Bench {
    * out, the faults, the short — read in the cold moonlight; the fold back to the flashlight keeps the prologue's.
    */
   ambient: number;
-  /** The dead battery `drain` left on the shelf (its last frame): 1 there … 0 gone off the shelf. */
-  shelf: number;
   snap(): void;
   update(dt: number, t: number): void;
   /** After the world's update: the wires' shapes, the slider. */
@@ -70,8 +67,6 @@ export function createBench(ctx: ChapterContext): Bench {
   );
   const hands = createHands(ctx, world, stage, wiring);
   const swap = createSwap(stage, 'm', wiring.lift.m);
-  const dead = createShelfBattery(ctx, stage);
-  let shelfShown = 1;
   let now: Verdict = 'lit';
   const power = (on: boolean): void => {
     if (world.value('closed') > 0.5 !== on) ctx.stage.setParam('closed', on ? 1 : 0, { instant: true });
@@ -106,9 +101,7 @@ export function createBench(ctx: ChapterContext): Bench {
     switchLive: () => false,
     follow: true,
     ambient: AMBIENT,
-    shelf: 1,
     snap() {
-      shelfShown = bench.shelf;
       stage.ambient = bench.ambient;
       wiring.snap();
       sw.snap();
@@ -122,8 +115,6 @@ export function createBench(ctx: ChapterContext): Bench {
     },
     late(dt, t) {
       stage.ambient += (bench.ambient - stage.ambient) * (1 - Math.exp(-dt * 2.5));
-      shelfShown += (bench.shelf - shelfShown) * (1 - Math.exp(-dt * 5));
-      dead.update(shelfShown);
       swap.update(dt);
       wiring.update(dt, t);
       sw.place(dt, stage.unfold >= 1);

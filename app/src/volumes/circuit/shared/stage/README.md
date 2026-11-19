@@ -207,7 +207,7 @@ glass 16.5 % of the height; wire 22 px (core 12 px); switch 8.2 % of the width, 
 `0–0.8 s` the housing splits, the halves slide apart (each decorative ring is cut along the same plane as the
 body, half on each half) · `0.8–2.1` the housing leaves the picture: the far half (mirror and glass fly into its
 head) rises over the back and out of the top of the frame, the near half runs off low to the left; out of the
-frame they are hidden — at `unfold = 1` no part of the flashlight is in the scene (the shelf stays, empty) ·
+frame they are hidden — at `unfold = 1` no part of the flashlight is in the scene (there is no shelf behind the stand any more) ·
 `1.45–2.45` mounts grow left → right · `2.0–2.35` the strips rise (`STRIP_RISE`) and lift the slider with them ·
 `2.2–4.15` lamp, battery (low arc under the strips), spring, slider take their places while the strips cross
 over them · `4.05–5.0` strips round into wires, sheath grows from the clamps, wires lie down on the staples ·
@@ -297,7 +297,7 @@ six. Merge static props (`Builder`) and set `castShadow = false` on small things
 - `build/*` (built, chapter-side): loose wires with cyan handles are the chapter's (`chapters/build/parts/wiring.ts`);
   `wires.setShape` takes `bare: [start, end]` (stripped copper, default `BARE` 0.11 both) and `gap: { at, width }`
   (a break in the core under the sheath) — both default to today's wire.
-- `drain/life`: the dead battery leaving for the shelf and a new one arriving (one `BatteryModel` exists).
+- `drain/life`: the dead battery leaving the picture (low left, then hidden) and a new one arriving (one `BatteryModel` exists).
 - Cutaways of the battery and the lamp (§5.2, §5.3 close-ups) are other floors.
 
 ## Additions of chapter 4 (`B-circuit-flow`, 2026-11-17)

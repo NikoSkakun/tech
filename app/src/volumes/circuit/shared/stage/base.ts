@@ -10,7 +10,7 @@ import { BufferAttribute, Color, Group, Mesh, Path, ShapeGeometry, type BufferGe
 import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 import { G } from '@/kit';
 import { K, col } from '@/style';
-import { BOARD, SHELF_WORLD } from './layout';
+import { BOARD } from './layout';
 import { surface } from './materials';
 import { TABLE } from './room';
 
@@ -109,18 +109,6 @@ export function createBase(): Base {
     m.position.set(x, TABLE.y, z);
     m.castShadow = true;
     m.receiveShadow = true;
-    group.add(m);
-  }
-
-  // shelf behind the rear edge (level): a ledge with a low back rail, on two brackets from the wedge's back
-  const shelfMaterial = K.toon({ color: col('bg.indigo').lerp(col('slate'), 0.3), rim: 0.4, highlight: 0.2 });
-  const ledge = new Mesh(G.rbox(SHELF_WORLD.width, 0.14, SHELF_WORLD.depth, 0.06, 2), shelfMaterial);
-  ledge.position.set(0, SHELF_WORLD.y - 0.07, SHELF_WORLD.z);
-  const rail = new Mesh(G.rbox(SHELF_WORLD.width, 0.2, 0.1, 0.045, 2), shelfMaterial);
-  rail.position.set(0, SHELF_WORLD.y + 0.08, SHELF_WORLD.z - SHELF_WORLD.depth / 2 + 0.05);
-  for (const m of [ledge, rail]) {
-    m.castShadow = m.receiveShadow = true;
-    m.name = 'shelf';
     group.add(m);
   }
 

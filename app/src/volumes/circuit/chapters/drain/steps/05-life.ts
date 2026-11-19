@@ -2,9 +2,9 @@
  * `drain/life` — «Життя батарейки». Back to the stand plan; the meter and the lens are put away; the dead battery
  * lies in the cradle (pale band, the filament a dull red), and a new one slides onto the table in front of the
  * stand at the left. The reader drags it up over the cradle (`parts/spare.ts`, `carry`); let go there, the swap
- * plays: the dead one rises out of the clamps and goes to the shelf, then the new one goes down into the cradle —
+ * plays: the dead one rises out of the clamps and leaves the picture, then the new one goes down into the cradle —
  * the lamp flashes white and the frame is warm again. Let go short, the new battery glides back to the table.
- * «Назад» plays the swap backwards. Goal: the new one in the cradle, the old on the shelf, the lamp white.
+ * «Назад» plays the swap backwards. Goal: the new one in the cradle, the old one gone, the lamp white.
  */
 import { Vector2, Vector3 } from 'three';
 import { caption } from '../content';

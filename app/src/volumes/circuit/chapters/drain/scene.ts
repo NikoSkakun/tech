@@ -119,7 +119,7 @@ export default defineScene((ctx) => {
       world.meter.probes = 0;
       world.counter.want = 0;
       world.cut.target = 0;
-      // to the practicum: the chapter's end — the new battery in the cradle, the dead one on the shelf; back to the
+      // to the practicum: the chapter's end — the new battery in the cradle, the dead one gone; back to the
       // lamp: the battery fresh again (the hours run back to 0 — the border's battery is the fresh one)
       const end = to.chapterId === 'build' ? step?.finish?.() : undefined;
       if (to.chapterId === 'lamp') world.hours.target = 0;

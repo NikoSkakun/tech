@@ -43,7 +43,7 @@ const lampWorld = boardToWorld(LAMP.x, LAMP.filamentY, LAMP.z);
 
 /**
  * Depth of field for the two kinds of shot (use as a step's `post`; `mountStage` installs `stand` as the
- * chapter base): on the main shot the whole stand is sharp and the shelf, the table's far arc and the room go
+ * chapter base): on the main shot the whole stand is sharp and the table's far arc and the room go
  * soft; on the lamp close-up only the lamp is sharp.
  */
 export const STAGE_POST = {

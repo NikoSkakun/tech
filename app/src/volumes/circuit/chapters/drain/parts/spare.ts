@@ -5,15 +5,15 @@
  *
  *   `carry` 0 … 1  the new battery from the table up over the cradle (the reader's hand; an arc, it turns from
  *                  its lie on the table into the cradle's line)
- *   `swap`  0 … 1  0–0.5 the dead one rises out of the clamps and goes in an arc to the shelf by the flashlight's
- *                  housing; 0.42–0.82 the new one goes down into the cradle — only once the old one is clear of
+ *   `swap`  0 … 1  0–0.55 the dead one rises out of the clamps and leaves the picture in one calm arc, low
+ *                  to the left and back (as the flashlight's housing does, owner 2026-11-19), and is gone; 0.42–0.82 the new one goes down into the cradle — only once the old one is clear of
  *                  it (one battery on the stand); the circuit opens as the old one leaves (0.04) and closes when the
  *                  new one seats (0.8)
  *
  * The stand's own battery is the dead one and stays the stand's (its band, its inside); the spare is the new one.
  */
 import { Group, Mesh, MeshBasicMaterial, Quaternion, SphereGeometry, Vector3, type Object3D } from 'three';
-import { BATTERY, SHELF_WORLD, boardToWorld, tameAll, type CircuitStage } from '@circuit/shared/stage';
+import { BATTERY, boardToWorld, tameAll, type CircuitStage } from '@circuit/shared/stage';
 import { createBattery, type BatteryModel } from '@circuit/shared/stage/battery';
 
 /** Where the new battery lies (world: on the table in front of the board, left of the battery). */
@@ -21,8 +21,11 @@ const REST = new Vector3(-1.45, BATTERY.radius, 2.85);
 const REST_YAW = -0.16;
 /** Before `life` the new battery waits off the table at the left, out of the frame; it slides in on entry. */
 const AWAY = REST.clone().add(new Vector3(-3.4, 0, -0.25));
-/** The old battery on the shelf (world), left of the housing halves. */
-const SHELF = new Vector3(-1.85, SHELF_WORLD.y + BATTERY.radius, SHELF_WORLD.z + 0.6);
+/** Where the old battery ends (world): out of the picture, low to the left behind the table — the near half of
+ *  the flashlight's housing goes the same way (`shared/stage/unfold.ts`); there it is hidden. */
+const GONE = new Vector3(-10, -1.6, -3.4);
+/** The yaw it turns into on its way out (the arc's direction: head first, calmly). */
+const GONE_Q = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 0.5);
 /** How high over the cradle a battery hangs before it goes down (board units along the face's normal), and how
  *  far toward the reader the new one waits there — clear of the old one rising out of the clamps. */
 const LIFT = 1.0;
@@ -132,15 +135,16 @@ export function createSpare(root: Object3D, stage: CircuitStage): Spare {
       q.copy(restQ).slerp(frameQ, smooth(out.carry * 1.25));
       group.position.copy(p);
       group.quaternion.copy(q);
-      // the old one: up out of the clamps, then an arc to the shelf (level in the world there)
+      // the old one: up out of the clamps, then one arc out of the picture (level in the world by then), gone
       const up = span(out.swap, 0, 0.2);
       const go = span(out.swap, 0.16, 0.55);
       p.copy(cradle).addScaledVector(lift, LIFT * 0.85 * up);
       c.copy(p)
-        .lerp(SHELF, 0.5)
-        .add(new Vector3(0, 1.2, 0));
-      if (go > 0) arc(p.clone(), c, SHELF, go, p);
-      q.copy(frameQ).slerp(new Quaternion(), go);
+        .lerp(GONE, 0.35)
+        .add(new Vector3(0, 0.9, 0));
+      if (go > 0) arc(p.clone(), c, GONE, go, p);
+      q.copy(frameQ).slerp(GONE_Q, go);
+      old.group.visible = go < 1;
       // into the board frame the stand's battery lives in
       old.group.position.copy(frame.worldToLocal(p.clone()));
       inv.copy(frameQ).invert();

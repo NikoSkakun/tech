@@ -111,12 +111,11 @@ export default defineScene((ctx) => {
       }
     },
     leaveChapter(to) {
-      // «Назад» to `drain`: the stand as `drain` left it — every end home, the lamp lit, the dead battery on the shelf
+      // «Назад» to `drain`: the stand as `drain` left it — every end home, the lamp lit (the dead battery has left the picture)
       steps[stage.current as StepId]?.leave?.();
       leaving = true;
       bench.restore(1.2);
       bench.sw.closed = true;
-      bench.shelf = 1;
       const there = bench.world.border.leave(to.chapterId);
       return there ? () => there() && !bench.wiring.moving : null;
     },
