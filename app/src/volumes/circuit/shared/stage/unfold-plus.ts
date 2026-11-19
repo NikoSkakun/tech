@@ -1,20 +1,26 @@
 /**
- * The plus strip's way UNDER the battery (owner 2026-11-19: «може пустити цю частину дроту знизу, під
- * батарейкою?»): from the contact plate on the «+» nub down in front of the «+» end, back along the housing's
- * bottom under the can, up its far side beside the slider as a band (out of the reader's sight), onto the top and
- * into the slider's contact. Never over the «+» end: lifted with the slider, a strip that came over it read as
- * cutting the can.
+ * The plus piece: from the contact plate on the battery's «+» nub to the slider's contact.
  *
- * In the unfolding the slider rides forward along the battery's top (`unfold.ts`) and the band rides with it, so
- * the run under the can only gets shorter. At the can's front end the band stays; the slider goes on, out in front
- * of «+» and down to its block, and the strip follows it the way a tape comes off a reel: it always leaves the can
- * right beside the slider's contact, so as the slider comes down the band unwinds behind the «+» end — no loop
- * ever forms in the open — until all that is left is one soft hook from the plate to the slider (`hook`), which
- * draws straight as both come down on their terminals. On the way the strip rounds into a wire (`round`).
+ * IN THE FLASHLIGHT it is a flat strip that goes UNDER the battery (owner 2026-11-19: «може пустити цю частину
+ * дроту знизу, під батарейкою?»): down in front of the «+» end, back along the housing's bottom under the can, up
+ * its far side beside the slider as a band, onto the top and into the slider's contact — runs along the axis and
+ * circles round it only, on which a strip's flat side, carried along, stays toward the can.
  *
- * On the can the way is runs along the axis and circles round it only: on those the strip's flat side, carried
- * along, stays toward the can. Its bends are rounded on the can's unrolled surface and rolled back on. All of it in
- * the battery's own frame; a pure function of its inputs.
+ * IN THE UNFOLDING it is a short flexible wire that simply follows the slider, never moving faster than its own
+ * two ends (owner 2026-11-19: «якось дивно заанімований самий маленький шматочок дроту (котрий іде з батарейкового
+ * +)» — it used to stay wound under the battery until the slider had left, and then whip round after it):
+ *   1  `settle` — once the housing no longer holds it flat under the battery it rounds into a wire and draws itself
+ *      the short way: the drop from the plate turns from down to the far side (out of the reader's sight behind the
+ *      «+» end), the corners of its way on the can straighten, and it lies as a band of rubber would, from the «+»
+ *      end slantwise up the can's far side to the slider;
+ *   2  the slider rides forward along the battery: the wire only gets shorter, and as the slider comes to the can's
+ *      end it turns up after it, so that it comes from the plate almost straight to the slider's contact;
+ *   3  the slider steps off in front of «+» (`RIM`): the wire is free — one soft curve from the plate to the
+ *      contact, as long as the two are apart and a little more, leaving the plate forward and coming to the contact
+ *      level as the slider goes ahead; both down on their terminals, it is the stand's straight piece.
+ *
+ * Its way on the can is laid on the can's unrolled surface (along the axis, round it) and rolled back on, so every
+ * bend and every slant stays on the can. All of it in the battery's own frame; a pure function of its inputs.
  */
 import { CubicBezierCurve3, Quaternion, Vector3, type Object3D } from 'three';
 import { G } from '@/kit';
@@ -29,16 +35,13 @@ const THIN = WIRE.core * 0.3;
  * half its own thickness (a strip's … the round wire's radius), and a little air: round a bend on the can a strip's
  * flat side, carried along, leans a few degrees off the can, and its edge must still clear it.
  */
-const onCan = (round: number): number => BATTERY.radius + 0.0135 + THIN + (WIRE.core - THIN) * round;
-/** The band rides this far ahead of the slider's contact (the strip turns back into the contact from the front). */
+export const onCan = (round: number): number => BATTERY.radius + 0.0135 + THIN + (WIRE.core - THIN) * round;
+/** In the torch the band rides this far ahead of the slider's contact (the strip turns back into it from the front). */
 const LEAD = 0.12;
-/** … but no farther forward than this (from the battery's centre): the whole band stays on the can. */
-const BAND = L / 2 - 0.08;
-/** Past this the strip is off the can's front end, free. */
+/** Past this the slider's contact is off the can's front end and the piece is free; it eases free over `FREES`. */
 const RIM = L / 2 + 0.03;
-/** The band has unwound once the slider's contact is this far past the can's end. */
-const UNWOUND = 0.62;
-/** Radius of the strip's bends on the can. */
+const FREES = 0.18;
+/** Radius of the piece's bends on the can. */
 const BEND = 0.06;
 const DEG = Math.PI / 180;
 const TAU = Math.PI * 2;
@@ -50,13 +53,22 @@ const smooth = (x: number): number => {
 
 // angles round the axis: 0 = toward the reader's side (+z), 90° = up, 180° = far side, 270° = down
 const DOWN = 270 * DEG;
+/**
+ * Where the piece leaves the plate for the can once it has settled: to the far side, a little below level — out of
+ * the reader's sight behind the «+» end; and by how much it then turns up toward the slider's own side as the
+ * slider comes to the can's end (the slider's contact is `NEAR` short of it): at the end the piece comes from the
+ * plate almost straight to the contact.
+ */
+const FAR = 190 * DEG;
+const NEAR = 28 * DEG;
 
 export interface PlusWay {
   /**
    * Lay the piece (`out`: its two ends already on the parts; the slider stands as the battery does). `round` 0…1:
-   * strip … wire (it needs more room on the can). Returns the normal of its flat side at its start.
+   * strip … wire (it needs more room on the can). `settle` 0…1: from its way under the battery in the torch to the
+   * short way of a wire. Returns the normal of its flat side at its start.
    */
-  apply(out: Vector3[], battery: Object3D, round: number): Vector3;
+  apply(out: Vector3[], battery: Object3D, round: number, settle: number): Vector3;
 }
 
 export function createPlusWay(): PlusWay {
@@ -64,9 +76,10 @@ export function createPlusWay(): PlusWay {
   const A = new Vector3();
   const B = new Vector3();
   const tmp = new Vector3();
+  const chord = new Vector3();
   const normal = new Vector3();
   const pts: Vector3[] = [];
-  const hung: Vector3[] = [];
+  const loose: Vector3[] = [];
   const curve = new CubicBezierCurve3(A, new Vector3(), new Vector3(), B);
   const toLocal = (p: Vector3, b: Object3D, o: Vector3): Vector3 =>
     o.copy(p).sub(b.position).applyQuaternion(inv);
@@ -84,110 +97,87 @@ export function createPlusWay(): PlusWay {
     }
   };
   /**
-   * The piece free of the can, hanging from the plate (`A`) to the slider's contact (`B`) in the upright plane
-   * through both: while the contact is still near the plate it leaves the plate downward, as it lay on the «+» end,
-   * and curls up to the contact; the farther ahead the slider is, the more it leaves the plate forward and comes to
-   * the contact level — at the end both ends are level and it is the stand's straight piece. Returns how far it has
-   * turned from down to forward, 0…1.
+   * The piece free of the can: one soft curve from the plate (`A`) to the slider's contact (`B`). It leaves the
+   * plate along the «+» end's face, the way `from` (round the axis) it left it on the can, and the more the contact
+   * is ahead of the plate, the more it leaves it forward; it comes to the contact from the plate's side, and level
+   * once the contact is ahead. Both ends level and ahead: a straight piece.
    */
-  const hook = (n: number): number => {
-    const ahead = smooth((B.x - A.x - 0.08) / 0.34);
-    const reach = Math.max(0.08, 0.42 * A.distanceTo(B));
-    const a = (ahead * Math.PI) / 2;
-    curve.v1.set(A.x + Math.sin(a) * reach, A.y - Math.cos(a) * reach, A.z);
-    // (to the contact from below and a little from the front at first: the curl stays in front of the «+» end)
-    const b = (1 - ahead) * 105 * DEG;
-    curve.v2.set(B.x - Math.cos(b) * reach, B.y - Math.sin(b) * reach, B.z);
-    resample(curve.getPoints(40), n, hung);
-    return ahead;
+  const free = (n: number, from: number): void => {
+    chord.copy(B).sub(A);
+    const reach = Math.max(0.05, 0.36 * chord.length());
+    const ahead = smooth((chord.x - 0.02) / 0.42);
+    chord.normalize();
+    tmp.set(ahead, Math.sin(from) * (1 - ahead), Math.cos(from) * (1 - ahead)).normalize();
+    curve.v1.copy(A).addScaledVector(tmp, reach);
+    tmp.set(-ahead - chord.x * (1 - ahead), -chord.y * (1 - ahead), -chord.z * (1 - ahead)).normalize();
+    curve.v2.copy(B).addScaledVector(tmp, reach);
+    resample(curve.getPoints(40), n, loose);
   };
 
   return {
-    apply(out, battery, round) {
+    apply(out, battery, round, settle) {
       const n = out.length;
       inv.copy(battery.quaternion).invert();
       toLocal(out[0]!, battery, A);
       toLocal(out[n - 1]!, battery, B);
       const R = onCan(round);
-      // where round the axis the slider's contact is: on the top at first, down the far side as the slider steps
-      // down in front of «+» — the strip leaves the can there, so the band (bottom → far side → there) unwinds
+      // where round the axis the slider's contact is (on the battery's top, a little to the far side)
       let side = Math.atan2(B.y, B.z);
       if (side < 0) side += TAU;
-      // (… and sooner than that once the contact is off the can's end: the strip never leaves the can higher
-      // than the contact is, and by `UNWOUND` beyond the end the band has gone round behind the «+» end to the
-      // bottom — the wire comes to the slider from under the battery, not over it)
-      const off = smooth((B.x - RIM) / 0.08);
-      const level = Math.PI - Math.asin(Math.min(Math.max((B.y + 0.012) / R, -1), 1));
-      const drawn = side + (DOWN - side) * smooth((B.x - RIM) / UNWOUND);
-      // (the greater of the two, without a corner where one overtakes the other)
-      const lower = 0.5 * (level + drawn + Math.hypot(level - drawn, 12 * DEG));
-      const end = Math.min(side + Math.max(lower - side, 0) * off, DOWN);
-      // the band: beside the slider (a little ahead of its contact), at the can's front end once the slider is
-      // past it; as it gets short it slips forward under the «+» end to the foot of the drop from the plate
-      const slip = smooth((end - 160 * DEG) / (100 * DEG));
-      let x = Math.min(B.x + LEAD, BAND);
-      x += (A.x - x) * slip;
-      const way = [A.clone()];
-      // the drop from the plate and the bend under the can, in the plane through the axis
-      const foot = at(A.x, DOWN, R);
-      const drop = A.distanceTo(foot);
-      const d0 = Math.min(BEND, 0.45 * Math.max(A.x - x, 0));
-      bend(
-        way,
-        foot.clone().lerp(A, Math.min(BEND, 0.48 * drop) / Math.max(drop, 1e-6)),
-        foot,
-        at(A.x - d0, DOWN, R),
-        5,
-      );
-      // on the can: (along the axis, round it, from the axis) — the unrolled surface. Under the slider the strip is
-      // at the contact's own height; off the top it lies on the can
-      const top = Math.max(Math.hypot(B.y, B.z), R);
-      const high = R + (top - R) * (1 - off);
-      const flat = (px: number, a: number, r: number): Vector3 => new Vector3(px, a * R, r);
-      const mid = DOWN + (end - DOWN) * 0.6;
-      const free = B.x > RIM;
-      const rolled = G.roundPath(
-        [
-          flat(A.x - d0, DOWN, R),
-          flat(x, DOWN, R),
-          flat(x, mid, R),
-          flat(x, end, high),
-          flat(free ? Math.max(RIM, x) : B.x, end, high),
-        ],
-        BEND,
-        5,
-      );
-      for (let i = 1; i < rolled.length; i++) {
-        const p = rolled[i - 1]!;
-        const q = rolled[i]!;
-        const pieces = Math.max(1, Math.ceil(Math.hypot(q.x - p.x, q.y - p.y) / 0.03));
-        for (let k = 1; k <= pieces; k++) {
-          tmp.copy(p).lerp(q, k / pieces);
-          way.push(at(tmp.x, tmp.y / R, tmp.z));
+      // where the piece leaves the plate for the can: down in the torch; settled, to the far side; then up toward
+      // the contact's own side as the slider comes to the can's end
+      const coming = smooth((B.x - (L / 2 - 0.5)) / 0.5);
+      const from = DOWN + (FAR - DOWN) * settle + (Math.min(side + NEAR, FAR) - FAR) * settle * coming;
+      const gone = smooth((B.x - RIM) / FREES);
+      if (gone < 1) {
+        const way = [A.clone()];
+        // (along the axis, round it, from the axis): the can's unrolled surface. Under the slider the piece is at
+        // the contact's own height
+        const flat = (px: number, a: number, r: number): Vector3 => new Vector3(px, a * R, r);
+        const high = Math.max(Math.hypot(B.y, B.z), R);
+        // in the torch: back under the can to beside the slider, the band up the far side, back along the top into
+        // the contact (a little ahead of it: the bit seen under the slider of the closed flashlight); settled: one
+        // slant from the «+» end to the contact — the two corners drawn onto it, as a band of rubber would lie
+        const band = B.x + LEAD * (1 - settle);
+        const first = flat(A.x, from, R);
+        const last = flat(B.x, side, high);
+        const corner1 = flat(band, from, R).lerp(tmp.copy(first).lerp(last, 1 / 3), settle);
+        const corner2 = flat(band, side, high).lerp(tmp.copy(first).lerp(last, 2 / 3), settle);
+        // the drop from the plate along the «+» end's face and the bend onto the can, in the plane through the axis
+        const foot = at(A.x, from, R);
+        const drop = A.distanceTo(foot);
+        const d0 = Math.min(BEND, 0.45 * Math.max(A.x - corner1.x, 0));
+        first.lerp(corner1, d0 / Math.max(first.distanceTo(corner1), 1e-6));
+        bend(
+          way,
+          foot.clone().lerp(A, Math.min(BEND, 0.48 * drop) / Math.max(drop, 1e-6)),
+          foot,
+          at(first.x, first.y / R, first.z),
+          5,
+        );
+        const rolled = G.roundPath([first, corner1, corner2, last], BEND, 5);
+        for (let i = 1; i < rolled.length; i++) {
+          const p = rolled[i - 1]!;
+          const q = rolled[i]!;
+          const pieces = Math.max(1, Math.ceil(Math.hypot(q.x - p.x, q.y - p.y) / 0.03));
+          for (let k = 1; k <= pieces; k++) {
+            tmp.copy(p).lerp(q, k / pieces);
+            way.push(at(tmp.x, tmp.y / R, tmp.z));
+          }
         }
+        way.push(B.clone());
+        resample(way, n, pts);
       }
-      // off the can's end: on, straight ahead at first, and in one soft bend to the contact
-      if (free) {
-        const from = way[way.length - 1]!;
-        const ahead = Math.min(0.5 * (B.x - from.x), 0.3);
-        bend(way, from, from.clone().setX(from.x + ahead), B, 10);
+      if (gone > 0) free(n, from);
+      for (let i = 0; i < n; i++) {
+        const p = out[i]!;
+        if (gone >= 1) p.copy(loose[i]!);
+        else if (gone <= 0) p.copy(pts[i]!);
+        else p.copy(pts[i]!).lerp(loose[i]!, gone);
+        p.applyQuaternion(battery.quaternion).add(battery.position);
       }
-      resample(way, n, pts);
-      // the band has unwound: what is left opens into the hook
-      const open = smooth((end - 212 * DEG) / (56 * DEG));
-      const ahead = open > 0 ? hook(n) : 0;
-      for (let i = 0; i < n; i++)
-        out[i]!.copy(pts[i]!)
-          .lerp(hung[i] ?? pts[i]!, open)
-          .applyQuaternion(battery.quaternion)
-          .add(battery.position);
-      // flat side toward the «+» end at the plate (as in the torch), carried round the can; the hook's flat side
-      // turns up as it leaves the plate forward
-      return normal
-        .set(1, 0, 0)
-        .lerp(tmp.set(0, 1, 0), open * ahead)
-        .normalize()
-        .applyQuaternion(battery.quaternion);
+      // flat side toward the «+» end at the plate (as in the torch), carried along; it is a wire when it is free
+      return normal.set(1, 0, 0).applyQuaternion(battery.quaternion);
     },
   };
 }
