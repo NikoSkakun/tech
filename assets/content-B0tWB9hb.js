@@ -1,0 +1,1 @@
+import{T as e}from"./index-DFT77_Bp.js";import{r as t,t as n}from"./labels-CNPrRndH.js";var r=e(t,{labels:n});export{r as default};
