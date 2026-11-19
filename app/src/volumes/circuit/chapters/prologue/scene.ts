@@ -15,6 +15,7 @@ import { partNames } from './steps/parts';
 import { riddleStep } from './steps/riddle';
 import { switchControl } from './steps/switch';
 import { createUnfolding } from './steps/unfold';
+import { unfoldScrub } from './steps/unfold-scrub';
 
 /** Seconds of the dive's rewind before the flashlight folds («Назад» from `dive` below the stand plan). */
 const rewindSeconds = (span: number): number => Math.min(1.8, 0.4 + 0.55 * span);
@@ -34,6 +35,8 @@ export default defineScene((ctx) => {
   // captions 5–8 of `dive`: the parts' names as they land
   const [, , , , , battery = '', lamp = '', switchName = '', wire = ''] = labels('dive');
   const names = partNames(ctx, world, unfolding, { battery, lamp, switch: switchName, wire });
+  // DEV TOOL (`DEV_UNFOLD_SCRUB`): the slider on `click` that scrubs the unfolding; the lamp is on while scrubbing
+  const scrub = unfoldScrub(ctx, ui, () => toggle.close());
   // the unfolding plays with nothing to read or to use: text and controls of `dive` come together when it ends
   const held = (): boolean => unfolding.playing;
   const riddle = riddleStep(ctx, world, ui, labels('riddle'));
@@ -72,6 +75,7 @@ export default defineScene((ctx) => {
   ui.define({
     click: {
       reset: true,
+      controls: scrub.controls,
       callouts: [
         {
           anchor: world.stand.stand.slider,
@@ -100,7 +104,7 @@ export default defineScene((ctx) => {
     look: ctx.camera.target.toArray().map((v) => Math.round(v * 1000) / 1000),
     lightings: toggle.lightings,
     closed: toggle.closed,
-    unfold: { value: unfolding.value, playing: unfolding.playing },
+    unfold: { value: unfolding.value, playing: unfolding.playing, scrub: scrub.value },
     dive: dive.state(),
     names: names.up(),
     riddle: riddle.state(),
@@ -112,7 +116,8 @@ export default defineScene((ctx) => {
       if (id === 'click') toggle.reset();
       if (id === 'dive') {
         // from `click` by «Далі»: the unfolding plays as the transition; any other way in shows the stand
-        if (!info.instant && info.from === 'click') unfolding.play('stand');
+        // (from where the dev scrub left it, if it was moved)
+        if (!info.instant && info.from === 'click') unfolding.play('stand', scrub.value);
         else unfolding.finish();
       }
       foldWhenBack = false;
@@ -131,6 +136,8 @@ export default defineScene((ctx) => {
           foldWhenBack = true;
         } else fold();
       }
+      // the dev scrub starts at 0 on every entry (read above by the play from `click`)
+      scrub.reset();
       if (id === 'dive') dive.enter();
       // the crawl arrives with `riddle` and leaves with every other step, as one motion (shared/stage README «Crawl»)
       if (id === 'riddle') riddle.enter(info);
@@ -145,6 +152,7 @@ export default defineScene((ctx) => {
       world.update(dt, t);
       if (foldWhenBack && !world.flying) fold();
       toggle.update();
+      scrub.update(dt);
       unfolding.update(dt);
       dive.update(dt);
       riddle.update(dt);
