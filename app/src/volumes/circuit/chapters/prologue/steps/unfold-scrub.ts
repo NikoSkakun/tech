@@ -11,13 +11,11 @@ import { Vector3 } from 'three';
 import { resolveEase, type ChapterContext, type Shot, type Vec3Like } from '@/engine/api';
 import type { StepUiApi } from '@/hud';
 import type { ControlSpec } from '@/hud/step-ui-types';
-import { STAGE_SHOTS, UNFOLD_PLAY, edgeLineShown, setEdgeLine } from '@circuit/shared/stage';
+import { STAGE_SHOTS, UNFOLD_PLAY } from '@circuit/shared/stage';
 import { unfoldCamera, unfoldMoon } from './unfold';
 
 /** The one switch of the dev tool: false removes the slider from `click` (nothing else changes). */
 export const DEV_UNFOLD_SCRUB = true;
-/** The dev switch on `click` that hides the line along the board's edge (false removes it; the line stays on). */
-export const DEV_EDGE_LINE = true;
 
 /** Seconds of a glide over the whole track (a click on the track): twice the play's speed. */
 const GLIDE_SECONDS = UNFOLD_PLAY.seconds / 2;
@@ -81,15 +79,6 @@ export function unfoldScrub(ctx: ChapterContext, ui: StepUiApi, lampOn: () => vo
         },
       ]
     : [];
-  // DEV (owner 2026-11-19): the line along the board's edge off / on, for the whole session (`setEdgeLine`)
-  if (DEV_EDGE_LINE)
-    controls.push({
-      type: 'toggle',
-      id: 'edgeLine',
-      label: 'dev · лінія по краю',
-      value: edgeLineShown(),
-      onChange: (on) => setEdgeLine(on),
-    });
 
   return {
     controls,
