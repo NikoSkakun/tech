@@ -50,6 +50,8 @@ export class Body {
   readonly w = new Vector3();
   /** Simulated by the solver; otherwise a moving wall whose velocity is `v` (set by the hand). */
   dynamic = false;
+  /** In the reader's hand (or flying to its place): the two parts do not touch, `limits.keepApart` steers it. */
+  carried = false;
   asleep = false;
   /** Seconds it has been nearly still (for sleeping). */
   still = 0;

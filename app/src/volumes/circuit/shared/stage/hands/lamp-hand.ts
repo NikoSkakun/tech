@@ -13,7 +13,8 @@ import { THREAD_PITCH, type BulbDims } from '../bulb';
 import { PLACE, type Stand } from '../stand';
 import { Body } from './body';
 import { Carry, type Cursor, upright } from './carry';
-import { type LoosePart, clampCarry, lampSpec } from './parts';
+import { keepApart, keepInside } from './limits';
+import { type LoosePart, lampSpec } from './parts';
 import { Flight } from './seat';
 
 /** Turns from seated to free (the thread catches 0.09 above home, rounded to whole pitches — F-lamp-screw). */
@@ -24,6 +25,20 @@ export const CARRY_Y = 1.0;
 const CATCH = 0.34;
 /** …once it has been this far away from it. */
 const AWAY = 0.7;
+/** Let go within this of the socket, the thread takes it too (it was being put back). */
+const DROP_IN = 0.6;
+/**
+ * Coming near the socket it comes down by itself (the owner, 2026-11-20: never hanging above its place): its bottom
+ * at `LOW_Y`, just over the socket's rim (0.74), within `NEAR[0]`; at the carrying height from `NEAR[1]`.
+ */
+const LOW_Y = 0.78;
+const NEAR = [0.4, 1.3] as const;
+/** Near the socket the side walls let go (the socket stands outside them): from `OPEN[1]` in to `OPEN[0]`. */
+const OPEN = [0.5, 1.1] as const;
+const smoothstep = (a: number, b: number, x: number): number => {
+  const u = Math.min(Math.max((x - a) / (b - a), 0), 1);
+  return u * u * (3 - 2 * u);
+};
 /** A vertical drag within this (board units) is no pull; beyond it the lamp turns by itself at GAIN turns/s per unit. */
 const DEAD = 0.12;
 const GAIN = 12;
@@ -85,11 +100,32 @@ export function lampHand(stand: Stand, dims: BulbDims, sound: (kind: 'free' | 's
     refY = hit ? hit.y : at.y;
     lastSide = hit ? hit.dot(right) : 0;
   };
-  const target = (cursor: Cursor, out: Vector3): Vector3 | null => {
+  /** The limits act on the centre of mass: origin ↔ centre with the carried orientation. */
+  const com = new Vector3();
+  const limit = (origin: Vector3, free: number, other: Body | null): void => {
+    com.copy(body.spec.com).applyQuaternion(carry.q);
+    origin.add(com);
+    keepInside(body, carry.q, origin, free);
+    if (other) keepApart(body, carry.q, origin, other);
+    origin.sub(com);
+  };
+  const target = (cursor: Cursor, out: Vector3, other: Body | null): Vector3 | null => {
+    // the hand holds the point pressed: as the lamp rights itself in the hand, that point turns with it
+    offset.copy(grip).applyQuaternion(carry.q);
     if (!cursor.onLevel(CARRY_Y + offset.y, out)) return null;
     out.sub(offset);
-    out.y = CARRY_Y;
-    return clampCarry(out, dims.globe);
+    // how near the socket the pointer is, read on the socket's level (pointing at the socket is «there»)
+    const atSocket = cursor.onLevel(home.y + offset.y, tmp2);
+    const d0 = atSocket ? Math.hypot(atSocket.x - offset.x - home.x, atSocket.z - offset.z - home.z) : Infinity;
+    limit(out, 1 - smoothstep(OPEN[0], OPEN[1], d0), null);
+    // the socket draws it in as it comes near: over the socket and down to just above its rim, where the thread
+    // takes it — never hanging above its place
+    const drawn = (1 - smoothstep(NEAR[0], NEAR[1], d0)) * armed;
+    out.x += (home.x - out.x) * drawn;
+    out.z += (home.z - out.z) * drawn;
+    out.y = CARRY_Y + (LOW_Y - CARRY_Y) * drawn;
+    if (other) limit(out, 1, other);
+    return out;
   };
   const lift = (cursor: Cursor): void => {
     // free: it hangs on the band from where it came out, the band's target starting right there
@@ -99,8 +135,9 @@ export function lampHand(stand: Stand, dims: BulbDims, sound: (kind: 'free' | 's
     away = false;
     body.origin(p);
     carry.start(p, body.q);
+    armed = 0;
     offset.copy(body.toBoard(grip, tmp)).sub(p);
-    if (target(cursor, tmp)) carry.shift.set(p.x - tmp.x, 0, p.z - tmp.z);
+    if (target(cursor, tmp, null)) carry.shift.set(p.x - tmp.x, 0, p.z - tmp.z);
     sound('free');
   };
   const catchIt = (seconds: number, arc: number): void => {
@@ -116,6 +153,11 @@ export function lampHand(stand: Stand, dims: BulbDims, sound: (kind: 'free' | 's
     state = 'catch';
   };
   const near = (): number => Math.hypot(carry.pos.x - home.x, carry.pos.z - home.z);
+  /** How far it has been from the socket since it came free, 0 … 1, growing only (the pull is armed smoothly). */
+  let armed = 0;
+  const arm = (): void => {
+    armed = Math.max(armed, smoothstep(NEAR[0], NEAR[1], near()));
+  };
 
   const part: LoosePart = {
     body,
@@ -138,8 +180,10 @@ export function lampHand(stand: Stand, dims: BulbDims, sound: (kind: 'free' | 's
         body.dynamic = false;
         body.origin(p);
         carry.start(p, body.q);
+        armed = 0;
+        arm();
         offset.copy(at).sub(p);
-        if (target(cursor, tmp)) carry.shift.set(p.x - tmp.x, 0, p.z - tmp.z);
+        if (target(cursor, tmp, null)) carry.shift.set(p.x - tmp.x, 0, p.z - tmp.z);
         away = near() > AWAY;
       }
     },
@@ -155,7 +199,7 @@ export function lampHand(stand: Stand, dims: BulbDims, sound: (kind: 'free' | 's
     release() {
       if (state === 'threaded') twisting = false;
       else if (state === 'held') {
-        if (near() < CATCH) catchIt(0.18, 0);
+        if (near() < DROP_IN) catchIt(0.25, 0);
         else {
           state = 'free';
           body.dynamic = true;
@@ -183,16 +227,22 @@ export function lampHand(stand: Stand, dims: BulbDims, sound: (kind: 'free' | 's
         catchIt(0.55, 0.35);
       }
     },
-    update(dt, _t, cursor) {
+    update(dt, _t, cursor, other) {
       if (state === 'held') {
-        if (cursor.known && target(cursor, p)) {
-          carry.follow(p, dt);
+        if (cursor.known && target(cursor, p, other)) {
+          // the band lags its target: the part itself keeps out of the other's field too, on its way (substeps)
+          for (let k = 0; k < 4; k++) {
+            carry.follow(p, dt / 4);
+            limit(carry.pos, 1, other);
+          }
           carry.turn(upright(carry.q, rest), dt, 7, 0.08, 0.35);
         }
         body.setPose(carry.pos, carry.q);
         body.v.copy(carry.vel);
+        arm();
         if (near() > AWAY) away = true;
-        if (away && near() < CATCH) catchIt(0.22, 0);
+        // the thread takes it once it has come down to the rim (it never drops in from above)
+        if (away && near() < CATCH && carry.pos.y < LOW_Y + 0.15) catchIt(0.22, 0);
       }
       if (state === 'catch') {
         body.origin(p);
@@ -227,6 +277,7 @@ export function lampHand(stand: Stand, dims: BulbDims, sound: (kind: 'free' | 's
         body.v.set(0, 0, 0);
         if (twisting && s >= TURNS) lift(cursor);
       }
+      body.carried = state === 'held' || state === 'catch';
       if (part.idle) return;
       dirty = false;
       body.origin(group.position);

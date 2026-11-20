@@ -11,7 +11,8 @@ import { BATTERY } from '../layout';
 import { PLACE, type Stand } from '../stand';
 import { Body } from './body';
 import { Carry, type Cursor, laidFlat } from './carry';
-import { type LoosePart, batterySpec, clampCarry } from './parts';
+import { keepApart, keepInside } from './limits';
+import { type LoosePart, batterySpec } from './parts';
 import { Flight } from './seat';
 
 /** How far (board units) the pointer must pull from the point pressed before the battery leaves its clamps. */
@@ -22,11 +23,27 @@ export const CARRY_Y = 1.3;
 export const SNAP = 0.5;
 /** …once it has been this far away (else it would snap back the moment it pops out). */
 const AWAY = 0.9;
+/** Let go within this of its place, it goes in too (it was being put back). */
+const DROP_IN = 0.9;
+/**
+ * Coming near its place it is drawn in and comes down by itself (the owner, 2026-11-20: never hovering over the
+ * clamps): from `NEAR[1]` (pointer's distance) its place pulls it — across to the clamps, turned to lie as it sits —
+ * fully at `NEAR[0]`; it comes down as it lines up (|Δx| under `LINED[1]`), so it never comes down onto a leaf.
+ */
+const NEAR = [0.45, 1.5] as const;
+const LINED = [0.1, 0.5] as const;
+const LOW = 0.1;
+/** Near its place the side walls let go (its place is outside them): from `OPEN[1]` in to `OPEN[0]`. */
+const OPEN = [0.6, 1.2] as const;
 /** The spring at the minus clamp stretches this much when the battery is out. */
 const SPRING_FREE = 0.07;
 const X = new Vector3(1, 0, 0);
 const Z = new Vector3(0, 0, 1);
 const IDENTITY = new Quaternion();
+const smoothstep = (a: number, b: number, x: number): number => {
+  const u = Math.min(Math.max((x - a) / (b - a), 0), 1);
+  return u * u * (3 - 2 * u);
+};
 
 type State = 'home' | 'strain' | 'held' | 'free' | 'seat';
 
@@ -50,13 +67,38 @@ export function batteryHand(stand: Stand, sound: (kind: 'pop' | 'seat') => void)
   const q = new Quaternion();
   const tmp = new Vector3();
   const rest = new Quaternion();
+  /** How much its place draws the carried battery now (0 … 1). */
+  let drawn = 0;
+  /**
+   * How far it has been from its place since taken, as 0 … 1 (it grows only): just out of the clamps it is not
+   * drawn back in, it must have left first — the pull is armed smoothly as it goes away, never switched on.
+   */
+  let armed = 0;
+  const arm = (): void => {
+    const d = Math.hypot(carry.pos.x - PLACE.battery.x, carry.pos.z - PLACE.battery.z);
+    armed = Math.max(armed, smoothstep(NEAR[0], NEAR[1], d));
+  };
 
-  const target = (cursor: Cursor, out: Vector3): Vector3 | null => {
+  const seatAt = new Vector3();
+  const target = (cursor: Cursor, out: Vector3, other: Body | null): Vector3 | null => {
     if (!cursor.onLevel(CARRY_Y + offset.y, out)) return null;
     out.sub(offset);
     out.y = CARRY_Y;
-    const along = Math.abs(tmp.copy(X).applyQuaternion(carry.q).x);
-    return clampCarry(out, along * (BATTERY.length / 2) + BATTERY.radius);
+    // how near its place the pointer is, read where the place is: on the clamps' level (pointing at the clamps on
+    // the screen is «there», though the carried battery is higher)
+    const seat = cursor.onLevel(PLACE.battery.y + offset.y, seatAt);
+    const home = seat
+      ? Math.hypot(seat.x - offset.x - PLACE.battery.x, seat.z - offset.z - PLACE.battery.z)
+      : Infinity;
+    keepInside(body, carry.q, out, 1 - smoothstep(OPEN[0], OPEN[1], home));
+    // its place draws it in as it comes near: across to the clamps, lined up, and down — never hovering over them
+    drawn = (1 - smoothstep(NEAR[0], NEAR[1], home)) * armed;
+    out.x += (PLACE.battery.x - out.x) * drawn;
+    out.z += (PLACE.battery.z - out.z) * drawn;
+    const lined = 1 - smoothstep(LINED[0], LINED[1], Math.abs(out.x - PLACE.battery.x));
+    out.y = CARRY_Y + (PLACE.battery.y + LOW - CARRY_Y) * drawn * lined;
+    if (other) keepApart(body, carry.q, out, other);
+    return out;
   };
   const fly = (seconds: number, arc: number, click: boolean): void => {
     body.dynamic = false;
@@ -74,6 +116,7 @@ export function batteryHand(stand: Stand, sound: (kind: 'pop' | 'seat') => void)
       // out: the band takes it from where it strained, straight to the pointer — that leap is the «pop»
       state = 'held';
       away = false;
+      armed = 0;
       body.origin(p);
       carry.start(p, body.q);
       offset.copy(pressed).sub(PLACE.battery);
@@ -116,9 +159,11 @@ export function batteryHand(stand: Stand, sound: (kind: 'pop' | 'seat') => void)
         body.dynamic = false;
         body.origin(p);
         carry.start(p, body.q);
+        armed = 0;
+        arm();
         offset.copy(at).sub(p);
         // it rises straight up first and comes under the pointer as the shift fades
-        if (target(cursor, tmp)) carry.shift.set(p.x - tmp.x, 0, p.z - tmp.z);
+        if (target(cursor, tmp, null)) carry.shift.set(p.x - tmp.x, 0, p.z - tmp.z);
         away = Math.hypot(p.x - PLACE.battery.x, p.z - PLACE.battery.z) > AWAY;
       }
     },
@@ -126,7 +171,7 @@ export function batteryHand(stand: Stand, sound: (kind: 'pop' | 'seat') => void)
     release() {
       if (state === 'strain') fly(0.12, 0, shown.lift > 0.05);
       else if (state === 'held') {
-        if (Math.hypot(carry.pos.x - PLACE.battery.x, carry.pos.z - PLACE.battery.z) < SNAP) fly(0.2, 0.06, true);
+        if (Math.hypot(carry.pos.x - PLACE.battery.x, carry.pos.z - PLACE.battery.z) < DROP_IN) fly(0.25, 0.06, true);
         else {
           state = 'free';
           body.dynamic = true;
@@ -145,18 +190,24 @@ export function batteryHand(stand: Stand, sound: (kind: 'pop' | 'seat') => void)
         dirty = true;
       } else if (state !== 'home' && state !== 'seat') fly(state === 'strain' ? 0.15 : 0.6, 0.4, false);
     },
-    update(dt, t, cursor) {
+    update(dt, t, cursor, other) {
       if (state === 'strain') strainPose(dt, t, cursor);
       if (state === 'held') {
-        if (cursor.known && target(cursor, p)) {
-          carry.follow(p, dt);
-          carry.turn(laidFlat(carry.q, X, rest), dt, 10, 0.05, 0.22);
+        if (cursor.known && target(cursor, p, other)) {
+          // the band lags its target: the part itself keeps out of the other's field too, on its way (substeps)
+          for (let k = 0; k < 4; k++) {
+            carry.follow(p, dt / 4);
+            keepApart(body, carry.q, carry.pos, other);
+          }
+          carry.turn(laidFlat(carry.q, X, rest).slerp(IDENTITY, drawn), dt, 10, 0.05, 0.22);
         }
         body.setPose(carry.pos, carry.q);
         body.v.copy(carry.vel);
+        arm();
         const d = Math.hypot(carry.pos.x - PLACE.battery.x, carry.pos.z - PLACE.battery.z);
         if (d > AWAY) away = true;
-        if (away && d < SNAP) fly(0.2, 0.06, true);
+        // in only once it has come down to the clamps (it never drops in from above)
+        if (away && d < SNAP && carry.pos.y < PLACE.battery.y + LOW + 0.12) fly(0.2, 0.06, true);
       }
       if (state === 'seat') {
         body.origin(p);
@@ -169,6 +220,7 @@ export function batteryHand(stand: Stand, sound: (kind: 'pop' | 'seat') => void)
         body.setPose(p, q);
         body.v.set(0, 0, 0);
       }
+      body.carried = state === 'held' || state === 'seat';
       if (state === 'home' && !dirty) return;
       dirty = false;
       body.origin(group.position);

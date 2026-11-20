@@ -4,8 +4,8 @@
  */
 import { Vector3 } from 'three';
 import type { BulbDims } from '../bulb';
-import { BATTERY, BOARD, LOOP, WIRE } from '../layout';
-import type { Body, BodySpec } from './body';
+import { BATTERY, BOARD, LAMP, LOOP, WIRE } from '../layout';
+import { Body, type BodySpec, type Capsule } from './body';
 import type { Cursor } from './carry';
 import type { Wall } from './contacts';
 
@@ -52,37 +52,52 @@ export function lampSpec(B: BulbDims): BodySpec {
 }
 
 /**
- * Where a let-go part comes to rest: on the board inside the wire loop, clear of the wire's sheath and of the
- * clamps' and the switch's blocks along the near side (z ≤ 1.22). Soft walls: a part let go outside drifts in.
+ * Where a part may be, carried or let go (the owner, 2026-11-20): across, the stand's own edges; toward / away from
+ * the reader, inside the far wire and short of the blocks of the clamps and the switch on the near side (z ≤ 1.22).
+ * Its whole outline stays inside — the sides are soft, «anti-magnetic» walls (`limits.ts`), never crossed.
  */
-export const REST = {
-  x0: LOOP.left + WIRE.sheath + 0.07,
-  x1: LOOP.right - WIRE.sheath - 0.07,
+export const REGION = {
+  x0: -BOARD.width / 2 + 0.06,
+  x1: BOARD.width / 2 - 0.06,
   z0: LOOP.far + WIRE.sheath + 0.07,
   z1: 1.22,
 } as const;
 
-/** The planes the solver keeps the parts in: the board's face and the four sides of `REST`. */
-export function restWalls(): Wall[] {
-  const side = (n: Vector3, o: number): Wall => ({ n, o, friction: 0, push: 2.2, fence: true });
-  return [
-    { n: new Vector3(0, 1, 0), o: 0, friction: 1, push: 4 },
-    side(new Vector3(1, 0, 0), REST.x0),
-    side(new Vector3(-1, 0, 0), -REST.x1),
-    side(new Vector3(0, 0, 1), REST.z0),
-    side(new Vector3(0, 0, -1), -REST.z1),
-  ];
+/** The four sides of `REGION` as inward planes n·p ≥ o. */
+export const SIDES: readonly { n: Vector3; o: number }[] = [
+  { n: new Vector3(1, 0, 0), o: REGION.x0 },
+  { n: new Vector3(-1, 0, 0), o: -REGION.x1 },
+  { n: new Vector3(0, 0, 1), o: REGION.z0 },
+  { n: new Vector3(0, 0, -1), o: -REGION.z1 },
+];
+
+/** The board's face, the one hard wall. */
+export function floor(): Wall[] {
+  return [{ n: new Vector3(0, 1, 0), o: 0, friction: 1, push: 4 }];
 }
 
 /**
- * Where the hand may carry a part's centre (the owner, 2026-11-20): across, not past the stand's edges (minus the
- * part's own half-width `half`); toward / away from the reader, not past the wire loop's near and far sides.
+ * What is fixed on the board inside `REGION` that a part can land on: the two side wires on their staples (a part
+ * let go across one lies over it) and the lamp's post in the far right corner. A body that never moves.
  */
-export function clampCarry(p: Vector3, half: number): Vector3 {
-  const w = BOARD.width / 2 - half;
-  p.x = Math.min(Math.max(p.x, -w), w);
-  p.z = Math.min(Math.max(p.z, LOOP.far), LOOP.near);
-  return p;
+export function obstacles(): Body {
+  const wire = (x: number): Capsule => ({
+    a: new Vector3(x, LOOP.y, LOOP.far),
+    b: new Vector3(x, LOOP.y, LOOP.near),
+    r: 0.1,
+  });
+  const post: Capsule = { a: new Vector3(LAMP.x, 0.1, LAMP.z), b: new Vector3(LAMP.x, LAMP.socketY - 0.15, LAMP.z), r: 0.3 };
+  const body = new Body({
+    com: new Vector3(),
+    inertia: new Vector3(1, 1, 1),
+    shapes: [],
+    capsules: [wire(LOOP.left), wire(LOOP.right), post],
+    restitution: 0.2,
+    friction: 0.6,
+    roll: 0,
+  });
+  body.refresh();
+  return body;
 }
 
 /** What the hand module asks of a loose part (`battery-hand.ts`, `lamp-hand.ts`). */
@@ -101,6 +116,6 @@ export interface LoosePart {
   moved(cursor: Cursor): void;
   /** Back to its place: gliding (`instant` false) or at once. */
   home(instant: boolean): void;
-  /** Hand logic for a frame (after the solver), then the model's pose. */
-  update(dt: number, t: number, cursor: Cursor): void;
+  /** Hand logic for a frame (after the solver), then the model's pose. `other`: the other loose part. */
+  update(dt: number, t: number, cursor: Cursor, other: Body): void;
 }

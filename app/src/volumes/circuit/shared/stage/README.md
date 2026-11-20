@@ -410,20 +410,29 @@ home, the lamp screwing itself in; `hands.idle` turns true once both are back �
 
 - **Battery** (`battery-hand.ts`): pulled, it strains in its clamps (lift ≤ 0.2, slide, the pulled end rising,
   a tremble near the end; 1 − e^(−pull/0.35)) and pops out past `POP` = 0.8 board units of pull (≈ 80 px at
-  1280×720). Carried at `CARRY_Y` 1.3 (clears the collars). Over its clamps (within 0.5, after having been 0.9
-  away) it is drawn in and clicks; the other way round it turns over as it goes in (no polarity lesson here).
+  1280×720). Carried at `CARRY_Y` 1.3 (clears the collars). Near its place it is drawn in (from 1.5 of the
+  pointer's distance, fully at 0.45; armed only once it has left), turned to lie as it sits, and comes down as it
+  lines up — it goes in only once low (never drops in from above); let go within 0.9 it goes in too. The other
+  way round it turns over as it goes in (no polarity lesson here).
 - **Lamp** (`lamp-hand.ts`): one number `s` = turns out (0 seated … `TURNS` 2, `THREAD_PITCH` per turn, CCW from
   above unscrews). Sideways drag turns it d / (2πr) turns, only as far as the thread goes; a vertical pull beyond
   0.12 turns it by itself (up to 2.6 turns/s out; down = screws home at 2.4 turns/s). Off the socket's contact
-  past 0.15 turns. Free after the last turn; carried upright at `CARRY_Y` 1.0 with a swing; over the socket it is
-  caught at the angle it comes in and screws itself home.
+  past 0.15 turns. Free after the last turn; carried upright at `CARRY_Y` 1.0 with a swing; near the socket it is
+  drawn over it and down to just above the rim (0.78), the thread catches it at the angle it comes in and it
+  screws itself home.
 - **Carry** (`carry.ts`): the «strong rubber band» — an exactly solved critically damped spring, ω = 24 /s (95 % in
-  ≈ 0.2 s, no overshoot), on the board-parallel plane through the point pressed; limits `clampCarry`: across not past
-  the stand's edges, toward / away from the reader not past the loop's near and far wires.
-- **Physics** (`body.ts`, `contacts.ts`, `solver.ts`): sequential impulses, 1/240 s substeps, gravity 30 along the
-  BOARD's −y (the 15° tilt is for the view: a part stays where it was dropped). The board is a plane; the limits
-  where a part comes to rest (`REST`: inside the loop, clear of the clamps' blocks) are low *fences* that push the
-  centre of mass — nothing invisible to lean on. The parts collide with each other (capsules). The lamp cannot
-  stand on its round contact (`topples`). Unit tests: `hands/__tests__/solver.test.ts`.
+  ≈ 0.2 s, no overshoot), on the board-parallel plane through the point pressed, in 4 substeps a frame.
+- **Limits** (`limits.ts`, round 2, the owner 2026-11-20): one `REGION` for carried and free parts — across, the
+  stand's edges; toward / away, inside the far wire and short of the clamp/switch blocks (z ≤ 1.22) — on the part's
+  whole outline (`reach`). Soft, «anti-magnetic» walls: a carried target eases to a stop along them (softplus); a
+  free part is braked (≤ 10 u/s²) so it stops at them, never crosses (a lamp toppling over one is slid back in).
+  Near a part's own place the walls let go. While a part is carried the two never touch (`Body.carried`): the
+  carried one rises over the other on a soft dome-shaped field (`keepApart`, 0.06 + 0.12 clear), the other is not
+  moved. With nothing carried they collide normally (capsules).
+- **Physics** (`body.ts`, `contacts.ts`, `solver.ts`): sequential impulses (accumulated friction), 1/240 s substeps,
+  gravity 30 along the BOARD's −y (the 15° tilt is for the view: a part stays where it was dropped), rolling
+  resistance with a steady brake, sleep. Fixed obstacles (`obstacles()`): the side wires (a part may lie across
+  one) and the lamp's post. The lamp cannot stand on its round contact (`topples`). Unit tests:
+  `hands/__tests__/solver.test.ts`.
 - QA: `chapters/prologue/qa/hands.mjs` (pointer events, frozen clock, `--frames <dir>` for a video); probes
-  `hand-battery`, `hand-lamp`, `hand-battery-over`, `hand-lamp-over`; `__app.read('prologue').hands`.
+  `hand-battery`, `hand-lamp`, `hand-battery-seat`, `hand-lamp-seat`; `__app.read('prologue').hands`.

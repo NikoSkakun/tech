@@ -2,25 +2,18 @@
  * Contacts of the loose parts (`solver.ts`): a part against a wall (the board, a limit — planes) and the two parts
  * against each other (capsules). A pooled list, rebuilt every substep.
  */
-import { Vector3 } from 'three';
+import { type Quaternion, Vector3 } from 'three';
 import type { Body, Capsule, Shape } from './body';
 
 /** Penetration allowed before anything pushes back (resting contacts stay in touch). */
 export const SLOP = 0.004;
-/** Height of a fence (board units): about the wire's top on its staples, with the part's own roundness. */
-export const FENCE = 0.35;
 
-/**
- * A plane n·p ≥ o; `push` caps the speed at which it corrects a penetration (soft limit walls). A `fence` (the
- * limits along the wire) pushes the part's centre of mass, not the point that crosses it: there is nothing there
- * to lean on, so it may stop a part but never hold one up.
- */
+/** A plane n·p ≥ o (the board's face); `push` caps the speed at which it corrects a penetration. */
 export interface Wall {
   n: Vector3;
   o: number;
   friction: number;
   push: number;
-  fence?: boolean;
 }
 
 export interface Contact {
@@ -82,28 +75,19 @@ const RIM = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
 export function wallContacts(body: Body, s: Shape, wall: Wall): void {
   body.toBoard(s.c, c0);
   const add = (p: Vector3): void => {
-    // a fence is low: only what reaches down to the board's layer meets it
-    if (wall.fence && p.y > FENCE) return;
     const d = wall.n.dot(p) - wall.o;
     if (d > SLOP * 2) return;
     const c = contact();
     c.a = body;
     c.b = null;
-    c.p.copy(wall.fence ? body.x : p);
+    c.p.copy(p);
     c.n.copy(wall.n);
     c.depth = -d;
     c.friction = Math.sqrt(wall.friction * body.spec.friction);
     c.push = wall.push;
     c.restitution = body.spec.restitution;
   };
-  if (s.kind === 'sphere') {
-    if (!wall.fence) return add(pt.copy(c0).addScaledVector(wall.n, -s.r));
-    // the sphere's section at the fence's height (or at its centre, if that is lower)
-    const y = Math.min(c0.y, FENCE);
-    const r2 = s.r * s.r - (c0.y - y) ** 2;
-    if (r2 <= 0) return;
-    return add(pt.set(c0.x, y, c0.z).addScaledVector(wall.n, -Math.sqrt(r2)));
-  }
+  if (s.kind === 'sphere') return add(pt.copy(c0).addScaledVector(wall.n, -s.r));
   ax.copy(s.axis).applyQuaternion(body.q);
   // the rim's lowest point against the wall: −n with its component along the axis taken out
   perp.copy(wall.n).negate().addScaledVector(ax, wall.n.dot(ax));
@@ -187,4 +171,53 @@ export function pairContacts(a: Body, b: Body): void {
 function capsule(body: Body, c: Capsule, a: Vector3, b: Vector3): void {
   body.toBoard(c.a, a);
   body.toBoard(c.b, b);
+}
+
+const rel = new Vector3();
+const sx = new Vector3();
+const sp = new Vector3();
+/**
+ * How far the part reaches from its centre of mass toward −n (a positive number): the distance from the centre to
+ * the plane through its outermost point facing that way. With orientation q (the part's shapes, `spec`).
+ */
+export function reach(body: Body, q: Quaternion, n: Vector3): number {
+  let most = 0;
+  for (const s of body.spec.shapes) {
+    rel.copy(s.c).sub(body.spec.com).applyQuaternion(q);
+    let d = -n.dot(rel);
+    if (s.kind === 'sphere') d += s.r;
+    else {
+      sx.copy(s.axis).applyQuaternion(q);
+      const along = Math.abs(n.dot(sx));
+      sp.copy(n).addScaledVector(sx, -n.dot(sx));
+      d += along * s.half + s.r * sp.length();
+    }
+    most = Math.max(most, d);
+  }
+  return most;
+}
+
+const best = new Vector3();
+const cand = new Vector3();
+/** The part's outermost point toward −n, as an offset from its centre of mass (orientation q). */
+export function outermost(body: Body, q: Quaternion, n: Vector3, out: Vector3): Vector3 {
+  let most = -Infinity;
+  for (const s of body.spec.shapes) {
+    rel.copy(s.c).sub(body.spec.com).applyQuaternion(q);
+    cand.copy(rel);
+    if (s.kind === 'sphere') cand.addScaledVector(n, -s.r);
+    else {
+      sx.copy(s.axis).applyQuaternion(q);
+      const along = -n.dot(sx);
+      cand.addScaledVector(sx, Math.sign(along) * s.half);
+      sp.copy(n).negate().addScaledVector(sx, -along);
+      if (sp.lengthSq() > 1e-9) cand.addScaledVector(sp.normalize(), s.r);
+    }
+    const d = -n.dot(cand);
+    if (d > most) {
+      most = d;
+      best.copy(cand);
+    }
+  }
+  return out.copy(best);
 }

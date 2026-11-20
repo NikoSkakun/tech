@@ -20,10 +20,11 @@ import type { CircuitStage } from '../index';
 import { boardToWorld } from '../shots';
 import { PLACE } from '../stand';
 import { worldToBoard } from '../tools';
-import { CARRY_Y as BATTERY_CARRY, batteryHand } from './battery-hand';
+import { batteryHand } from './battery-hand';
 import { Cursor } from './carry';
-import { CARRY_Y as LAMP_CARRY, lampHand } from './lamp-hand';
-import { type LoosePart, restWalls } from './parts';
+import { lampHand } from './lamp-hand';
+import { type LoosePart, floor, obstacles } from './parts';
+import { clearanceOf } from './limits';
 import { createSolver } from './solver';
 
 export interface StandHandsOptions {
@@ -44,7 +45,7 @@ export interface StandHands {
   home(instant: boolean): void;
   update(dt: number, t: number): void;
   /** QA: the parts' states and board positions. */
-  state(): Record<'battery' | 'lamp', { state: string; at: number[]; inPlace: boolean; asleep: boolean }>;
+  state(): Record<'battery' | 'lamp', { state: string; at: number[]; inPlace: boolean; asleep: boolean; clear: number }>;
 }
 
 const hitMaterial = new MeshBasicMaterial({ visible: false });
@@ -56,7 +57,7 @@ export function createStandHands(ctx: ChapterContext, stage: CircuitStage, opts:
   const battery = batteryHand(stand, (k) => audio.play(k === 'seat' ? 'click' : 'tick', { gain: 0.7 }));
   const lamp = lampHand(stand, dims, (k) => audio.play(k === 'seat' ? 'click' : 'tick', { gain: 0.6, pitch: 0.8 }));
   const parts = { battery, lamp } as const;
-  const solver = createSolver([battery.body, lamp.body], restWalls());
+  const solver = createSolver([battery.body, lamp.body, obstacles()], floor());
   const cursor = new Cursor();
   const still = new Cursor();
   let holding: 'battery' | 'lamp' | null = null;
@@ -109,9 +110,9 @@ export function createStandHands(ctx: ChapterContext, stage: CircuitStage, opts:
   register('lamp', lampHit);
   ctx.qa.probe('hand-battery', () => stand.battery.group.getWorldPosition(new Vector3()));
   ctx.qa.probe('hand-lamp', () => lampHit.getWorldPosition(new Vector3()));
-  // QA: where the battery's centre and the lamp's globe are while carried over their places
-  ctx.qa.probe('hand-battery-over', () => boardToWorld(PLACE.battery.x, BATTERY_CARRY, PLACE.battery.z));
-  ctx.qa.probe('hand-lamp-over', () => boardToWorld(PLACE.bulb.x, LAMP_CARRY + dims.globeY, PLACE.bulb.z));
+  // QA: the battery's centre and the lamp's globe in their places
+  ctx.qa.probe('hand-battery-seat', () => boardToWorld(PLACE.battery.x, PLACE.battery.y, PLACE.battery.z));
+  ctx.qa.probe('hand-lamp-seat', () => boardToWorld(PLACE.bulb.x, PLACE.bulb.y + dims.globeY, PLACE.bulb.z));
 
   const hands: StandHands = {
     get inPlace() {
@@ -134,8 +135,8 @@ export function createStandHands(ctx: ChapterContext, stage: CircuitStage, opts:
     update(dt, t) {
       if (holding && !opts.enabled()) hands.home(false);
       solver.step(dt);
-      battery.update(dt, t, holding === 'battery' ? cursor : still);
-      lamp.update(dt, t, holding === 'lamp' ? cursor : still);
+      battery.update(dt, t, holding === 'battery' ? cursor : still, lamp.body);
+      lamp.update(dt, t, holding === 'lamp' ? cursor : still, battery.body);
       stage.contact = hands.inPlace ? 1 : 0;
     },
     state() {
@@ -144,6 +145,7 @@ export function createStandHands(ctx: ChapterContext, stage: CircuitStage, opts:
         at: part.body.x.toArray().map((v) => Math.round(v * 1000) / 1000),
         inPlace: part.inPlace,
         asleep: part.body.asleep,
+        clear: Math.round(clearanceOf(part.body) * 1000) / 1000,
       });
       return { battery: of(battery), lamp: of(lamp) };
     },

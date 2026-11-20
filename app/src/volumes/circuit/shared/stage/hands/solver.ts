@@ -1,6 +1,6 @@
 /**
- * A small impulse solver for the loose parts of the stand: gravity, the board and the limit walls (planes — soft
- * limits: a part released outside them drifts in as it falls, never jumps) and the parts against each other.
+ * A small impulse solver for the loose parts of the stand: gravity, the board, what is fixed on it (`obstacles`), the
+ * soft side walls (`limits.brakeAtWalls`: braked to a stop, never crossed) and the parts against each other.
  * Sequential impulses with accumulated normal clamping, Coulomb friction, a little bounce on hard landings,
  * rolling resistance while lying, sleep once still. Fixed substeps (`H`): the same motion at any frame rate.
  *
@@ -10,6 +10,7 @@
 import { Vector3 } from 'three';
 import type { Body } from './body';
 import { type Contact, SLOP, type Wall, contacts, pairContacts, resetContacts, wallContacts } from './contacts';
+import { brakeAtWalls, slideBack } from './limits';
 
 /** Substep, s. */
 export const H = 1 / 240;
@@ -85,6 +86,7 @@ export function createSolver(bodies: readonly Body[], walls: readonly Wall[]): S
     for (const b of bodies) {
       if (!live(b)) continue;
       b.v.y -= GRAVITY * h;
+      brakeAtWalls(b);
       b.touching = false;
       for (const s of b.spec.shapes) for (const w of walls) wallContacts(b, s, w);
     }
@@ -92,6 +94,8 @@ export function createSolver(bodies: readonly Body[], walls: readonly Wall[]): S
       for (let m = i + 1; m < bodies.length; m++) {
         const a = bodies[i]!;
         const b = bodies[m]!;
+        // a part in the hand never touches the other one: the soft field around it steers it instead
+        if (a.carried || b.carried) continue;
         if (live(a)) pairContacts(a, b);
         else if (live(b)) pairContacts(b, a);
         else if (a.dynamic && b.dynamic) continue;
@@ -146,7 +150,10 @@ export function createSolver(bodies: readonly Body[], walls: readonly Wall[]): S
         if (spin > 1e-9) b.w.multiplyScalar((Math.max(spin - ROLL_BRAKE * h, 0) * Math.exp(-b.spec.roll * h)) / spin);
         b.v.multiplyScalar(Math.exp(-0.25 * b.spec.roll * h));
       }
+      // braked once more after the contacts: a rolling part's friction must not carry it on at the wall
+      brakeAtWalls(b);
       b.integrate(h);
+      slideBack(b, h);
       let still = b.touching && b.v.length() < SLEEP_V && b.w.length() < SLEEP_W;
       if (still && b.spec.topples) {
         up.set(0, 1, 0).applyQuaternion(b.q);
