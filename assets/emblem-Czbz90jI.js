@@ -1,0 +1,1 @@
+import{N as e,Tt as t,Z as n,wt as r}from"./three-DhiLhOnT.js";import{t as i}from"./style-jXl5L-Nv.js";function a(){let a=new e,o=new n(new r(.5,28,20),i.toon({color:`coral`,gloss:.5})),s=new n(new t(.82,.07,10,48),i.glow({color:`cyan`,intensity:1.6,falloff:0}));return s.rotation.x=1.25,a.add(o,s),a}export{a as default};

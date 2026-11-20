@@ -1,1 +1,0 @@
-import{Ct as e,N as t,Z as n,wt as r}from"./three-CPWimilo.js";import{t as i}from"./style-BfWUdciT.js";function a(){let a=new t,o=new n(new e(.5,28,20),i.toon({color:`coral`,gloss:.5})),s=new n(new r(.82,.07,10,48),i.glow({color:`cyan`,intensity:1.6,falloff:0}));return s.rotation.x=1.25,a.add(o,s),a}export{a as default};

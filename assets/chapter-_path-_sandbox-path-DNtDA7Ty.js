@@ -1,0 +1,1 @@
+import{t as e}from"./placeholder-Ca6basja.js";import t from"./content-C5pciN-i.js";var n=e(t,{core:2,sheath:1},{holdNav:[`core`]});export{n as default};
