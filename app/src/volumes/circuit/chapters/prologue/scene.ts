@@ -6,6 +6,7 @@
 import { defineScene } from '@/engine/api';
 import { stepUi } from '@/hud';
 import { floorLadder } from '@/hud-dom/journey';
+import { createStandHands } from '@circuit/shared/stage';
 import { AWAY_MOON, AWAY_POST, LENS_LEG, borderOf, mountWorld } from '@circuit/shared/world';
 import content from './content';
 import { PROLOGUE_SHOTS } from './shots';
@@ -43,6 +44,19 @@ export default defineScene(async (ctx) => {
   // the moment the reader starts the dive an open switch closes by itself: the copper is always seen lit
   const dive = diveStep(ctx, world, ui, labels('dive'), names, held, () => toggle.close(), riddle.lensName);
   const map = mapStep(ctx);
+  // the reader's hands on the stand (the owner, 2026-11-20): the battery comes out of its clamps, the lamp unscrews —
+  // only on the stand plan of `dive` (the lens in its holder, nothing flying); they go back as the dive starts
+  const handsHere = (): boolean =>
+    ctx.stage.current === 'dive' &&
+    !held() &&
+    !world.flying &&
+    world.deep < 0.01 &&
+    world.stand.unfold >= 1 - 1e-6 &&
+    Math.max(world.position, world.goal) <= -LENS_LEG + 1e-3;
+  const hands = createStandHands(ctx, world.stand, {
+    enabled: handsHere,
+    touched: () => names.dismiss(),
+  });
   // «де ми» (VISUAL §3): the platform's floor ladder, shown during a dive and on the lower floors
   // behind the map board the stand is out of focus: its small print («1,5 V») would read as unreadable text there
   const print = world.stand.group.getObjectByName('battery:print');
@@ -50,6 +64,8 @@ export default defineScene(async (ctx) => {
   /** «Назад» from `dive`: the dive rewinds to the lens in its holder first, then the flashlight folds. */
   let foldWhenBack = false;
   const fold = (): void => {
+    // the parts are back in their places before the flashlight folds around them
+    if (!hands.idle) return void (foldWhenBack = true);
     foldWhenBack = false;
     world.release();
     unfolding.reverse('flashlight', () => ctx.stage.setParam('closed', 0, { instant: true }));
@@ -108,6 +124,7 @@ export default defineScene(async (ctx) => {
     // the look-at point: the shot without the director's idle drift (which orbits the camera around it)
     look: ctx.camera.target.toArray().map((v) => Math.round(v * 1000) / 1000),
     lightings: toggle.lightings,
+    hands: { ...hands.state(), inPlace: hands.inPlace, idle: hands.idle, holding: hands.holding },
     closed: toggle.closed,
     unfold: { value: unfolding.value, playing: unfolding.playing, scrub: scrub.value },
     dive: dive.state(),
@@ -136,11 +153,14 @@ export default defineScene(async (ctx) => {
         ctx.stage.setParam('unfold', world.stand.unfold, { instant: true });
         ctx.stage.setParam('lens', world.value('lens'), { instant: true });
         const span = world.position + LENS_LEG;
+        hands.home(false);
         if (span > 1e-3) {
           world.travelTo(-LENS_LEG, rewindSeconds(span));
           foldWhenBack = true;
         } else fold();
       }
+      // the battery and the lamp are the reader's only on `dive`: any other step sees them in their places
+      if (id !== 'dive' || info.instant) hands.home(info.instant);
       // the dev scrub starts at 0 on every entry (read above by the play from `click`)
       scrub.reset();
       if (id === 'dive') dive.enter();
@@ -155,6 +175,8 @@ export default defineScene(async (ctx) => {
     },
     update(dt, t) {
       world.update(dt, t);
+      if (!handsHere() && !hands.idle) hands.home(false);
+      hands.update(dt, t);
       if (foldWhenBack && !world.flying) fold();
       toggle.update();
       scrub.update(dt);

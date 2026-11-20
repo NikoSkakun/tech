@@ -15,7 +15,7 @@ import { STAGE_POST } from './shots';
 import { createStand, type Stand } from './stand';
 import { createTools, type Tools } from './tools';
 import { createTorch, torchDims, type Torch } from './torch';
-import { bulbDims } from './bulb';
+import { bulbDims, type BulbDims } from './bulb';
 import { temperatureOfHeat } from './bulb-heat';
 import { createBulbPrint } from './bulb-print';
 import { createLampView, type LampView } from './lamp-view';
@@ -38,6 +38,7 @@ export * from './battery-cell';
 export { BATTERY_LAYERS, type BatteryLayer } from './battery-section';
 export { BATTERY_SHOTS, CUT_NORMAL, type BatteryInside } from './battery-inside';
 export { POLE_DOTS, POLE_MARK, type Clump } from './battery-poles';
+export { createStandHands, type StandHands, type StandHandsOptions } from './hands';
 export { createLoopGlow, loopShare, type LoopGlow } from './loop-glow';
 export type { CrawlAnchors, CrawlScene } from './crawl-scene';
 
@@ -59,6 +60,13 @@ export interface CircuitStage {
   unfolding: Unfold;
   /** Switch: 0 = open (the gap shows, lamp dark) … 1 = closed. The slider follows; the lamp heats up and cools. */
   closed: number;
+  /**
+   * 1 (default) = the battery is in its clamps and the lamp screwed into its socket; 0 = one of them is out (the
+   * reader's hands, `hands/`): the circuit is broken whatever the switch shows, and the lamp cools by its own inertia.
+   */
+  contact: number;
+  /** The lamp's dimensions (globe radius etc.) this stage was built with. */
+  readonly bulbDims: BulbDims;
   /** The magnifier: 0 = in its holder … 1 = in use over the near wire (`LENS.wireSpot`). */
   lens: number;
   /** The dive through the ring: 0 … 1 = the hand-over pose (rim arcs appear, the wire's sheath dissolves). */
@@ -232,7 +240,7 @@ export function mountStage(ctx: ChapterContext, options: StageOptions = {}): Cir
   const scene = createCrawlScene(tools);
   // while the crawl is shown the switch follows its time (on above 0); otherwise the chapter's `closed`
   const closedNow = (): number => scene.closed() ?? stage.closed;
-  const target = (): number => manual ?? closedNow() * stage.glowOf(stage.charge);
+  const target = (): number => manual ?? closedNow() * stage.contact * stage.glowOf(stage.charge);
   const apply = (): void => {
     const key = `${stage.unfold.toFixed(5)}|${slider.toFixed(4)}`;
     if (key !== shown) {
@@ -308,6 +316,8 @@ export function mountStage(ctx: ChapterContext, options: StageOptions = {}): Cir
     unfold: 1,
     unfolding,
     closed: 0,
+    contact: 1,
+    bulbDims: bulb,
     charge: 1,
     glowOf: glowOfCharge,
     moon: 1,

@@ -30,6 +30,7 @@ A chapter of `circuit` needs `shared` in the lint rule's `SHARED_IN_VOLUME` (`do
 
 | Field                | Range | Meaning                                                                                                                                                                                                         |
 | -------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `contact`            | 0 / 1 | 1 (default) = the battery is in its clamps and the lamp screwed home; 0 = one of them is out (the reader's hands, `hands/`): the lamp goes out with its own cooling, whatever `closed` shows. Written by `createStandHands` every frame |
 | `closed`             | 0 / 1 | the switch: 0 open (the air gap shows, cold light), 1 closed. The slider and the filament follow with their own short inertia; the whole frame changes, not a halo                                              |
 | `charge`             | 1 … 0 | the battery's life as the outside shows it: the lamp's glow (`glowOf(charge)`, default `glowOfCharge`; `drain` sets `glowOf` to the battery model's current → `heatOfCurrent`), the pool on the board, the amber band paling to grey in the last third |
 | `moon`               | 0 … 1 | the cold key light from the upper left. 0 in `prologue/click` (the lamp is the only light)                                                                                                                      |
@@ -398,3 +399,31 @@ shot (≈ 6 px-eq there; `flow/count` keeps «0,3 A» as its caption), but in th
   (`farWirePath(k)`); `wires.shapeOf(id)` tells a chapter when the stand re-laid its piece; `wires.sheath(id)`.
 - The flashlight's minus strip is one strip `torchPath('m')` on the housing's near wall, its flat side transported
   along the whole strip (it stands on edge while it unrolls, as a strip bends round a corner).
+
+## The reader's hands (`hands/`, F-stand-hands 2026-11-20)
+
+`createStandHands(ctx, stage, { enabled, touched })` makes the battery and the lamp the reader's: a press on one
+takes it, everything else of the step works as before (the hit volumes are invisible children of the two models).
+Call `hands.update(dt, t)` after the stage's own update and `hands.home(instant)` when the place is left (they glide
+home, the lamp screwing itself in; `hands.idle` turns true once both are back — fold or swap only then). It writes
+`stage.contact`. Switched on only for `prologue/dive` so far (the stand plan, the lens in its holder).
+
+- **Battery** (`battery-hand.ts`): pulled, it strains in its clamps (lift ≤ 0.2, slide, the pulled end rising,
+  a tremble near the end; 1 − e^(−pull/0.35)) and pops out past `POP` = 0.8 board units of pull (≈ 80 px at
+  1280×720). Carried at `CARRY_Y` 1.3 (clears the collars). Over its clamps (within 0.5, after having been 0.9
+  away) it is drawn in and clicks; the other way round it turns over as it goes in (no polarity lesson here).
+- **Lamp** (`lamp-hand.ts`): one number `s` = turns out (0 seated … `TURNS` 2, `THREAD_PITCH` per turn, CCW from
+  above unscrews). Sideways drag turns it d / (2πr) turns, only as far as the thread goes; a vertical pull beyond
+  0.12 turns it by itself (up to 2.6 turns/s out; down = screws home at 2.4 turns/s). Off the socket's contact
+  past 0.15 turns. Free after the last turn; carried upright at `CARRY_Y` 1.0 with a swing; over the socket it is
+  caught at the angle it comes in and screws itself home.
+- **Carry** (`carry.ts`): the «strong rubber band» — an exactly solved critically damped spring, ω = 24 /s (95 % in
+  ≈ 0.2 s, no overshoot), on the board-parallel plane through the point pressed; limits `clampCarry`: across not past
+  the stand's edges, toward / away from the reader not past the loop's near and far wires.
+- **Physics** (`body.ts`, `contacts.ts`, `solver.ts`): sequential impulses, 1/240 s substeps, gravity 30 along the
+  BOARD's −y (the 15° tilt is for the view: a part stays where it was dropped). The board is a plane; the limits
+  where a part comes to rest (`REST`: inside the loop, clear of the clamps' blocks) are low *fences* that push the
+  centre of mass — nothing invisible to lean on. The parts collide with each other (capsules). The lamp cannot
+  stand on its round contact (`topples`). Unit tests: `hands/__tests__/solver.test.ts`.
+- QA: `chapters/prologue/qa/hands.mjs` (pointer events, frozen clock, `--frames <dir>` for a video); probes
+  `hand-battery`, `hand-lamp`, `hand-battery-over`, `hand-lamp-over`; `__app.read('prologue').hands`.
