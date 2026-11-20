@@ -26,6 +26,7 @@ import {
 import { Builder, G } from '@/kit';
 import { K, col, type KGlassMaterial, type KGlowMaterial } from '@/style';
 import { supportPath } from './bulb-close';
+import { createFilamentShadow } from './bulb-shadow';
 import type { BulbPrint } from './bulb-print';
 import { LAMP } from './layout';
 import { createLampCloseUp, type LampCloseUp } from './lamp-view';
@@ -224,6 +225,12 @@ export function createBulb(B: BulbDims = BULB): BulbModel {
   const glassMaterial = model.mats.get('glass') as KGlassMaterial;
   (glassMaterial.uniforms.uGlass!.value as Vector3).y = 3.4; // thinner, crisper fresnel rim
   glass.add(depthShell(glass, B.globeY));
+  // the supports share the merged metal mesh with the base: only the part above the glass stem's root fades
+  const supportShadow = createFilamentShadow(0.5);
+  const metalMaterial = model.mats.get('metal');
+  model.group.traverse((o) => {
+    if ((o as Mesh).isMesh && (o as Mesh).material === metalMaterial) o.customDistanceMaterial = supportShadow.material;
+  });
   const edgeCold = col('sky').lerp(col('white'), 0.45);
   const edgeWarm = col('yellow.light').lerp(col('white'), 0.35);
 
@@ -325,6 +332,7 @@ export function createBulb(B: BulbDims = BULB): BulbModel {
       fineMaterial.intensity = Math.max(emission * 0.45 * (1 - 0.22 * near), 0.55);
       fineMaterial.whiten = (0.1 + 0.3 * glow) * (1 - 0.35 * near);
       (fineMaterial.uniforms.uFalloff!.value as Vector2).set(0.5 + 1.3 * near * glow, 0.8 - 0.38 * near * glow);
+      supportShadow.setGlow(glow);
       haloMaterial.color.copy(color);
       haloMaterial.intensity = 0.05 * glow ** 2;
       (glareMaterial.uniforms.uColor!.value as Color).copy(color).lerp(glareWarm, 0.45);
