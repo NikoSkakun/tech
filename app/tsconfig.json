@@ -19,7 +19,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "@electricity/*": ["./src/volumes/electricity/*"],
-      "@circuit/*": ["./src/volumes/circuit/*"]
+      "@circuit/*": ["./src/volumes/circuit/*"],
+      "@water/*": ["./src/volumes/water/*"]
     }
   },
   "include": ["src", "vite.config.ts"]

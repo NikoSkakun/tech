@@ -1,0 +1,38 @@
+{
+  "id": "water",
+  "title": "Вода",
+  "subtitle": "Від склянки до молекули",
+  "kicker": "Інтерактивна 3D-енциклопедія",
+  "lead": "Лід, вода і пара — одна речовина. Спустімося від склянки до молекули й подивімося, що в ній змінюється.",
+  "emptyNote": "Том у роботі: пролог і дві глави вже можна пройти",
+  "order": 0,
+  "accent": "sky",
+  "emblem": "layers",
+  "status": "published",
+  "format": "path",
+  "axis": {
+    "label": "Поверх",
+    "unit": "",
+    "hint": "Де ми: від столу до однієї молекули",
+    "floors": [
+      { "id": "molecule", "label": "молекула", "value": 0, "plain": "частинка", "namedAt": "particles/molecule" },
+      { "id": "crowd", "label": "молекули", "value": 1, "plain": "частинки", "namedAt": "particles/molecule" },
+      { "id": "drop", "label": "крапля", "value": 2 },
+      { "id": "table", "label": "стіл", "value": 3 }
+    ]
+  },
+  "groups": [
+    { "id": "prologue", "label": "Пролог", "layer": "prologue" },
+    { "id": "path", "label": "Шлях", "layer": "path" }
+  ],
+  "journey": [
+    { "id": "prologue", "group": "prologue", "title": "Лід, вода і пара — одна речовина. Що ж у ній змінюється?", "minutes": 5, "floor": "table" },
+    { "id": "particles", "group": "path", "title": "З чого складається вода?", "minutes": 9, "floor": "drop" },
+    { "id": "bond", "group": "path", "title": "Що тримає атоми в молекулі?", "minutes": 8, "floor": "molecule" },
+    { "id": "stick", "group": "path", "title": "Чому молекули води тримаються одна одної?", "minutes": 8, "floor": "molecule" },
+    { "id": "heat", "group": "path", "title": "Що таке тепло?", "minutes": 8, "floor": "crowd" },
+    { "id": "ice", "group": "path", "title": "Чому лід плаває?", "minutes": 8, "floor": "crowd" },
+    { "id": "phase", "group": "path", "title": "Чому лід тане, а вода кипить?", "minutes": 9, "floor": "crowd" },
+    { "id": "vapour", "group": "path", "title": "Куди зникає калюжа?", "minutes": 7, "floor": "table" }
+  ]
+}

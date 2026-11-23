@@ -27,7 +27,7 @@ const chaptersOf = (volume: string): ChapterManifest[] =>
 
 describe('volumes in the repository', () => {
   it('has the volumes this test knows about', () => {
-    expect(volumes.map((v) => v.dir).sort()).toEqual(['_demo', '_dev', '_path', 'circuit', 'electricity']);
+    expect(volumes.map((v) => v.dir).sort()).toEqual(['_demo', '_dev', '_path', 'circuit', 'electricity', 'water']);
     expect(Object.keys(IDENTITIES)).toHaveLength(volumes.length);
   });
 
@@ -91,9 +91,14 @@ describe('volumes in the repository', () => {
     }
   });
 
-  it('the pilot volume is the front door; volume 1 is kept aside behind its button (DECISIONS §60)', () => {
+  it('the mini-volume «Вода» is the front door (owner, 2026-11-23); `circuit` stays in the main flow; volume 1 is kept aside behind its button (DECISIONS §60)', () => {
     const config = json<{ defaultVolume: string; legacyVolume?: string }>('src/volumes/library.json');
-    expect(config).toMatchObject({ defaultVolume: 'circuit', legacyVolume: 'electricity' });
+    expect(config).toMatchObject({ defaultVolume: 'water', legacyVolume: 'electricity' });
+    const water = volumes.find((v) => v.dir === 'water')!.manifest;
+    expect(water.status).toBe('published');
+    // it stands before `circuit` on the shelf, and says that only part of it is built
+    expect(water.order).toBeLessThan(volumes.find((v) => v.dir === 'circuit')!.manifest.order);
+    expect(water.emptyNote).not.toBe('');
     const el = volumes.find((v) => v.dir === 'electricity')!.manifest;
     expect(el.aside).toBe('Попередній том: Електроенергія (чернетка)');
     expect(el.listed).toBe(false);
