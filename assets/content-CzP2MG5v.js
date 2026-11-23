@@ -1,1 +1,0 @@
-import{T as e}from"./index-DwpRSggw.js";import{r as t,t as n}from"./labels-Dur0jqic.js";var r=e(t,{labels:n});export{r as default};
