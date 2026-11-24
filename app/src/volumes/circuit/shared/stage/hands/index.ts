@@ -134,9 +134,14 @@ export function createStandHands(ctx: ChapterContext, stage: CircuitStage, opts:
     },
     update(dt, t) {
       if (holding && !opts.enabled()) hands.home(false);
+      const busy = !hands.idle;
       solver.step(dt);
       battery.update(dt, t, holding === 'battery' ? cursor : still, lamp.body);
       lamp.update(dt, t, holding === 'lamp' ? cursor : still, battery.body);
+      // both back home: the stand's own poses take over again. A part landing home writes its place on the stand;
+      // the unfolding (posed only when `unfold` changes) must write its pose over that, or on a step with the
+      // flashlight closed (`home(true)` on every step entry) the battery and the lamp would lie on the stand beside it
+      if (busy && hands.idle) stage.repose();
       stage.contact = hands.inPlace ? 1 : 0;
     },
     state() {

@@ -16,7 +16,7 @@ import {
   parseArgs,
   parseSize,
 } from '../../../../../../../tools/qa/lib.mjs';
-import { advance, at, read, sheetTab } from './helpers.mjs';
+import { TUCKED, advance, at, fromSeats, read, sheetTab } from './helpers.mjs';
 
 const args = parseArgs();
 const [width, height] = parseSize(args.size, [1280, 720]);
@@ -62,6 +62,9 @@ try {
     appUrl(baseUrl(args), { route: 'circuit/prologue/click', freeze: 1, extra: { hud: 'dom' } }),
   );
   await enter('click');
+  // the battery and the lamp are inside the closed flashlight, not loose on the stand beside it (F-click-parts)
+  const seats0 = await fromSeats(page);
+  check('battery and lamp inside the flashlight', seats0.battery > TUCKED && seats0.lamp > TUCKED, JSON.stringify(seats0));
   const navHidden = () => page.evaluate(() => window.__ui.navHidden());
   check('the navigator waits for the first light', (await navHidden()) === true);
   // the slider is pushed toward the flashlight's head to light it (screen right in `flashlight`), back to open
@@ -431,6 +434,8 @@ try {
   );
   await advance(page, 0.5);
   check('…then the dark of `click`', (await state()).glow < 0.1);
+  const seats1 = await fromSeats(page);
+  check('…the battery and the lamp folded in with it', seats1.battery > TUCKED && seats1.lamp > TUCKED, JSON.stringify(seats1));
 
   // `riddle` on the crawl: one slider of true time is the moment of the scene (DECISIONS §60 t)
   await enter('riddle');

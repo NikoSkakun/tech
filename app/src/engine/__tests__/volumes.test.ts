@@ -91,13 +91,14 @@ describe('volumes in the repository', () => {
     }
   });
 
-  it('the mini-volume «Вода» is the front door (owner, 2026-11-23); `circuit` stays in the main flow; volume 1 is kept aside behind its button (DECISIONS §60)', () => {
+  it('the pilot `circuit` is the front door again (owner, 2026-11-24: the plain address opens its first chapter); «Вода» stays published in the main flow; volume 1 is kept aside behind its button (DECISIONS §60)', () => {
     const config = json<{ defaultVolume: string; legacyVolume?: string }>('src/volumes/library.json');
-    expect(config).toMatchObject({ defaultVolume: 'water', legacyVolume: 'electricity' });
+    expect(config).toMatchObject({ defaultVolume: 'circuit', legacyVolume: 'electricity' });
     const water = volumes.find((v) => v.dir === 'water')!.manifest;
+    // reachable from the library and the map: published, listed, not kept aside; it says only part of it is built
     expect(water.status).toBe('published');
-    // it stands before `circuit` on the shelf, and says that only part of it is built
-    expect(water.order).toBeLessThan(volumes.find((v) => v.dir === 'circuit')!.manifest.order);
+    expect(water.listed).toBe(true);
+    expect(water.aside).toBeNull();
     expect(water.emptyNote).not.toBe('');
     const el = volumes.find((v) => v.dir === 'electricity')!.manifest;
     expect(el.aside).toBe('Попередній том: Електроенергія (чернетка)');

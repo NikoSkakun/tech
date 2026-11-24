@@ -42,6 +42,12 @@ A chapter of `circuit` needs `shared` in the lint rule's `SHARED_IN_VOLUME` (`do
 | `setGlow(v \| null)` | 0 … 1 | take the filament's glow by hand (`lamp/glow` scrubs the incandescence scale); `null` gives it back                                                                                                             |
 | `glow` (read)        | 0 … 1 | what the filament shows now. Pass it down to the lower floors: warm light when > 0                                                                                                                              |
 
+`stage.repose()` writes the unfolding's poses again for the current `unfold`. The stage poses its parts only when
+`unfold` or the slider changes, so whoever else moves the battery or the lamp must call it when it lets go of them:
+the reader's hands (`hands/`) do, once both parts are home — else, after a step entry (`hands.home(true)` writes
+the parts' places on the stand), the battery and the lamp would lie on the board beside the closed flashlight
+(`prologue/click`, F-click-parts; QA `chapters/prologue/qa/hands.mjs --only closed`).
+
 Tools (`stand.tools`): `gauge.shown` 0…1 and `gauge.value` (volts, needle + number), `frame.shown`,
 `frame.setOnLoop(s)` / `frame.setAt(point, tangent)`, `frame.setNumber('12')`, `lens.setPose(from, to, k)`
 for other places (`LensPose` in the board frame; `poses.holder`, `poses.overWire` exist). Probes, hotspots:

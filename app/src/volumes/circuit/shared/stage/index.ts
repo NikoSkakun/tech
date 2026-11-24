@@ -137,6 +137,13 @@ export interface CircuitStage {
   /** Jump to the state without the heating / cooling ramp (deep links). */
   snap(): void;
   /**
+   * Write the unfolding's poses again now, for the `unfold` there is. The stage poses its parts only when `unfold`
+   * or the slider changes; whoever else moves the battery or the lamp (the reader's hands, `hands/`) calls this
+   * when it lets go of them, so the parts are always where the unfolding has them — inside the closed flashlight
+   * at `unfold` 0, in their places on the stand at 1.
+   */
+  repose(): void;
+  /**
    * Play the unfolding by itself: `unfold` runs to 1 (or back to 0 with `to = 0`) in `seconds` for the whole
    * way (default `UNFOLD_PLAY.seconds`), from wherever it is. Returns a live handle: `progress` 0…1, `done`.
    * Setting `unfold` by hand or calling it again takes over.
@@ -340,6 +347,10 @@ export function mountStage(ctx: ChapterContext, options: StageOptions = {}): Cir
           return play !== mine || mine.elapsed >= mine.total;
         },
       };
+    },
+    repose() {
+      shown = '';
+      apply();
     },
     snap() {
       play = null;

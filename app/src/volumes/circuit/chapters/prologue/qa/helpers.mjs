@@ -105,3 +105,22 @@ export async function clickProbe(page, name) {
   await page.mouse.click(p.x, p.y);
   await advance(page, 0.2);
 }
+
+/**
+ * How far the battery and the lamp are from their places on the stand (world units; `hand-*` probes of
+ * `shared/stage/hands`). With the flashlight closed (`unfold` 0) both are inside it, far from the stand's clamps
+ * and socket: a part found at its place there lies loose on the stand beside the flashlight (F-click-parts).
+ */
+export async function fromSeats(page) {
+  return page.evaluate(() => {
+    const d = (a, b) => {
+      const p = window.__app.locate(a)?.world;
+      const q = window.__app.locate(b)?.world;
+      return p && q ? Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) : -1;
+    };
+    return { battery: d('hand-battery', 'hand-battery-seat'), lamp: d('hand-lamp', 'hand-lamp-seat') };
+  });
+}
+
+/** Both parts inside the closed flashlight: each at least this far from its place on the stand. */
+export const TUCKED = 1;

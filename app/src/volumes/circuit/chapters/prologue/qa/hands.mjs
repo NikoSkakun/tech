@@ -18,7 +18,7 @@ import {
   parseSize,
   screenshot,
 } from '../../../../../../../tools/qa/lib.mjs';
-import { at, read } from './helpers.mjs';
+import { TUCKED, at, fromSeats, read } from './helpers.mjs';
 
 const args = parseArgs();
 const [width, height] = parseSize(args.size, [1280, 720]);
@@ -365,6 +365,33 @@ try {
   await frame(120);
   s = await state();
   check('leaving the step brings the battery home', s.battery.state === 'home' && s.lamp.state === 'threaded 0.00', `${s.battery.state} / ${s.lamp.state}`);
+  }
+  /* ------------------------------------------- back to the closed flashlight (F-click-parts) */
+  // a part let go on the stand goes home with the step change, and the closed flashlight has it inside again:
+  // straight to `click` (a deep link) and by «Назад» (the dive rewinds, the parts glide home, then it folds)
+  if (run('closed')) {
+    seq = 'closed';
+    for (const how of ['goto', 'back']) {
+      await fresh();
+      const b2 = await at(page, 'hand-battery');
+      await press(b2.x + 40, b2.y);
+      await moveTo(ptr.x, ptr.y - 160, 40);
+      await moveTo(width * 0.45, height * 0.4, 20);
+      await release();
+      await frame(60);
+      const out = await fromSeats(page);
+      if (how === 'goto') await page.evaluate(() => window.__app.goto('circuit/prologue/click', undefined, { instant: true }));
+      else await page.evaluate(() => window.__app.prev());
+      await frame(how === 'goto' ? 10 : 8 * 60);
+      const u = (await read(page, 'prologue')).unfold.value;
+      const back = await fromSeats(page);
+      check(`${how} to click: battery and lamp inside the closed flashlight`,
+        out.battery > 0.3 && u < 0.001 && back.battery > TUCKED && back.lamp > TUCKED,
+        `out ${out.battery.toFixed(2)}, unfold ${u.toFixed(3)}, ${JSON.stringify(back)}`);
+    }
+    await fresh();
+    const home = await fromSeats(page);
+    check('on the stand again both are in their places', home.battery < 0.01 && home.lamp < 0.01, JSON.stringify(home));
   }
   const errors = await appErrors(page);
   check('console clean', errors.length === 0, errors.map((e) => e.message).join(' | ').slice(0, 300));
