@@ -120,7 +120,9 @@ VISUAL §3: the last frame of a chapter and the first of its neighbour are one p
 - `dive.ts` — The dive as a position, not as a flight (DECISIONS §60 p, the owner's rule for every slider that drives an animation in this volume
 - `flight.ts` — Moving between floors, on the dive rail (`dive.ts`).
 - `index.ts` — The composed world of the volume `circuit`: the stand (`shared/stage`) and the copper world (`shared/copper`) in one scene, one number for t…
+- `lens-mode.ts` — Lens mode (F-lens-ring): empty space sways the camera (spring back), the wheel and a pinch turn the focus ring.
 - `levels.ts` — One number for "how deep the reader is" in the composed world (VISUAL §3), and what every part of the two world libraries shows at that dept…
 - `look.ts` — Who owns the environment and the post stack.
 - `params.ts` — The stage params every chapter of the composed world shares (names fixed, so steps of different chapters read alike).
+- `sway.ts` — The little camera sway of lens mode: a drag turns the camera ≤ 6° about its target, springs back on release; `applySway` for any rail.
 - `window.ts` — The lens as a window onto «ряди» lying over the place it shows (VISUAL §3).

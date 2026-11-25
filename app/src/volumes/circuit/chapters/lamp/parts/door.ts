@@ -36,7 +36,7 @@ export interface Door {
 }
 
 export function createDoor(ctx: ChapterContext, lw: LampWorld, stand: CircuitStage): Door {
-  const rail = cameraRail(ctx, [lw.shot('lampDoor'), lw.shot('lampWhole')], STAGE_SHOTS.stand);
+  const rail = cameraRail(ctx, [lw.shot('lampDoor'), lw.shot('lampWhole')], STAGE_SHOTS.stand, lw.world.sway);
   const pose = emptyPose();
   const eye = emptyPose();
   const cam = new Vector3();

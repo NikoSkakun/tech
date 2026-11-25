@@ -11,6 +11,7 @@
  * - at the end of a travel to a step whose camera is not the stop's own shot (`race`, `copper-gate`, …): the rail
  *   lets go and one camera move takes the frame there, the lens returning to the step's `lens` value.
  */
+import { applySway, type Sway } from './sway';
 import { Vector3 } from 'three';
 import type { ChapterContext, Shot } from '@/engine/api';
 import { REDUCED_MOTION } from '@/style';
@@ -58,6 +59,8 @@ export function createFlight(
   rail: DiveRail,
   deepNow: () => number,
   lensNow: () => number,
+  /** Lens mode's camera sway (`sway.ts`), applied to the rail's pose while the rail owns the camera. */
+  sway?: Sway,
 ): Flight {
   const { stage, camera } = ctx;
   let engaged = false;
@@ -180,6 +183,7 @@ export function createFlight(
           g[2] + offTarget.z * offWeight,
         ];
       }
+      if (sway) applySway(shot, sway.yaw, sway.pitch);
       camera.go(shot, { instant: true });
       if (pending && !rail.moving) {
         const plan = pending;

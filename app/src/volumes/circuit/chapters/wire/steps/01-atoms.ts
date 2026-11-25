@@ -1,7 +1,10 @@
 /**
  * `wire/atoms` — «Ряди атомів». The reader comes down through the lens to the rows (from the prologue: the whole
- * dive, `world.flyIn`; the wheel «Глибина» moves between the stand, the wire's core and the rows) and touches one
- * ball: it swells, stays lit, and from the takeaway on it carries the caption «атом».
+ * dive, `world.flyIn`) and touches one ball: it swells, stays lit, and from the takeaway on it carries the caption
+ * «атом». The depth is the focus ring on the lens (F-lens-ring, as `prologue/dive`): the reader is in lens mode the
+ * whole step — the ring rides the lens once it lies on the wire and stays as the bottom arc of its rim below; turning
+ * it moves between the lens on the wire, the wire's core and the rows; a drag on empty space (or on the atoms) sways
+ * the camera a little and it springs back.
  *
  * Touching is exact and forgiving: every atom of the focal plane in the frame has an invisible proxy ball of
  * 1.5 atom radii (the gap between atoms is split, never a dead zone), hovering swells the atom under the
@@ -9,23 +12,43 @@
  */
 import { Vector3 } from 'three';
 import type { StepUiSpec } from '@/hud';
+import { createFocusRing } from '@circuit/shared/stage/tools/focus-ring';
+import { lensMode } from '@circuit/shared/world/lens-mode';
 import { caption } from '../content';
 import type { StepFactory } from '../chapter';
 import { atomProxies } from '../parts/proxies';
 
 const INVITE_EVERY = 3.2;
 
-export const atomsStep: StepFactory = ({ ctx, ui, world, reached, reach }) => {
+export const atomsStep: StepFactory = ({ ctx, world, reached, reach }) => {
   const { copper } = world;
   const atRows = (): boolean => world.world.deep > 1.99 && world.world.deep < 2.01 && !world.world.flying;
   const here = (): boolean => ctx.stage.current === 'atoms' && atRows();
   let invite = 0;
-  let fill = -1;
-  /** The depth slider IS the dive (DECISIONS §60 p, UI_API §3.3, as `prologue/dive`): 0 the lens over the wire ·
-   *  1 «усередині дроту» · 2 the rows. Names stand as marks; the last one takes the new word at the takeaway. */
+  /** The ring IS the dive (DECISIONS §60 p, as `prologue/dive`): 0 the lens over the wire · 1 «деталь» · 2 the rows.
+   *  Floors stand as marks; the last one takes the new word at the takeaway. */
   const stopName = (v: number): string =>
     [caption('atoms', 1), caption('atoms', 2), caption('atoms', reached('atoms') ? 4 : 3)][Math.round(v)] ??
     '';
+  const w = world.world;
+  /** Lens mode: the whole step, once the lens lies on the wire (from the prologue it lands during the fly-in). */
+  const inLens = (): boolean =>
+    ctx.stage.current === 'atoms' && w.goal >= 0 && w.position > -0.04 && w.value('lens') > 0.99;
+  const ring = createFocusRing(ctx, {
+    name: 'depth-ring',
+    label: caption('atoms', 0),
+    min: 0,
+    max: 2,
+    marks: () => [1, 2].map((value) => ({ value, label: stopName(value) })),
+    value: () => Math.max(w.position, 0),
+    target: () => Math.max(w.goal, 0),
+    shown: inLens,
+    lens: w.stand.tools.lens,
+    scrub: (v) => w.scrub(v),
+    travelTo: (v) => w.travelTo(v),
+    valueText: stopName,
+  });
+  const mode = lensMode(ctx, { active: inLens, ring, sway: w.sway });
 
   const choose = (site: number): void => {
     // the chosen ball becomes the hero: the atom the next step opens (nothing moves on this floor)
@@ -33,43 +56,32 @@ export const atomsStep: StepFactory = ({ ctx, ui, world, reached, reach }) => {
     copper.lattice.selected = site;
     copper.lattice.touch(site);
     reach('atoms');
-    // the slider's last mark is renamed with the new word: «ряди кульок» → «ряди атомів» (marks are built with
-    // the control, so the step's UI is declared again; the slider keeps its value)
-    ui.define({ atoms: atomsUi() });
+    // the ring's last mark is renamed with the new word: «ряди кульок» → «ряди атомів» (`stopName`)
   };
   const proxies = atomProxies(ctx, copper, {
     enabled: here,
     hover: (site) => copper.lattice.touch(site),
     click: choose,
+    space: mode.space,
   });
 
   const anchor = new Vector3();
   const atomAt = (): Vector3 => copper.heroPosition(anchor);
   ctx.qa.probe('atom-hero', () => world.toWorld(copper.lattice.positionOf(0, anchor), anchor));
   ctx.qa.probe('atom-side', () => world.toWorld(copper.lattice.positionOf(proxies.side, anchor), anchor));
-  ctx.qa.expose('atoms', () => ({ selected: copper.lattice.selected, hero: copper.hero }));
+  ctx.qa.expose('atoms', () => ({
+    selected: copper.lattice.selected,
+    hero: copper.hero,
+    position: w.position,
+    goal: w.goal,
+    lensMode: inLens(),
+    ring: ring.state(),
+    sway: { yaw: w.sway.yaw, held: mode.swaying },
+  }));
 
   const atomsUi = (): StepUiSpec => ({
     reset: true,
-    controls: [
-      {
-        type: 'slider',
-        id: 'depth',
-        label: caption('atoms', 0),
-        min: 0,
-        max: 2,
-        value: 2,
-        step: 0.005,
-        marks: [0, 1, 2].map((v) => ({ value: v, label: stopName(v) })),
-        format: stopName,
-        // the thumb is the target: a drag is followed frame by frame, a click on the track or a key glides there;
-        // the track's fill shows where the dive is now (`current`, patched in `update`)
-        onChange: (v) => world.world.travelTo(v),
-        onInput: (v, how) => {
-          if (how === 'drag') world.world.scrub(v);
-        },
-      },
-    ],
+    controls: [],
     goal: () => reached('atoms'),
     callouts: [
       {
@@ -89,8 +101,6 @@ export const atomsStep: StepFactory = ({ ctx, ui, world, reached, reach }) => {
     },
     ui: atomsUi(),
     enter(i) {
-      fill = -1;
-      ui.set('depth', 2);
       copper.atoms = Infinity;
       copper.sim.shared = 1;
       copper.marked = -1;
@@ -105,14 +115,16 @@ export const atomsStep: StepFactory = ({ ctx, ui, world, reached, reach }) => {
       invite = 1.2;
     },
     update(dt) {
-      if (ctx.stage.current === 'atoms' && Math.abs(world.world.position - fill) > 0.002)
-        ui.patch('depth', { current: (fill = world.world.position) });
       if (!here() || copper.lattice.selected >= 0) return;
       invite -= dt;
       if (invite <= 0) {
         invite = INVITE_EVERY;
         copper.lattice.touch(0);
       }
+    },
+    always(dt) {
+      mode.update();
+      ring.update(dt);
     },
   };
 };

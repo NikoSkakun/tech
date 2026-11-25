@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* global process, console, window */
+/* global process, console, window, document */
 // Interaction test of chapter `circuit/lamp` (lenovo; dev server or production preview up), DOM interface:
 //
 //   node app/src/volumes/circuit/chapters/lamp/qa/interactions.mjs --port 5316 [--size 1280x720] [--touch] [--out <dir>]
@@ -62,17 +62,52 @@ const sweep = async (p, id, a, b, n = 40) => {
   return { camera: jumps(cam), lens: jumps(lens) };
 };
 
+/**
+ * Turn the focus ring on the lens (F-lens-ring) by hand: press on its marker, move along the arc's tangent in small
+ * steps until `until(state)` (or `px` px), camera and lens sampled after each move.
+ */
+const turn = async (p, px, until) => {
+  let r = (await read(page, 'inside')).ring;
+  let x = r.marker.x;
+  let y = r.marker.y;
+  const hold = await p.down(x, y);
+  const cam = [];
+  const lens = [];
+  for (let i = 0; i < Math.abs(px) / 5; i++) {
+    const a = Math.atan2(x - r.layout.cx, y - r.layout.cy);
+    x += Math.sign(px) * 5 * Math.cos(a);
+    y -= Math.sign(px) * 5 * Math.sin(a);
+    await hold.move(x, y);
+    const s = await read(page, 'lamp');
+    const st = await read(page, 'inside');
+    r = st.ring;
+    cam.push(s.cameraRaw);
+    lens.push(s.lens);
+    if (until(st)) break;
+  }
+  await hold.up();
+  return { camera: jumps(cam), lens: jumps(lens) };
+};
+
 async function inside(p) {
   check('opening card', await shown(page, '[data-ui="path-opening"]'));
   await press(page, '[data-ui="path-opening"] .btn');
   check('«Згадайте» link', await shown(page, '[data-ui="path-recall"]'));
   check('no takeaway before the goal', !(await takeaway()));
-  let j = await sweep(p, 'depth', 0, 1.04, 60);
-  smooth('depth slider down: camera', j.camera, 0.5);
-  smooth('depth slider down: lens', j.lens, 0.8);
+  check('no depth slider, no ring before the lens is taken', !(await page.evaluate(() => !!document.querySelector('[data-ui="ctl-depth"]'))) && !(await read(page, 'inside')).ring.shown);
+  const l = await at(page, 'lens');
+  await p.tap(l.x, l.y);
+  await advance(page, 2.5);
+  let i = await read(page, 'inside');
+  check('a tap on the lens lays it on the glass: lens mode, the ring on its rim', i.lensMode && i.ring.amount === 1 && i.position === 0, `at ${i.position.toFixed(2)}`);
+  let j = await turn(p, 900, (st) => st.position >= 0.995);
+  smooth('turning the ring down: camera', j.camera, 0.5);
+  smooth('turning the ring down: lens', j.lens, 0.8);
   await advance(page, 1.2);
   const s = await read(page, 'lamp');
   check('down at the lamp', s.rail >= 0.98, s.rail.toFixed(3));
+  i = await read(page, 'inside');
+  check('…the ring stays as the bottom arc of the rim', i.ring.shown && i.ring.layout.pinned > 0.95);
   await snap('inside-down');
   // the mark along the way: contact → first support → coil → second support → thread
   const seq = ['path-mark', 'lamp-leadIn', 'lamp-coil', 'lamp-leadOut', 'lamp-thread'];
@@ -88,9 +123,9 @@ async function inside(p) {
   await page.click('[data-ui="path-more"]');
   check('«Докладніше» opens', (await page.getAttribute('[data-ui="path-more"]', 'aria-expanded')) === 'true');
   await snap('inside-goal');
-  j = await sweep(p, 'depth', 1, 0.2, 40);
-  smooth('depth slider back up: camera', j.camera, 0.5);
-  j = await sweep(p, 'depth', 0.2, 1.04, 40);
+  j = await turn(p, -900, (st) => st.position <= 0.2);
+  smooth('turning the ring back up: camera', j.camera, 0.5);
+  j = await turn(p, 900, (st) => st.position >= 0.995);
   smooth('…and down again: camera', j.camera, 0.5);
   await advance(page, 1.2);
 }

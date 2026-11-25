@@ -8,6 +8,7 @@
 import { Vector3 } from 'three';
 import type { ChapterContext, Shot } from '@/engine/api';
 import { createDiveRail, type DiveRail } from '@circuit/shared/world/dive';
+import { applySway, type Sway } from '@circuit/shared/world/sway';
 
 /** Rate (1/s) at which the offset between the camera on screen and the rail's pose fades after engaging. */
 const CATCH_UP = 3.2;
@@ -37,7 +38,13 @@ export interface CameraRail {
   update(dt: number): void;
 }
 
-export function cameraRail(ctx: ChapterContext, stops: readonly Shot[], lead?: Shot): CameraRail {
+export function cameraRail(
+  ctx: ChapterContext,
+  stops: readonly Shot[],
+  lead?: Shot,
+  /** Lens mode's camera sway (`@circuit/shared/world/sway`), applied to the rail's pose while it drives. */
+  sway?: Sway,
+): CameraRail {
   const { camera } = ctx;
   const rail = createDiveRail(stops, lead);
   let engaged = false;
@@ -79,6 +86,7 @@ export function cameraRail(ctx: ChapterContext, stops: readonly Shot[], lead?: S
       shot.position = [p[0] + offPos.x * weight, p[1] + offPos.y * weight, p[2] + offPos.z * weight];
       shot.target = [g[0] + offTarget.x * weight, g[1] + offTarget.y * weight, g[2] + offTarget.z * weight];
     }
+    if (sway) applySway(shot, sway.yaw, sway.pitch);
     camera.go(shot, { instant: true });
   };
   return {

@@ -2,7 +2,7 @@
 // «Версія для комп'ютера» on a phone, end to end with touch input only (Chrome device emulation: coarse pointer,
 // no hover), on the 2D interface the app picks by itself:
 //   «Меню» → «Версія для комп'ютера» → the desktop shell (kd-shell-desk, a computer's metrics); the prologue's first
-//   step by touch (switch tap, depth slider drag, «Далі»), a one-finger drag in the scene; reload → still desktop;
+//   step by touch (switch tap, lens tap + focus ring turn, «Далі»), a one-finger drag in the scene; reload → still desktop;
 //   «Мобільна версія» → the touch shell again; desktop once more, then «Почати з нуля» → the touch shell.
 //
 //   node tools/qa/desk-toggle.mjs [--port 5298 | --base URL] [--profiles pl,pp,ll] [--out DIR]
@@ -109,7 +109,7 @@ async function run(name) {
     await layout('desktop shell');
     await shot('desk');
 
-    // the prologue by touch: the opening card, the switch in the scene, «Далі», the next step's depth slider
+    // the prologue by touch: the opening card, the switch in the scene, «Далі», the next step's focus ring
     const opening = await box('[data-ui="path-opening"] button');
     if (opening) await tapSel('[data-ui="path-opening"] button');
     const prologue = () => page.evaluate(() => window.__app.read('prologue'));
@@ -150,20 +150,22 @@ async function run(name) {
     check(after !== before, '«Далі» by touch goes to the next step', `${before} → ${after}`);
     await layout('next step');
     await shot('next');
-    // the desktop's portrait layout: «Опис» and «Керування» share the sheet through a tab switch
-    if (await box('[data-ui="sheet-tabs:controls"]')) await tapSel('[data-ui="sheet-tabs:controls"]');
-    const track = await page.evaluate(() => {
-      const r = document.querySelector('[data-ui="ctl-depth"] input.dk-range')?.getBoundingClientRect();
-      return r && r.width > 0 ? { x: r.x, y: r.y + r.height / 2, w: r.width } : null;
-    });
-    check(!!track, 'the depth slider is on screen in the control dock');
-    if (track) {
-      const v = () => page.evaluate(() => Number(document.querySelector('[data-ui="ctl-depth"] input.dk-range').value));
-      const v0 = await v();
-      await t.drag([track.x + 8, track.y], [track.x + track.w * 0.45, track.y], { steps: 14, hold: 80 });
+    // the depth is the focus ring on the lens (F-lens-ring): a tap on the lens takes it, the ring shows on its rim,
+    // a finger along the ring turns it
+    const lens = await page.evaluate(() => window.__app.locate('lens'));
+    await t.tap(lens.x, lens.y);
+    await settle(page, 180);
+    const ring0 = (await prologue()).dive;
+    check(ring0.lensMode && ring0.ring.shown, 'a tap on the lens by touch shows the focus ring on it');
+    if (ring0.ring.marker) {
+      const m = ring0.ring.marker;
+      const l = ring0.ring.layout;
+      const ang = Math.atan2(m.x - l.cx, m.y - l.cy);
+      const to = [m.x + 60 * Math.cos(ang), m.y - 60 * Math.sin(ang)];
+      await t.drag([m.x, m.y], to, { steps: 14, hold: 80 });
       await settle(page, 60);
-      const v1 = await v();
-      check(v1 > v0, 'dragging the depth slider by touch moves it', `${v0} → ${v1}`);
+      const v1 = (await prologue()).dive.position;
+      check(v1 > ring0.position, 'turning the ring by touch dives', `${ring0.position.toFixed(2)} → ${v1.toFixed(2)}`);
       await shot('slider');
     }
     // reload: the desktop shell from the first frame on

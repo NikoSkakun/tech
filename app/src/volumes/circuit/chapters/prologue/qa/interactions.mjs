@@ -17,6 +17,7 @@ import {
   parseSize,
 } from '../../../../../../../tools/qa/lib.mjs';
 import { TUCKED, advance, at, fromSeats, read, sheetTab } from './helpers.mjs';
+import { diveByRing } from './ring.mjs';
 
 const args = parseArgs();
 const [width, height] = parseSize(args.size, [1280, 720]);
@@ -160,17 +161,12 @@ try {
     u0.unfold.playing && u0.unfold.value < 0.35,
     u0.unfold.value.toFixed(2),
   );
-  // …and nothing to use either: the depth slider waits with the text (the phone sheet showed it greyed early)
-  const sliderShown = () =>
-    page.evaluate(() => {
-      const el = document.querySelector('[data-ui="ctl-depth"]');
-      if (!el || el.closest('[hidden]')) return false;
-      const r = el.getBoundingClientRect();
-      return r.width > 0 && r.height > 0 && Number(getComputedStyle(el).opacity) > 0.05;
-    });
+  // …and nothing to use either: no zoom control at all until the lens is taken (F-lens-ring: the ring is on the lens)
+  const sliderShown = () => page.evaluate(() => !!document.querySelector('[data-ui="ctl-depth"]'));
+  const ringShown = async () => (await state()).dive.ring.shown;
   // a narrow window: text and controls share a bottom sheet through tabs — the reader looks under «Керування»
   await sheetTab(page, 'controls');
-  check('no slider while it unfolds',!(await sliderShown()));
+  check('no slider, no ring while it unfolds', !(await sliderShown()) && !(await ringShown()));
   // the script: no text to read mid-motion (stepUi `panel.hiddenUntil`): an empty plate until the last beat
   const panelHeld = () =>
     page.evaluate(() => {
@@ -208,8 +204,7 @@ try {
   await advance(page, 0.2);
   await sheetTab(page, 'text');
   check('…and shows it with the last beat', !(await panelHeld()) && (await shown('[data-ui="path-step"]')));
-  await sheetTab(page, 'controls');
-  check('…the slider with it', await sliderShown());
+  check('…still no depth slider, and no ring before the lens is taken', !(await sliderShown()) && !(await ringShown()));
   const lensTips = await restOn('lens');
   check('…then hovering the lens names it', lensTips.includes('лупа'), lensTips.join('|') || '–');
   const named = u1.names;
@@ -232,164 +227,7 @@ try {
   await tap('switch');
   await advance(page, 0.6);
 
-  // the slider is the dive from the lens in its holder on (the owner, 2026-11-17): its first stretch (0 … 0.5)
-  // lifts the lens out of its holder and lays it on the wire, the camera coming with it; then the dive goes on
-  await sheetTab(page, 'controls');
-  const track = await page.evaluate(() => {
-    const i = document.querySelector('[data-ui="ctl-depth"] input.dk-range');
-    const r = i?.getBoundingClientRect();
-    return r ? { x: r.x, y: r.y + r.height / 2, w: r.width, disabled: i.disabled } : null;
-  });
-  check('the slider is there to use from the start (lens in its holder)', track && !track.disabled);
-  const MAX = 2.5;
-  const LEAD = 0.5;
-  const xAt = (v) => track.x + 8 + (track.w - 16) * (v / MAX);
-  const frame = async () => {
-    await page.evaluate(() => window.__app.step(1 / 60, 1));
-    return { s: await state(), lens: await at(page, 'lens') };
-  };
-  const before = await frame();
-  check('the switch is open, the lens in its holder', !before.s.closed && before.s.dive.lens < 0.01);
-  await page.mouse.move(xAt(0), track.y);
-  await page.mouse.down();
-  await page.mouse.move(xAt(0.08), track.y); // past the half-thumb the press landed in: the range moves
-  let f = await frame();
-  check(
-    'the first move of the slider closes the switch: light in that frame',
-    f.s.closed && f.s.light > 0.5,
-    `light ${f.s.light.toFixed(2)}`,
-  );
-  // small even steps of the hand: every quantity moves by small amounts only (no jump anywhere)
-  let prev = before;
-  let jump = { cam: 0, px: 0, deep: 0 };
-  let lag = 0;
-  let lensUp = 0;
-  let monotone = true;
-  const sweep = async (from, to, dv) => {
-    for (let v = from; dv > 0 ? v <= to + 1e-9 : v >= to - 1e-9; v += dv) {
-      await page.mouse.move(xAt(v), track.y);
-      f = await frame();
-      jump.cam = Math.max(jump.cam, Math.hypot(...f.s.camera.map((c, i) => c - prev.s.camera[i])));
-      jump.px = Math.max(jump.px, Math.hypot(f.lens.x - prev.lens.x, f.lens.y - prev.lens.y));
-      jump.deep = Math.max(jump.deep, Math.abs(f.s.deep - prev.s.deep));
-      lag = Math.max(lag, Math.abs(f.s.dive.at - f.s.dive.slider));
-      if (dv > 0 && f.s.dive.lens < prev.s.dive.lens - 1e-6) monotone = false;
-      if (f.s.dive.lens > 0.05 && f.s.dive.at < 0.2) lensUp = f.s.dive.lens;
-      prev = f;
-    }
-  };
-  prev = f;
-  await sweep(0.09, 0.9, 0.01);
-  const fwd = f.s;
-  check(
-    'dragging from 0 lifts the lens out of its holder at once, and on, continuously',
-    lensUp > 0.05 && monotone && fwd.dive.lens > 0.99,
-    `lens ${lensUp.toFixed(2)} by 0.2`,
-  );
-  check(
-    '…the lens on the wire at the end of the stretch, and the dive goes on',
-    fwd.deep > 0.1 && fwd.dive.position > 0.35,
-    `deep ${fwd.deep.toFixed(2)}`,
-  );
-  check('a drag scrubs with the hand', lag < 0.03, `lag ${lag.toFixed(3)}`);
-  const h = page.viewportSize().height;
-  check(
-    'no jump: small changes only between neighbouring slider values',
-    jump.cam < 0.3 && jump.px < 0.05 * h && jump.deep < 0.02,
-    `camera ${jump.cam.toFixed(3)}, lens ${jump.px.toFixed(1)} px, deep ${jump.deep.toFixed(3)}`,
-  );
-  // back to 0: the lens goes back into its holder, the camera back to the stand plan, as smoothly
-  jump = { cam: 0, px: 0, deep: 0 };
-  await sweep(0.89, 0, -0.01);
-  await page.mouse.move(xAt(-0.2), track.y);
-  f = await frame();
-  await page.mouse.up();
-  await advance(page, 0.5);
-  const back = await state();
-  // «the stand plan again» = the same look-at point and distance, the view direction within the idle drift: the
-  // director orbits the camera around its target by slow sines for ever (azimuth ≤ 0.0034 rad/s, polar ≤ 0.0015,
-  // director.ts), so after the ≈ 3.6 s of this sweep the camera *position* may sit ≈ 0.1 off by drift alone (it
-  // did at 390×844, a pure phase effect); the view direction by ≤ 0.014 rad (+ ≈ 0.002 from the rounding)
-  const sub = (a, b) => a.map((c, i) => c - b[i]);
-  const len = (v) => Math.hypot(...v);
-  const arm = (s) => sub(s.camera, s.look);
-  const lookOff = len(sub(back.look, before.s.look));
-  const distOff = Math.abs(len(arm(back)) / len(arm(before.s)) - 1);
-  const dot = arm(back).reduce((a, c, i) => a + c * arm(before.s)[i], 0) / (len(arm(back)) * len(arm(before.s)));
-  const turn = Math.acos(Math.min(1, dot));
-  check(
-    'back to 0: the lens in its holder, the stand plan again',
-    back.dive.lens < 0.01 &&
-      back.deep === 0 &&
-      lookOff < 0.02 &&
-      distOff < 0.01 &&
-      turn < 0.02 &&
-      jump.cam < 0.3 &&
-      jump.px < 0.05 * h,
-    `lens ${back.dive.lens.toFixed(3)}, look ${lookOff.toFixed(3)} off, distance ${(distOff * 100).toFixed(2)} %, turned ${turn.toFixed(3)} rad; steps: camera ${jump.cam.toFixed(3)}, lens ${jump.px.toFixed(1)} px`,
-  );
-  check('…and it stays where let go', !back.dive.moving && back.dive.at === 0);
-  // a tap on the lens glides the slider through the lens stretch (the same motion), and closes an open switch
-  await tap('switch');
-  await advance(page, 0.6);
-  check('the switch open again', !(await state()).closed);
-  const p = await at(page, 'lens');
-  await page.mouse.move(p.x, p.y, { steps: 4 });
-  await page.evaluate(() => window.__app.step(1 / 60, 1));
-  await page.mouse.down();
-  await page.mouse.up();
-  await page.evaluate(() => window.__app.step(1 / 60, 1));
-  const g0 = await state();
-  check('a lens tap: switch closed, light in that frame', g0.closed && g0.light > 0.5);
-  await page.evaluate(() => window.__app.step(1 / 60, 30));
-  const g1 = await state();
-  check(
-    '…the slider glides through the lens stretch (no jump)',
-    g1.dive.moving && g1.dive.at > 0.02 && g1.dive.at < LEAD - 0.05 && g1.dive.slider === LEAD,
-    `at ${g1.dive.at.toFixed(2)}`,
-  );
-  const midFill = await page.evaluate(() =>
-    Number(document.querySelector('[data-ui="ctl-depth"] [style*="--c"]')?.style.getPropertyValue('--c')),
-  );
-  check(
-    '…its fill follows the lens, the thumb waits at the target',
-    Math.abs(midFill * MAX - g1.dive.at) < 0.02,
-  );
-  await advance(page, 2);
-  const g2 = await state();
-  check(
-    '…and stops with the lens on the wire',
-    g2.dive.lens > 0.99 && Math.abs(g2.dive.at - LEAD) < 1e-3 && !g2.dive.moving && g2.deep === 0,
-  );
-  // a click on the track glides there, speed-limited
-  await page.mouse.click(track.x + track.w - 1, track.y);
-  await page.evaluate(() => window.__app.step(1 / 60, 30));
-  const t1 = await state();
-  check(
-    'a click on the track travels (does not jump)',
-    t1.dive.moving && t1.dive.position < 1.2,
-    t1.dive.position.toFixed(2),
-  );
-  await advance(page, 5);
-  const fill = () =>
-    page.evaluate(() =>
-      Number(document.querySelector('[data-ui="ctl-depth"] [style*="--c"]')?.style.getPropertyValue('--c')),
-    );
-  check('the track fill shows where the dive is (current)', Math.abs((await fill()) - 1) < 0.01);
-  const t2 = await state();
-  check('…and arrives at the rows', t2.dive.position > 1.99 && !t2.dive.moving, t2.dive.position.toFixed(2));
-  await advance(page, 2.2);
-  // «де ми»: the platform's floor ladder lights the floor on screen, by its plain name in the prologue
-  check(
-    'floor ladder: «ряди кульок» lit',
-    (await page.evaluate(
-      () => document.querySelector('[data-ui="floor-ladder"] .fl-row.on')?.textContent,
-    )) === 'ряди кульок',
-  );
-  const d2 = await state();
-  check('2 s on the rows', d2.deep > 1.99 && d2.dive.dwell >= 2, `deep ${d2.deep.toFixed(2)}`);
-  await sheetTab(page, 'text');
-  check('takeaway shown', await takeaway());
+  await diveByRing(page, { state, check, at, advance, takeaway, sheetTab });
 
   // «Назад» to `click` from the rows: the dive rewinds in one eased glide (≤ 1.8 s: the lens back into its holder,
   // the camera to the stand plan), then the unfolding plays backwards as a rewind of ≈ 3 s (the owner,

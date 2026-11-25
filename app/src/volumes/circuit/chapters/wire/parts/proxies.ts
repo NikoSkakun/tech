@@ -4,7 +4,7 @@
  * draw nothing (`material.visible = false`: no draw call) but are picked like any mesh.
  */
 import { Mesh, MeshBasicMaterial, SphereGeometry } from 'three';
-import type { ChapterContext } from '@/engine/api';
+import type { ChapterContext, InteractionHandlers } from '@/engine/api';
 import type { Copper } from '@circuit/shared/copper/copper';
 import { ATOM_R, PITCH } from '@circuit/shared/copper/layout';
 
@@ -21,7 +21,13 @@ export interface AtomProxies {
 export function atomProxies(
   ctx: ChapterContext,
   copper: Copper,
-  on: { enabled: () => boolean; hover: (site: number) => void; click: (site: number) => void },
+  on: {
+    enabled: () => boolean;
+    hover: (site: number) => void;
+    click: (site: number) => void;
+    /** Lens mode's drag (sway) and wheel (ring): the proxies cover the frame, so they pass both on. */
+    space?: Pick<InteractionHandlers, 'dragStart' | 'drag' | 'dragEnd' | 'wheel'>;
+  },
 ): AtomProxies {
   const geometry = new SphereGeometry(REACH, 12, 8);
   const material = new MeshBasicMaterial({ visible: false });
@@ -40,6 +46,7 @@ export function atomProxies(
         if (over) on.hover(site);
       },
       click: () => on.click(site),
+      ...on.space,
     });
   });
   return { side };

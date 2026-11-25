@@ -8,6 +8,7 @@
 // press «Додати атоми», mark an electron, drag the lens); after each one the panel must show «Висновок».
 // «Докладніше» is opened once, the «Згадайте» link is checked, the closing card is reached; no console errors.
 // Frozen engine clock (`?freeze`): deterministic. Exit code 1 on any failure.
+import { turnRing } from '../../prologue/qa/ring.mjs';
 import {
   appErrors,
   appUrl,
@@ -32,7 +33,6 @@ import {
   scrub,
   sceneY,
   shown,
-  thumbAt,
 } from './helpers.mjs';
 import { nextChapter } from '../../../../../../../tools/qa/next-chapter.mjs';
 
@@ -107,25 +107,45 @@ const steps = {
     );
     await advance(page, 1);
     check('takeaway after the touch', await takeaway());
-    // the depth slider is the dive: a drag scrubs it both ways, a click on the track travels there
-    let release = await scrub(page, 'depth', 1, 0.3);
-    let w = await read(page, 'wire');
+    // the focus ring on the lens is the dive (F-lens-ring): the reader is in lens mode, the ring is the rim's bottom arc
+    const atoms = () => read(page, 'atoms');
+    let r = await atoms();
+    const nav = await page.evaluate(() => document.querySelector('[data-ui="navigator"]')?.getBoundingClientRect().top ?? 0);
+    const l = r.ring.layout;
     check(
-      'a drag scrubs the dive up (position follows the thumb)',
-      Math.abs(w.position - 0.6) < 0.08,
-      w.position.toFixed(2),
+      'lens mode at the rows: the ring pinned as the bottom arc, above the navigator',
+      r.lensMode && r.ring.amount === 1 && l.pinned > 0.95 && l.cy + l.r + l.t <= nav + 1,
+      `bottom ${(l.cy + l.r + l.t).toFixed(0)}, navigator ${nav.toFixed(0)}`,
     );
-    await page.mouse.move(...(await thumbAt(page, 'depth', 0.7)));
-    await advance(page, 0.1);
-    w = await read(page, 'wire');
-    check('…and back down without letting go', Math.abs(w.position - 1.4) < 0.08, w.position.toFixed(2));
-    await release();
+    check('no depth slider in the panel', !(await page.evaluate(() => !!document.querySelector('[data-ui="ctl-depth"]'))));
+    check('the last mark took the new word', r.ring.marks.at(-1)?.label === 'ряди атомів', r.ring.marks.at(-1)?.label);
+    await turnRing(page, atoms, -500, { until: (s) => s.position <= 1.4 });
+    r = await atoms();
+    check('turning the ring scrubs the dive up', r.position <= 1.4 && r.position > 1.2, r.position.toFixed(2));
     await advance(page, 1);
-    check('let go mid-way, the dive stays there', Math.abs((await read(page, 'wire')).position - 1.4) < 0.08);
-    await clickTrack(page, 'depth', 1.03); // the far end of the track (the DOM range's own inset)
+    check('let go mid-way, the dive stays there', Math.abs((await atoms()).position - r.position) < 1e-6);
+    // a drag over the atoms sways the camera, it springs back
+    const side = await at(page, 'atom-hero');
+    await page.mouse.move(side.x, side.y);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++) {
+      await page.mouse.move(side.x + i * 20, side.y);
+      await advance(page, 0.02);
+    }
+    const sw = await atoms();
+    check('a drag over the atoms sways the camera (held)', sw.sway.held && Math.abs(sw.sway.yaw) > 0.03, sw.sway.yaw.toFixed(3));
+    await page.mouse.up();
+    await advance(page, 1.6);
+    check('…and it springs back', Math.abs((await atoms()).sway.yaw) < 1e-3);
+    const chip = await page.evaluate(() => {
+      const e = document.querySelector('[data-ui="depth-ring:1"]')?.getBoundingClientRect();
+      return e ? [e.x + e.width / 2, e.y + e.height / 2] : null;
+    });
+    await page.mouse.click(...chip);
     await advance(page, 0.3);
-    const mid = (await read(page, 'wire')).position;
-    check('a click on the track travels (not a jump)', mid > 1.42 && mid < 1.99, mid.toFixed(2));
+    const mid = (await atoms()).position;
+    check('a click on the mark «ряди атомів» travels (not a jump)', mid > r.position && mid < 1.99, mid.toFixed(2));
+    let w;
     for (let i = 0; i < 20 && (w = await read(page, 'wire')).position < 1.999; i++) await advance(page, 0.5);
     check('…and arrives at the rows', Math.abs(w.deep - 2) < 0.01, `${w.deep.toFixed(3)} after the travel`);
     await press(page, '[data-ui="path-more"]');

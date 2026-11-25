@@ -100,6 +100,7 @@ export default defineScene((ctx) => {
     update(dt, t) {
       if (!leaving) steps[stage.current as StepId]?.update?.(dt, t);
       world.update(dt, t);
+      for (const id of STEP_IDS) steps[id].always?.(dt);
       ladder.update();
     },
   };

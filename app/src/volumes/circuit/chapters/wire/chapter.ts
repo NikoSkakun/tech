@@ -33,6 +33,8 @@ export interface StepModule {
   leave?(): void;
   /** Every frame while the step is on screen. */
   update?(dt: number, t: number): void;
+  /** Every frame whatever step is on screen, after the world (a lens mode's ring fades out when its step goes). */
+  always?(dt: number): void;
 }
 
 export type StepFactory = (chapter: Chapter) => StepModule;

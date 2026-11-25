@@ -42,7 +42,7 @@ export default defineScene(async (ctx) => {
   const held = (): boolean => unfolding.playing;
   const riddle = riddleStep(ctx, world, ui, labels('riddle'));
   // the moment the reader starts the dive an open switch closes by itself: the copper is always seen lit
-  const dive = diveStep(ctx, world, ui, labels('dive'), names, held, () => toggle.close(), riddle.lensName);
+  const dive = diveStep(ctx, world, labels('dive'), names, held, () => toggle.close(), riddle.lensName);
   const map = mapStep(ctx);
   // the reader's hands on the stand (the owner, 2026-11-20): the battery comes out of its clamps, the lamp unscrews —
   // only on the stand plan of `dive` (the lens in its holder, nothing flying); they go back as the dive starts

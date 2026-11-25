@@ -35,6 +35,7 @@ import { floorAt, floorValue, mixAt, type FloorId } from './levels';
 import { createLook } from './look';
 import { createLensWindow, type LensWindow } from './window';
 import { registerParams, type WorldParam } from './params';
+import { createSway, type Sway } from './sway';
 
 export * from './levels';
 export { STOP_SHOTS } from './flight';
@@ -77,6 +78,11 @@ export interface CircuitWorld {
    * a chapter that carries the lens itself lays it here, so the window opens where the lens is. Default none.
    */
   afterLens: ((dt: number) => void) | null;
+  /**
+   * Lens mode's camera sway (`sway.ts`): a chapter's lens mode holds / releases it; applied while the dive rail
+   * owns the camera (reset at every step entry).
+   */
+  readonly sway: Sway;
   /** A registered param's live value (`deep`, `lens`, `closed`, …). */
   value(name: WorldParam): number;
   /** True while a flight between floors is under way (input that changes the floor should wait). */
@@ -156,11 +162,13 @@ export function mountWorld(ctx: ChapterContext, opts: WorldOptions = {}): Circui
     // the lens leg starts on the stand plan (`prologue/dive`'s camera)
     STAGE_SHOTS.stand,
   );
+  const sway = createSway(ctx.reducedMotion);
   const flight = createFlight(
     ctx,
     rail,
     () => params.deep.value,
     () => params.lens.value,
+    sway,
   );
   // the header's floor chip (`hud/where.ts`): the stand, or the floor of a dive — never the chapter's own floor
   // while the camera is elsewhere (a floor ladder's report, where a chapter has one, wins over this)
@@ -200,6 +208,7 @@ export function mountWorld(ctx: ChapterContext, opts: WorldOptions = {}): Circui
     lensPose: null,
     drift: opts.drift ?? 0.05,
     afterLens: null,
+    sway,
     get deep() {
       return params.deep.value;
     },
@@ -265,6 +274,7 @@ export function mountWorld(ctx: ChapterContext, opts: WorldOptions = {}): Circui
     },
     enterStep(id, info) {
       flyInAfter = null;
+      sway.reset();
       const spec = specs[id];
       const to = spec?.params?.deep ?? 0;
       const from = info.instant ? to : params.deepBefore;
@@ -295,6 +305,7 @@ export function mountWorld(ctx: ChapterContext, opts: WorldOptions = {}): Circui
         go();
       }
       border.update(dt);
+      sway.step(dt);
       flight.update(dt);
       stand.update(dt, t);
       const toPose = world.lensPose && params.deep.value < 0.01 && params.lens.value > 0.99 ? 1 : 0;

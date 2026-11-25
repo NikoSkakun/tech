@@ -1,31 +1,32 @@
 /**
- * `dive` — «Углиб дроту». The depth slider IS the dive (DECISIONS §60 p, UI_API §3.3), from the lens in its holder
- * on: its first stretch (0…`LEAD`) is the take of the lens — it rises out of its holder, crosses the stand and
- * settles on the near wire while the camera comes with it to the dive's start —, the rest is the dive itself
- * (camera, `deep`, the ring, the dissolve, the metal turning into rows). Drag it and the scene follows the hand both
- * ways (`world.scrub`; back to 0 lays the lens back in its holder), let go anywhere and it stays; click the track or
- * use the keys and it glides there (`world.travelTo`, speed-limited). A tap or a drag on the lens itself glides the
- * slider through the lens stretch — the same motion (the owner, 2026-11-17: «має бути видно ще рух лупи»). The
- * three names stand as marks: стенд (0) · усередині дроту · ряди кульок. The goal holds after 2 s at the end.
+ * `dive` — «Углиб дроту». The lens is the way in (DECISIONS §60 p; the owner, 2026-11-25: the zoom is an in-game
+ * focus ring that appears only once the reader has taken the lens). A tap or a drag on the lens in its holder takes it:
+ * it rises, crosses the stand and settles on the near wire while the camera comes with it (the rail's lens leg) —
+ * that is lens mode, and the knurled ring shows on the lens's rim (`focus-ring.ts`). Turning the ring is the dive
+ * itself, both ways (`world.scrub`; a click on the ring, a mark's name, the keys or the wheel glide there,
+ * `world.travelTo`); as the lens grows past the frame the ring stays as the bottom arc of its rim. In lens mode a
+ * drag on empty space sways the camera a little and it springs back (`lens-mode.ts`). A tap on the lens while it lies
+ * on the wire with the ring at its start lays it back in its holder: lens mode ends, the ring goes. The floors stand
+ * as marks: деталь · ряди кульок. The goal holds after 2 s at the end.
  *
- * The switch is the reader's here too (`switch.ts`); the moment the reader starts the dive — the slider in any way,
- * or the lens — an open switch closes by itself and the light comes on in that frame (the owner, 2026-11-17).
+ * The switch is the reader's here too (`switch.ts`); the moment the reader starts the dive — the lens or the ring —
+ * an open switch closes by itself and the light comes on in that frame (the owner, 2026-11-17).
  */
 import type { ChapterContext } from '@/engine/api';
-import type { StepUiApi, StepUiSpec } from '@/hud';
+import type { StepUiSpec } from '@/hud';
 import { LENS_LEG, type CircuitWorld } from '@circuit/shared/world';
+import { lensMode } from '@circuit/shared/world/lens-mode';
+import { createFocusRing, type FocusRingState } from '@circuit/shared/stage/tools/focus-ring';
 import type { PartNames } from './parts';
 
-/**
- * Length of the lens stretch on the slider: the rail's lens leg (−½…0), a fifth of the track — long enough to read
- * as its own motion (≈ 1.6 s when a click glides through it), short enough that the three marks keep room for their
- * names on a phone (at 0 · 0.6 · 1 of the track; a third of the track pushed «усередині дроту» into «ряди кульок»).
- */
-export const LEAD = LENS_LEG;
 /** The rail's end for the prologue: «ряди» (2); the prologue does not go to one atom. */
 const END = 2;
 /** Seconds at the end before the takeaway (script: «пробув там щонайменше 2 s»). */
 const DWELL = 2;
+/** The lens counts as on the wire (lens mode) from this rail position on (it lands at 85 % of the lens leg). */
+const ON_WIRE = -0.04;
+/** A tap on the lens lays it back only while the ring is this close to its start. */
+const AT_START = 0.05;
 
 export interface DiveStep {
   spec: StepUiSpec;
@@ -34,35 +35,36 @@ export interface DiveStep {
   /** For the interaction test (`__app.read('prologue')`). */
   state(): {
     lens: number;
-    slider: number;
-    /** The rail's position (−½ the lens in its holder … 0 on the wire … 2 «ряди»). */
+    /** The rail's position (−½ the lens in its holder … 0 on the wire … 2 «ряди») and where it is going. */
     position: number;
-    /** The same in slider units (`position + LEAD`): what the track's fill shows. */
-    at: number;
+    goal: number;
     moving: boolean;
     dwell: number;
     /** The step's own «лупа» callout is up. */
     named: boolean;
+    /** Lens mode: the ring is on the lens. */
+    lensMode: boolean;
+    ring: FocusRingState;
+    /** The camera's sway (rad) and whether the hand is on it. */
+    sway: { yaw: number; pitch: number; held: boolean };
   };
 }
 
 export function diveStep(
   ctx: ChapterContext,
   world: CircuitWorld,
-  ui: StepUiApi,
   labels: readonly string[],
   names: PartNames,
-  /** True while the step's panel is held back (the unfolding plays): the depth slider waits with the text. */
+  /** True while the step's panel is held back (the unfolding plays): the lens waits with the text. */
   held: () => boolean,
   /** The reader started the dive (the scene closes an open switch). */
   started: () => void,
   /** Another step's name for the lens (`riddle`: «позначена іскорка» on hover), with when it applies. */
   otherName?: { text: string; when: () => boolean },
 ): DiveStep {
-  const [lensLabel = '', wheelLabel = '', ...stopLabels] = labels;
+  const [lensLabel = '', ringLabel = '', , ...floorLabels] = labels;
   const lens = world.stand.tools.lens;
   let dwell = 0;
-  let shownFill = -1;
   let calling = true;
   const active = (): boolean => ctx.stage.current === 'dive';
   /**
@@ -71,6 +73,8 @@ export function diveStep(
    */
   const placed = (): boolean => active() && !held();
   const lensOn = (): boolean => world.value('lens') > 0.99;
+  /** Lens mode: the lens taken and on the wire (or below), not on its way back to the holder. */
+  const inLens = (): boolean => placed() && world.goal >= 0 && world.position > ON_WIRE;
   /** The reader's first touch of the dive: names go, an open switch closes. */
   const touch = (): void => {
     names.dismiss();
@@ -78,51 +82,49 @@ export function diveStep(
   };
 
   const take = (): void => {
-    // only from the lens stretch: once the slider is past it the lens already lies on the wire
+    // only from the lens leg: once the ring is past it the lens already lies on the wire
     if (!placed() || world.goal >= 0) return;
     touch();
-    ui.set('depth', LEAD);
     world.takeLens();
   };
+  /** On the wire with the ring at its start: the lens goes back into its holder (lens mode ends). */
+  const putBack = (): boolean => inLens() && world.goal <= AT_START && world.position <= AT_START;
   // one registration for the lens (a second one on its glass would swallow the tap that takes it here)
   const other = (): boolean => otherName?.when() ?? false;
   ctx.input.register(lens.group, {
     tooltip: () => (other() ? (otherName?.text ?? '') : lensLabel),
     cursor: 'grab',
-    enabled: () => (placed() && world.goal < 0) || other(),
-    click: take,
+    enabled: () => (placed() && (world.goal < 0 || putBack())) || other(),
+    click: () => {
+      if (putBack()) world.travelTo(-LENS_LEG);
+      else take();
+    },
     dragEnd: take,
   });
   const anchor = lens.glass.position.clone();
   const named = (): boolean => placed() && world.value('lens') < 0.01 && !names.shown && world.deep < 0.01;
   ctx.qa.probe('lens', () => lens.glass.getWorldPosition(anchor));
 
+  const floors = [1, 2].map((value, i) => ({ value, label: floorLabels[i] ?? '' }));
+  const ring = createFocusRing(ctx, {
+    name: 'depth-ring',
+    label: ringLabel,
+    min: 0,
+    max: END,
+    marks: () => floors,
+    value: () => Math.max(world.position, 0),
+    target: () => Math.max(world.goal, 0),
+    shown: inLens,
+    lens,
+    scrub: (v) => world.scrub(v),
+    travelTo: (v) => world.travelTo(v),
+    valueText: (v) => (v < 0.5 ? lensLabel : (floorLabels[Math.min(Math.round(v), 2) - 1] ?? '')),
+    touched: touch,
+  });
+  const mode = lensMode(ctx, { active: inLens, ring, sway: world.sway });
   const spec: StepUiSpec = {
     reset: true,
-    controls: [
-      {
-        type: 'slider',
-        id: 'depth',
-        label: wheelLabel,
-        min: 0,
-        max: LEAD + END,
-        value: 0,
-        step: 0.005,
-        marks: [0, LEAD + 1, LEAD + 2].map((v, i) => ({ value: v, label: stopLabels[i] ?? '' })),
-        format: (v) => stopLabels[Math.round(Math.max(v - LEAD, 0))] ?? '',
-        // held with the panel's text (stepUi `panel.hiddenUntil` holds only the text: requests §7); never blocked
-        visible: () => !held(),
-        // UI_API §3.3: the thumb is the target; a drag is followed frame by frame, a click on the track or a key
-        // glides there; the track's fill shows where the dive is now (`current`, patched in `update`)
-        onChange: (v) => {
-          touch();
-          world.travelTo(v - LEAD);
-        },
-        onInput: (v, how) => {
-          if (how === 'drag') world.scrub(v - LEAD);
-        },
-      },
-    ],
+    controls: [],
     callouts: [
       ...names.callouts,
       {
@@ -139,13 +141,11 @@ export function diveStep(
       dwell = 0;
       calling = true;
       names.reset();
-      // a deep link lands on the stand with the lens in its holder, the slider at the start
-      ui.set('depth', 0);
     },
     update(dt) {
+      mode.update();
+      ring.update(dt);
       if (!active()) return;
-      const at = world.position + LEAD;
-      if (Math.abs(at - shownFill) > 0.002) ui.patch('depth', { current: (shownFill = at) });
       // the ring stops calling «take me» once the lens has left its holder
       if (calling && world.position > -0.995) {
         calling = false;
@@ -155,12 +155,14 @@ export function diveStep(
     },
     state: () => ({
       lens: world.value('lens'),
-      slider: Number(ui.value('depth')),
       position: world.position,
-      at: world.position + LEAD,
+      goal: world.goal,
       moving: world.position !== world.goal,
       dwell,
       named: named(),
+      lensMode: inLens(),
+      ring: ring.state(),
+      sway: { yaw: world.sway.yaw, pitch: world.sway.pitch, held: mode.swaying },
     }),
   };
 }
