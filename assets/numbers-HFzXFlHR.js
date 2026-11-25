@@ -1,0 +1,1 @@
+function e(e){return 1-.97**Math.max(e,0)}export{e as t};

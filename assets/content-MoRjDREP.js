@@ -1,0 +1,1 @@
+import{T as e}from"./index-BwZkI-34.js";import{t}from"./_sandbox-circuit-crawl-BAep789d.js";var n=e({id:`_sandbox-circuit-crawl`,steps:Object.entries(t).map(([e,t])=>({id:e,title:t.title,panel:[t.body]}))});export{n as default};
