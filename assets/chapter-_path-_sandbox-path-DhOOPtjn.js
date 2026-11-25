@@ -1,0 +1,1 @@
+import{t as e}from"./placeholder-DifSvXn4.js";import t from"./content-Bcybrh-D.js";var n=e(t,{core:2,sheath:1},{holdNav:[`core`]});export{n as default};
