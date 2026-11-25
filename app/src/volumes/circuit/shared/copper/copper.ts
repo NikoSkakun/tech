@@ -13,7 +13,7 @@ import { createElectronSim, FOCUS_COUNT, type ElectronSim } from './electron-sim
 import { createElectronView, type ElectronView } from './electrons';
 import { createGate, type Gate } from './gate';
 import { createLattice, type Lattice } from './lattice';
-import { COPPER_TOP, smooth } from './layout';
+import { COPPER_TOP, CORE_STAGES, smooth } from './layout';
 import { createLensRim, type LensRim } from './lens-rim';
 import { createPlastic, type Plastic } from './plastic';
 
@@ -161,15 +161,15 @@ export function createCopper(ctx: ChapterContext): Copper {
       core.latticeScale = zoom;
       core.eye.copy(ctx.camera.camera.position).applyMatrix4(inverse.copy(group.matrixWorld).invert());
       // four calm stages (core-shader.ts): dots in the metal → balls in the dark → the picture opens → gone
-      core.dots = smooth(0.05, 0.4, d);
-      core.balls = smooth(0.26, 0.7, d);
-      core.open = smooth(0.72, 0.9, d);
+      core.dots = smooth(...CORE_STAGES.dots, d);
+      core.balls = smooth(...CORE_STAGES.balls, d);
+      core.open = smooth(...CORE_STAGES.open, d);
       core.fade = 1;
       core.lamp = copper.lamp;
       // the wire leaves the stand's light for the light of this floor as the dive begins
       core.warmth = 0.55 * smooth(0.02, 0.34, d); // part of the way: the full look made the frame flare before the balls
       core.update(group.matrixWorld);
-      backdrop.dome = smooth(0.02, 0.22, d);
+      backdrop.dome = smooth(...CORE_STAGES.dome, d);
       backdrop.lamp = copper.lamp;
       backdrop.up.set(0, 1, 0).transformDirection(group.matrixWorld);
       backdrop.right.set(1, 0, 0).transformDirection(group.matrixWorld);

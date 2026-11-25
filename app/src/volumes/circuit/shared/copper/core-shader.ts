@@ -47,7 +47,9 @@ uniform float uDots;   // 0…1 dots showing in the metal
 uniform float uBalls;  // 0…1 metal → balls in the dark
 uniform float uOpen;   // 0…1 the flat picture opens between the balls
 uniform float uPitch;  // lattice pitch, in copper-world units
+uniform float uRadius; // radius of the core as it is now (it grows with the dive), copper-world units
 uniform float uFade;
+uniform float uRelief; // strength of the surface's lines and mottle (± share of the metal's brightness)
 uniform float uKTime;
 varying vec3 vN;
 varying vec3 vP;
@@ -73,6 +75,38 @@ vec4 plane(vec2 cellPos, float fw, vec3 L, float soft) {
   // the same two-band light as the real atoms: lit from above, the underside in indigo shade
   col *= mix(vec3(0.42, 0.4, 0.74), vec3(1.0), smoothstep(-0.1, 0.14, dot(n, L)));
   return vec4(col, mask);
+}
+
+float hash1(float p) { return fract(sin(p * 127.1 + 11.3) * 43758.5453); }
+float hash2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vnoise1(float t) {
+  float i = floor(t);
+  float f = fract(t);
+  return mix(hash1(i), hash1(i + 1.0), f * f * (3.0 - 2.0 * f));
+}
+float vnoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash2(i), hash2(i + vec2(1.0, 0.0)), f.x), mix(hash2(i + vec2(0.0, 1.0)), hash2(i + 1.0), f.x), f.y);
+}
+
+// The drawn metal's own surface, fixed to it and so growing with the dive: lengthwise lines left by the die the
+// wire was drawn through (each runs on along the wire, drifting a little), over a faint mottle. Periods in lattice
+// cells (su: along the wire, around it); an octave shows only while its period is a few pixels or more
+// (fp = cells per pixel), so it never shimmers, and the coarser ones carry on as the zoom grows — the reader sees
+// the metal come closer.
+float surface(vec2 su, float fp) {
+  float v = 0.0;
+  for (int i = 0; i < 4; i++) {
+    float period = 1.6 * pow(2.7, float(i));
+    float k = smoothstep(2.5, 7.0, period / fp);
+    float drift = vnoise(vec2(su.x / (period * 45.0), float(i) * 7.3)) * 1.4;
+    v += k * (vnoise1(su.y / period + drift + float(i) * 17.3) - 0.5);
+  }
+  float mottle = vnoise(su / 4.5 + 41.0) - 0.5;
+  v += smoothstep(2.5, 7.0, 4.5 / fp) * mottle * 0.6;
+  return v * 0.5; // about −0.5 … 0.5
 }
 
 // a soft elliptical glint of the stand's lamp: centre along the wire and in n.y, half-sizes, strength
@@ -105,7 +139,6 @@ void main() {
                        + glint(vAlong, n.y, vec4(1.2, 0.63, 2.2, 0.04), 0.3))
                + (1.0 - lamp) * glint(vAlong, n.y, vec4(-6.4, 0.5, 3.6, 0.05), 0.8);
   metal = mix(metal, pick(uGlint, lamp, w), min(mix(handed, inside, w) * breathe, 1.0));
-
   // the lattice: the focal plane and, in its gaps, the plane behind it — each where the eye will find it
   vec3 L = normalize(vec3(mix(-0.4, 0.42, lamp), 0.82, 0.5));
   vec3 lightCol = mix(vec3(0.62, 0.74, 0.98) * 0.78, vec3(1.0, 0.96, 0.86), lamp);
@@ -115,9 +148,15 @@ void main() {
   float fw = max(fwidth(cell0.x), fwidth(cell0.y)) * ${K};
   vec4 front = plane(cell0, fw, L, 0.0);
   vec4 back = plane(cell1, fw, L, 0.3 * uBalls); // the plane behind is out of focus once it is a plane
+  // too small to be told apart (a phone, the first moment): plain metal
+  float seen = uDots * smoothstep(0.7, 0.35, fw);
+  // the surface of the metal (lines and mottle): it comes in with the dissolve from the stand's plain wire
+  vec2 su = vec2(vP.x, atan(n.y, n.z) * uRadius) / uPitch;
+  float relief = uFade * uFade * uRelief; // the balls (stage 2) take the metal away, and its surface with it
+  metal *= 1.0 + relief * surface(su, max(fwidth(su.y), 1e-4));
   // stage 1: in the metal — lighter dots, the plane behind as a fainter print
-  vec3 inMetal = mix(metal * 0.86, metal * 0.95, back.a);
-  inMetal = mix(inMetal, metal * 1.1 + vec3(0.03, 0.0, 0.0), front.a);
+  vec3 inMetal = mix(metal * 0.82, metal * 0.93, back.a);
+  inMetal = mix(inMetal, metal * 1.14 + vec3(0.03, 0.0, 0.0), front.a);
   // stage 2: balls in the dark — the dark is what the veils of backdrop.ts will show there (the lamp's light
   // from above included), the plane behind as it will look through one veil: nothing jumps when it opens
   vec3 ray = normalize(vP - uEye);
@@ -126,8 +165,6 @@ void main() {
   vec3 inDark = mix(dark, mix(dark, back.rgb * lightCol * 0.8, 0.42), back.a);
   inDark = mix(inDark, front.rgb * lightCol, front.a);
   vec3 rows = mix(inMetal, inDark, uBalls);
-  // too small to be told apart (a phone, the first moment): plain metal
-  float seen = uDots * smoothstep(0.7, 0.35, fw);
   vec3 col = mix(metal, rows, seen);
   // stage 3: between the balls the picture opens (the flat front balls stay: the real ones stand before them)
   float gone = mix(uOpen * 1.6, (uOpen - 0.6) * 2.5, front.a * seen);

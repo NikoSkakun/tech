@@ -63,7 +63,7 @@ Things that follow from that pose:
 
 | Parameter | Range, default | What it does |
 |---|---|---|
-| `copper.depth` | 0 … 2, **1** | The floor. 0 «жила дроту» (hand-over) · 1 «ряди атомів» · 2 «один атом». Continuous: 0 → 1 dots show in the metal at the true places of the lattice, become balls in the dark, the real atoms and electrons come in and the flat picture opens (by 0.9); 1 → 2 the neighbours shrink away, the crowd of electrons fades, the hero's ball shrinks into its nucleus and uncovers the electron layers. Tween it yourself (showcase step `dive`: 6 s + 3 s). |
+| `copper.depth` | 0 … 2, **1** | The floor. 0 «жила дроту» (hand-over) · 1 «ряди атомів» · 2 «один атом». Continuous: 0 → 1 the metal's own surface (lengthwise drawing lines, a faint mottle; `RELIEF` in core.ts) grows with the zoom so the approach reads, dots show in the metal at the true places of the lattice, become balls in the dark, the real atoms and electrons come in and the flat picture opens (by 0.9); 1 → 2 the neighbours shrink away, the crowd of electrons fades, the hero's ball shrinks into its nucleus and uncovers the electron layers. Tween it yourself (showcase step `dive`: 6 s + 3 s). |
 | `copper.lamp` | 0 … 1, **0** | State of the circuit as light: backdrop glow, veils, core metal. Pair it with `copperEnv(lamp, group)`. |
 | `copper.atoms` | 1 …, **Infinity** | How many atoms exist, in `Site.rank` order: 1 lone atom, 2 a pair, 5 a row, 15 a piece (`ROW_ATOMS`, `PIECE_ATOMS`), `Infinity` the crystal. Atoms pop in ≈ 40 per second; each brings its own outer electron (first 32). |
 | `copper.sim.shared` | 0 … 1, **1** | 0: every outer electron circles its own atom; 1: they are shared and roam the piece (`wire/shared`). |
@@ -180,6 +180,11 @@ Nothing was removed or renamed; `createCopper` and all earlier parameters work a
 - **Counter frame:** deeper frame (a window ≈ 55 px wide at 1280×720 by perspective alone), counts 46 px-eq
   (≈ 32 px tall at 1280×720), the count that grew swells for a moment; shot `gate` looks at x = −0.6.
 - `core.fade` is 1 unless the host dissolves the core (the composed world does); `core.surface` stays 0.35.
+- **Surface of the metal (F-lens-wire, 2026-11-25):** the core used to be one flat orange from the end of the
+  dissolve until the dots (the zoom did not show). It now carries drawing lines and a mottle fixed to the metal,
+  in lattice cells (each octave only while ≥ a few px, so no shimmer); they come in with `fade²` and leave with
+  the balls. Stage-1 dots a little stronger (0.82 / 1.14 of the metal). `CORE_STAGES` (layout.ts) holds the
+  depths of the stages; the composed world takes the stand away between `dome` and `balls` (world/levels.ts).
 
 **Continuity along `depth` (the chapter scrubs the dive by hand).** Every property is a continuous, eased
 function of `depth`; nothing is switched. On the way rows → one atom the three veils are driven by what they

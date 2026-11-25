@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { LEG, floorAt, floorValue, legsBetween, mixAt } from '../levels';
+import { CORE_STAGES } from '@circuit/shared/copper/layout';
+import { LEG, STAND_GONE, floorAt, floorValue, legsBetween, mixAt } from '../levels';
 
 describe('composed world: deep → what is drawn', () => {
   it('shows only the stand on the stand and only copper below «жила»', () => {
@@ -15,6 +16,13 @@ describe('composed world: deep → what is drawn', () => {
     expect(mid.copperIn).toBeLessThan(1);
     expect(mixAt(1).copperIn).toBe(1);
     expect(mixAt(0.79).copperShown).toBe(false);
+  });
+
+  it('lets the stand go once the dome has closed and before the core pushes its depth back (F-lens-wire)', () => {
+    expect(STAND_GONE).toBeGreaterThan(1 + CORE_STAGES.dome[1]);
+    expect(STAND_GONE).toBeLessThan(1 + CORE_STAGES.balls[0]);
+    expect(mixAt(1 + CORE_STAGES.dome[1]).standShown).toBe(true);
+    expect(mixAt(1 + CORE_STAGES.balls[0]).standShown).toBe(false);
   });
 
   it('maps deep to the volume axis floors', () => {

@@ -27,7 +27,7 @@ below the stand: the world owns both floors' env and post (`look.ts`) and re-ass
 | ------ | -------------------------- | -------------------------- | --------------------------------------------------- |
 | 0      | `stand` (3)                | `lens` (or the step's)     | the stand; copper only as the lens window           |
 | 1      | `part` (2) «жила дроту»    | `handover` = `copper-core` | the copper core over the stand's (dissolve 0.8 → 1) |
-| 2      | `rows` (1)                 | `copper-rows`              | copper depth 1; the stand is gone from 1.3          |
+| 2      | `rows` (1)                 | `copper-rows`              | copper depth 1; the stand is gone from 1.24         |
 | 3      | `atom` (0)                 | `copper-atom`              | copper depth 2                                      |
 
 `world.floor` = 3 − `deep` (continuous), `world.floorId`, `world.floorName(volume, visited)` (via `floorLabel`).

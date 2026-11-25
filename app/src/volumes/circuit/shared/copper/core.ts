@@ -23,6 +23,12 @@ export const CORE_R = 6.1;
 /** Camera distance from the origin and field of view of every shot of the copper world. */
 export const CAMERA_Z = 19.7;
 export const CAMERA_FOV = 27;
+/**
+ * How strongly the metal's own surface (core-shader.ts `surface`: drawing lines, mottle) shows: ± this share of
+ * its brightness. Without it the core was one flat orange from the end of the dissolve until the dots — the zoom
+ * did not show at all (F-lens-wire, the owner's screenshot of 2026-11-25).
+ */
+const RELIEF = 0.4;
 
 /**
  * The stand's exposed wire at the hand-over pose, as it reaches the screen (sRGB 0…255), in two lights, each
@@ -146,6 +152,8 @@ export function createCore(): Core {
       uOpen: { value: 0 },
       uPitch: { value: PITCH },
       uFade: { value: 1 },
+      uRelief: { value: RELIEF },
+      uRadius: { value: CORE_R },
       uEye: { value: new Vector3(0, 0, CAMERA_Z) },
       uToCopper: { value: new Matrix4() },
       uFromCopper: { value: new Matrix4() },
@@ -182,6 +190,7 @@ export function createCore(): Core {
       u.uOpen!.value = core.open;
       u.uPitch!.value = PITCH * core.latticeScale;
       u.uFade!.value = core.fade;
+      u.uRadius!.value = CORE_R * core.scale;
       u.uLamp!.value = core.lamp;
       u.uWarmth!.value = core.warmth;
     },

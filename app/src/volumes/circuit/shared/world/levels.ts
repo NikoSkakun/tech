@@ -6,6 +6,7 @@
  * shot `core`) · 2 = «ряди» (copper depth 1) · 3 = «один атом» (copper depth 2). The volume's map axis counts
  * the other way (stand 3 … one atom 0), so `floor = 3 − deep`.
  */
+import { CORE_STAGES } from '@circuit/shared/copper/layout';
 
 export type FloorId = 'stand' | 'part' | 'rows' | 'atom';
 
@@ -27,8 +28,13 @@ export const FLIGHT_EASE = 'sine.inOut' as const;
 
 /** Where the dissolve between the stand and the copper world happens (on the last stretch of the ring leg). */
 const DISSOLVE: readonly [number, number] = [0.8, 1];
-/** The stand is drawn until the copper world's own dome has closed around the reader. */
-const STAND_GONE = 1.3;
+/**
+ * The stand is drawn until the copper world's own dome has closed around the reader (`CORE_STAGES.dome`), and
+ * not a frame longer: from `CORE_STAGES.balls` on the copper core writes its depth behind its own surface, and the
+ * stand's wire core — still lying where the copper core grew from — came through it as a flat orange band across
+ * the rows (the owner's screenshot of 2026-11-25, F-lens-wire). Halfway between the two.
+ */
+export const STAND_GONE = 1 + (CORE_STAGES.dome[1] + CORE_STAGES.balls[0]) / 2;
 
 const clamp01 = (v: number): number => Math.min(Math.max(v, 0), 1);
 const smooth = (a: number, b: number, v: number): number => {

@@ -74,6 +74,19 @@ export function latticeSites(): Site[] {
   return sites.sort((a, b) => a.rank - b.rank);
 }
 
+/**
+ * The copper depths (0 «жила» … 1 «ряди») over which the wire core turns into rows of atoms (core-shader.ts):
+ * the dome closes around the reader, dots show in the metal, the metal becomes balls in the dark, the flat
+ * picture opens. From `balls` on the core writes its depth behind its own surface (the flat balls lie just
+ * behind the real front atoms), so nothing of the stand may still be drawn there (world/levels.ts STAND_GONE).
+ */
+export const CORE_STAGES = {
+  dome: [0.02, 0.22],
+  dots: [0.05, 0.4],
+  balls: [0.26, 0.7],
+  open: [0.72, 0.9],
+} as const satisfies Record<string, readonly [number, number]>;
+
 export const clamp01 = (v: number): number => Math.min(Math.max(v, 0), 1);
 export const smooth = (a: number, b: number, v: number): number => {
   const t = clamp01((v - a) / (b - a));
