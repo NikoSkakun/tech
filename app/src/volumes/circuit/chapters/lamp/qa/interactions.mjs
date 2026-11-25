@@ -99,7 +99,8 @@ async function inside(p) {
   await p.tap(l.x, l.y);
   await advance(page, 2.5);
   let i = await read(page, 'inside');
-  check('a tap on the lens lays it on the glass: lens mode, the ring on its rim', i.lensMode && i.ring.amount === 1 && i.position === 0, `at ${i.position.toFixed(2)}`);
+  check('a tap on the lens lays it on the glass: lens mode, the ring at the bottom', i.lensMode && i.ring.amount === 1 && i.position === 0, `at ${i.position.toFixed(2)}`);
+  const l0 = i.ring.layout;
   let j = await turn(p, 900, (st) => st.position >= 0.995);
   smooth('turning the ring down: camera', j.camera, 0.5);
   smooth('turning the ring down: lens', j.lens, 0.8);
@@ -107,7 +108,10 @@ async function inside(p) {
   const s = await read(page, 'lamp');
   check('down at the lamp', s.rail >= 0.98, s.rail.toFixed(3));
   i = await read(page, 'inside');
-  check('…the ring stays as the bottom arc of the rim', i.ring.shown && i.ring.layout.pinned > 0.95);
+  check(
+    '…the ring stays where it was (the bottom arc, apart from the lens)',
+    i.ring.shown && ['cx', 'cy', 'r', 'half'].every((k) => Math.abs(i.ring.layout[k] - l0[k]) < 1e-6),
+  );
   await snap('inside-down');
   // the mark along the way: contact → first support → coil → second support → thread
   const seq = ['path-mark', 'lamp-leadIn', 'lamp-coil', 'lamp-leadOut', 'lamp-thread'];

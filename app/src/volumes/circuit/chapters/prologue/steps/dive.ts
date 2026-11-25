@@ -2,9 +2,9 @@
  * `dive` — «Углиб дроту». The lens is the way in (DECISIONS §60 p; the owner, 2026-11-25: the zoom is an in-game
  * focus ring that appears only once the reader has taken the lens). A tap or a drag on the lens in its holder takes it:
  * it rises, crosses the stand and settles on the near wire while the camera comes with it (the rail's lens leg) —
- * that is lens mode, and the knurled ring shows on the lens's rim (`focus-ring.ts`). Turning the ring is the dive
+ * that is lens mode, and the knurled ring shows as an arc at the bottom of the screen (`focus-ring.ts`). Turning the ring is the dive
  * itself, both ways (`world.scrub`; a click on the ring, a mark's name, the keys or the wheel glide there,
- * `world.travelTo`); as the lens grows past the frame the ring stays as the bottom arc of its rim. In lens mode a
+ * `world.travelTo`); the ring stands still there, apart from the lens, whatever the zoom. In lens mode a
  * drag on empty space sways the camera a little and it springs back (`lens-mode.ts`). A tap on the lens while it lies
  * on the wire with the ring at its start lays it back in its holder: lens mode ends, the ring goes. The floors stand
  * as marks: деталь · ряди кульок. The goal holds after 2 s at the end.
@@ -115,7 +115,6 @@ export function diveStep(
     value: () => Math.max(world.position, 0),
     target: () => Math.max(world.goal, 0),
     shown: inLens,
-    lens,
     scrub: (v) => world.scrub(v),
     travelTo: (v) => world.travelTo(v),
     valueText: (v) => (v < 0.5 ? lensLabel : (floorLabels[Math.min(Math.round(v), 2) - 1] ?? '')),

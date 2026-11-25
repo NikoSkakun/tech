@@ -1,13 +1,14 @@
 /**
- * The magnifier's focus ring (the owner, 2026-11-25: the zoom is an in-game ring on the lens's rim, shown only once
- * the reader has taken the lens; at deep zoom it stays on screen as the bottom arc of the rim — «дуга ободка внизу»).
+ * The magnifier's focus ring (the owner, 2026-11-25: the zoom is an in-game knurled ring, shown only once the reader
+ * has taken the lens; then «зроби контрол зуму все ж окремо від лупи» → «Дуга внизу завжди»).
  *
- * A knurled band along the bottom of the lens's rim (`focus-ring-shader.ts`), laid out in CSS px each frame from the
- * lens's projected circle (`focus-ring-layout.ts`: it rides the rim, then stays pinned above the navigator as the lens
- * grows past the frame). Turning it — a drag along the arc — scrubs the value; a click on the band glides there; the
- * wheel over it nudges. The floor marks are printed on the band, their names stand as small chips above it (a click
- * glides there), the yellow ◆ is the value. Keyboard and screen readers get a `role="slider"` element on a
- * `hudLayer` that follows the marker (arrows / PageUp / PageDown / Home / End when focused).
+ * A knurled band (`focus-ring-shader.ts`) pinned as an arc at the bottom of the screen, above the navigator
+ * (`focus-ring-layout.ts`): its place and size follow the viewport only, never the lens. It shows (a short reveal) in
+ * lens mode and hides when lens mode ends. Turning it — a drag along the arc — scrubs the value, the marker staying
+ * under the finger; a click on the band glides there; the wheel over it nudges. The floor marks are printed on the
+ * band, their names stand as small chips under it (a click glides there), the yellow ◆ is the value. Keyboard and
+ * screen readers get a `role="slider"` element on a `hudLayer` that follows the marker (arrows / PageUp / PageDown /
+ * Home / End when focused).
  *
  * The band is drawn on the overlay layer (crisp, never blurred); the pointer hits an unrendered proxy band (layer
  * 31: the engine's raycaster sees every layer, no camera draws this one) at least 44 px wide.
@@ -20,12 +21,10 @@ import {
   MeshBasicMaterial,
   ShaderMaterial,
   Vector3,
-  type Camera,
 } from 'three';
 import { toOverlay, type ChapterContext } from '@/engine/api';
 import { domKit, hudLayer } from '@/hud';
 import { col } from '@/style';
-import { LENS } from '../layout';
 import { FOCUS_RING_FRAG, FOCUS_RING_VERT, MAX_MARKS } from './focus-ring-shader';
 import {
   ringLayout,
@@ -33,11 +32,9 @@ import {
   ringS,
   valuePerPx,
   valueS,
-  type RingCircle,
   type RingFrame,
   type RingLayout,
 } from './focus-ring-layout';
-import type { LensModel } from './lens';
 
 export interface RingMark {
   value: number;
@@ -55,9 +52,8 @@ export interface FocusRingOptions {
   /** The value shown now (where the dive is) and the one it is going to. */
   value: () => number;
   target: () => number;
-  /** Lens mode: the ring is on the lens. */
+  /** Lens mode: the ring is on screen. */
   shown: () => boolean;
-  lens: LensModel;
   /** The hand on the ring: the frame follows at once. */
   scrub(v: number): void;
   /** Glide there (click, keys, wheel, a mark). */
@@ -73,7 +69,7 @@ export interface FocusRingState {
   amount: number;
   dragging: boolean;
   focused: boolean;
-  /** Layout in CSS px (centre, inner radius, thickness, half arc, pinned share). */
+  /** Layout in CSS px (centre, inner radius, thickness, half arc). */
   layout: RingLayout | null;
   /** The marker's point, the band's ends and each mark's point (px, the band's middle line). */
   marker: { x: number; y: number } | null;
@@ -114,34 +110,6 @@ const clamp = (x: number, a: number, b: number): number => Math.min(Math.max(x, 
 const approach = (x: number, to: number, rate: number, dt: number): number =>
   to + (x - to) * Math.exp(-rate * dt);
 
-const ringLocal = new Vector3();
-const probe = new Vector3();
-
-/**
- * The lens's rim on screen: its horizontal extent gives the radius, its lowest point the centre's height (a lens
- * seen at a slant is an ellipse; the band hugs its bottom). Null when part of the rim is behind the camera.
- */
-function lensCircle(lens: LensModel, camera: Camera, width: number, height: number): RingCircle | null {
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (let i = 0; i < 24; i++) {
-    const a = (i / 24) * Math.PI * 2;
-    ringLocal.set(Math.cos(a) * LENS.radius, Math.sin(a) * LENS.radius, 0);
-    lens.group.localToWorld(probe.copy(ringLocal));
-    probe.applyMatrix4(camera.matrixWorldInverse);
-    if (probe.z > -1e-4) return null;
-    probe.applyMatrix4(camera.projectionMatrix);
-    const x = ((probe.x + 1) / 2) * width;
-    const y = ((1 - probe.y) / 2) * height;
-    minX = Math.min(minX, x);
-    maxX = Math.max(maxX, x);
-    maxY = Math.max(maxY, y);
-  }
-  const r = (maxX - minX) / 2;
-  return { cx: (minX + maxX) / 2, cy: maxY - r, r };
-}
-
 /** A band of `rows` × (`seg` + 1) vertices, two triangles per cell. */
 function bandIndex(rows: number, seg: number): number[] {
   const index: number[] = [];
@@ -174,6 +142,9 @@ function drawnGeometry(): BufferGeometry {
 
 /** The navigator's band at the bottom of the frame (share of the height) when the HUD reports no bottom inset. */
 const NAV_SHARE = 0.115;
+/** Gaps between the band and its marks' names, and between those and the navigator, px. */
+const UNDER_GAP = 4;
+const NAV_GAP = 6;
 
 export function createFocusRing(ctx: ChapterContext, o: FocusRingOptions): FocusRing {
   const { min, max } = o;
@@ -187,7 +158,6 @@ export function createFocusRing(ctx: ChapterContext, o: FocusRingOptions): Focus
     uAmount: { value: 0 },
     uHot: { value: 0 },
     uFocus: { value: 0 },
-    uRim: { value: 0 },
     uTurn: { value: 0 },
     uMarker: { value: 0 },
     uMarks: { value: new Array<number>(MAX_MARKS).fill(0) },
@@ -237,6 +207,9 @@ export function createFocusRing(ctx: ChapterContext, o: FocusRingOptions): Focus
   let focused = false;
   let held = 0;
   let layout: RingLayout | null = null;
+  /** Height of a mark's name (px), measured once the chips are laid out. */
+  let chipH = 28;
+  let measuredKey = '';
 
   const frame = (): RingFrame => {
     const width = ctx.viewport.width;
@@ -247,15 +220,12 @@ export function createFocusRing(ctx: ChapterContext, o: FocusRingOptions): Focus
     return {
       width,
       height,
-      floor: height * (1 - Math.max(i.bottom, NAV_SHARE)) - 8,
+      floor: height * (1 - Math.max(i.bottom, NAV_SHARE)) - NAV_GAP,
+      under: chipH + 2 * UNDER_GAP,
       left: width * i.left,
       right: width * (1 - i.right),
       freeX: width * free.x,
     };
-  };
-  const layoutFor = (camera: Camera): RingLayout => {
-    const f = frame();
-    return ringLayout(lensCircle(o.lens, camera, f.width, f.height), f);
   };
   const valueAt = (l: RingLayout, s: number): number => {
     const pad = 0.75 * l.t;
@@ -268,15 +238,13 @@ export function createFocusRing(ctx: ChapterContext, o: FocusRingOptions): Focus
   };
   const nudge = (a: number): void => go(o.target() + a);
 
-  // the band is laid out from the camera of the very frame it is drawn in
-  mesh.onBeforeRender = (_renderer, _scene, camera) => {
-    const l = layoutFor(camera);
+  mesh.onBeforeRender = () => {
+    const l = layout ?? ringLayout(frame());
     uniforms.uView.value = [ctx.viewport.width, ctx.viewport.height];
     uniforms.uCircle.value.set(l.cx, l.cy, l.r);
     uniforms.uT.value = l.t;
     uniforms.uHalf.value = l.half;
     uniforms.uExt.value = 0.7 * l.t;
-    uniforms.uRim.value = l.pinned;
     const marker = valueS(l, o.value(), min, max);
     uniforms.uMarker.value = marker;
     uniforms.uTurn.value = -marker;
@@ -297,10 +265,9 @@ export function createFocusRing(ctx: ChapterContext, o: FocusRingOptions): Focus
     },
     drag: (e) => {
       if (!layout) return;
-      // the hand's own motion along the arc's tangent where it is: the ring itself moves while it turns (it rides
-      // the growing lens, then pins), and that must never turn it by itself
-      const a = Math.atan2(e.x - layout.cx, e.y - layout.cy);
-      const ds = e.dx * Math.cos(a) - e.dy * Math.sin(a);
+      // the hand's move along the arc (its angle about the arc's centre): the ring stands still, so the marker
+      // stays under the finger
+      const ds = ringS(layout, e.x, e.y) - ringS(layout, e.x - e.dx, e.y - e.dy);
       held = clamp(held + ds * valuePerPx(layout, min, max), min, max);
       o.scrub(held);
     },
@@ -369,7 +336,7 @@ export function createFocusRing(ctx: ChapterContext, o: FocusRingOptions): Focus
       const c = h('button.chip', { type: 'button', tabindex: '-1', 'data-ui': `${o.name}:${i}` }, m.label);
       c.addEventListener('click', () => go(m.value));
       // `.chip` is `position: relative` in the platform's sheet: the layer's absolute placing is restated here
-      Object.assign(c.style, { position: 'absolute', transform: 'translate(-50%, -100%)', transition: 'none' });
+      Object.assign(c.style, { position: 'absolute', transform: 'translate(-50%, 0)', transition: 'none' });
       layer.append(c);
       return c;
     });
@@ -430,7 +397,7 @@ export function createFocusRing(ctx: ChapterContext, o: FocusRingOptions): Focus
       proxy.visible = shown && amount > 0.5;
       const cam = ctx.camera.camera;
       cam.updateMatrixWorld();
-      layout = amount > 0 ? layoutFor(cam) : null;
+      layout = amount > 0 ? ringLayout(frame()) : null;
       if (layout && proxy.visible) placeProxy(layout);
       const marks = o.marks();
       syncChips(marks);
@@ -450,13 +417,19 @@ export function createFocusRing(ctx: ChapterContext, o: FocusRingOptions): Focus
         chips.forEach((c, i) => {
           const mark = marks[i];
           if (!mark) return;
-          const p = ringPoint(l, valueS(l, mark.value, min, max), -1.05);
+          const p = ringPoint(l, valueS(l, mark.value, min, max), 1 + UNDER_GAP / l.t);
           setStyle(c, 'left', `${p.x.toFixed(1)}px`);
           setStyle(c, 'top', `${p.y.toFixed(1)}px`);
           setStyle(c, 'opacity', String(Math.max(0, (amount - 0.3) / 0.7)));
         });
       }
       for (const c of chips) c.hidden = !(l && amount > 0.3);
+      const sizeKey = `${chipKey}@${ctx.viewport.width}x${ctx.viewport.height}`;
+      const first = chips[0];
+      if (first && !first.hidden && sizeKey !== measuredKey && first.offsetHeight > 0) {
+        measuredKey = sizeKey;
+        chipH = first.offsetHeight;
+      }
       state = {
         shown,
         amount,

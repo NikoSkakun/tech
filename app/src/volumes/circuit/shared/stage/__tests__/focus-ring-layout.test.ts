@@ -1,55 +1,61 @@
 import { describe, expect, it } from 'vitest';
-import { ringLayout, ringPoint, ringS, valueS, type RingFrame } from '../tools/focus-ring-layout';
+import {
+  ringLayout,
+  ringPoint,
+  ringS,
+  valuePerPx,
+  valueS,
+  type RingFrame,
+  type RingLayout,
+} from '../tools/focus-ring-layout';
 import { applySway, createSway, SWAY_YAW } from '../../world/sway';
 
-const frame: RingFrame = { width: 1280, height: 720, floor: 630, left: 0, right: 920, freeX: 460 };
-const bottom = (l: ReturnType<typeof ringLayout>): number => l.cy + l.r + l.t;
+const frame: RingFrame = { width: 1280, height: 720, floor: 630, under: 36, left: 0, right: 920, freeX: 460 };
+const bottom = (l: RingLayout): number => l.cy + l.r + l.t;
 
-describe('focus ring layout (F-lens-ring)', () => {
-  it('rides a small lens: the band hugs its rim, not pinned', () => {
-    const l = ringLayout({ cx: 480, cy: 360, r: 120 }, frame);
-    expect(l.pinned).toBe(0);
-    expect(l.cy).toBe(360);
-    expect(l.r).toBeGreaterThan(120);
-    expect(bottom(l)).toBeLessThan(frame.floor);
+describe('focus ring layout (F-ring-dock: always the bottom arc, apart from the lens)', () => {
+  it('stands at the bottom, above the floor with room for the mark names under the band', () => {
+    const l = ringLayout(frame);
+    expect(bottom(l)).toBeCloseTo(frame.floor - frame.under, 6);
+    // the arc's ends rise: the whole band is above the floor, its middle the lowest point
+    const end = ringPoint(l, l.half, 1);
+    expect(end.y).toBeLessThan(bottom(l));
+    expect(end.y).toBeGreaterThan(0.75 * frame.height);
   });
 
-  it('pins the band above the floor as the lens grows past the frame, and is never a straight bar', () => {
-    for (const r of [300, 600, 2000, 1e6]) {
-      const l = ringLayout({ cx: 460, cy: 360, r }, frame);
-      expect(bottom(l)).toBeLessThanOrEqual(frame.floor + 1e-6);
-      expect(l.r).toBeLessThanOrEqual(1.15 * frame.height + 1e-6);
-    }
-    const lost = ringLayout(null, frame);
-    expect(lost.pinned).toBe(1);
-    expect(bottom(lost)).toBeCloseTo(frame.floor, 6);
+  it('depends on the viewport only: the same frame gives the same arc', () => {
+    expect(ringLayout({ ...frame })).toEqual(ringLayout(frame));
   });
 
-  it('moves continuously as the lens grows (no jump anywhere, into the unprojectable lens too)', () => {
-    let prev = ringLayout({ cx: 470, cy: 360, r: 80 }, frame);
-    for (let r = 81; r < 3000; r *= 1.01) {
-      const l = ringLayout({ cx: 470 - (r / 3000) * 10, cy: 360, r }, frame);
-      const a = ringPoint(prev, 0, 0);
-      const b = ringPoint(l, 0, 0);
-      expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThan(20);
-      prev = l;
-    }
-    const lost = ringLayout(null, frame);
-    const a = ringPoint(prev, 0, 0);
-    const b = ringPoint(lost, 0, 0);
-    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThan(12);
+  it('is a gentle arc, never a straight bar, and sized by the viewport', () => {
+    const small = ringLayout(frame);
+    const big = ringLayout({ width: 2000, height: 1040, floor: 920, under: 40, left: 0, right: 1460, freeX: 730 });
+    expect(small.r).toBeLessThan(1e4);
+    expect(big.half / small.half).toBeCloseTo(1040 / 720, 1);
+    expect(big.t).toBeGreaterThan(small.t);
   });
 
   it('keeps the arc inside the free area and maps values along it, both ways', () => {
-    const l = ringLayout(null, frame);
-    expect(l.cx - l.half).toBeGreaterThan(frame.left);
-    expect(l.cx + l.half).toBeLessThan(frame.right);
+    for (const f of [frame, { ...frame, right: 500, freeX: 480 }]) {
+      const l = ringLayout(f);
+      expect(l.cx - l.half - l.t).toBeGreaterThanOrEqual(f.left - 1e-6);
+      expect(l.cx + l.half + l.t).toBeLessThanOrEqual(f.right + 1e-6);
+    }
+    const l = ringLayout(frame);
     const s0 = valueS(l, 0, 0, 2);
     const s2 = valueS(l, 2, 0, 2);
     expect(s0).toBeLessThan(0);
     expect(s2).toBeCloseTo(-s0, 6);
     const p = ringPoint(l, valueS(l, 1.2, 0, 2), 0);
     expect(ringS(l, p.x, p.y)).toBeCloseTo(valueS(l, 1.2, 0, 2), 6);
+  });
+
+  it('a drag along the arc moves the value by the arc length the finger travelled (marker under the finger)', () => {
+    const l = ringLayout(frame);
+    const a = ringPoint(l, valueS(l, 0.5, 0, 2), 0.5);
+    const b = ringPoint(l, valueS(l, 1.5, 0, 2), 0.5);
+    const ds = ringS(l, b.x, b.y) - ringS(l, a.x, a.y);
+    expect(0.5 + ds * valuePerPx(l, 0, 2)).toBeCloseTo(1.5, 6);
   });
 });
 

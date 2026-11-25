@@ -39,14 +39,17 @@ const door: Shot = {
 
 /**
  * `inside` down there: the whole lamp from the opened base to the crown, as large as the frame allows — the coil's
- * turns must read and the bottom contact must show in the opened wedge.
+ * turns must read and the bottom contact must show in the opened wedge. The aim sits a little below the lamp's
+ * middle so the base, where the reader's hand works, stands clear above the focus ring pinned at the bottom of the
+ * screen (F-ring-dock).
  */
+const wholeAim = insideAim.clone().add(new Vector3(0, -0.12, 0));
 const whole: Shot = {
-  position: v3(insideAim.clone().add(new Vector3(0, 0.04, 0)).addScaledVector(insideDir, 3.05)),
-  target: v3(insideAim.clone().add(new Vector3(0, 0.04, 0))),
+  position: v3(wholeAim.clone().addScaledVector(insideDir, 3.05)),
+  target: v3(wholeAim),
   fov: 34,
   near: 0.05,
-  fit: { center: v3(insideAim.clone().add(new Vector3(0, 0.04, 0))), radius: 0.9 },
+  fit: { center: v3(wholeAim), radius: 0.96 },
 };
 
 /** The magnifier on the lamp's glass, facing the door's camera (board frame). */

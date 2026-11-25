@@ -1,25 +1,17 @@
 /**
- * Where the focus ring lies on screen (CSS px, y down) — pure functions, so the rule is testable:
- *
- * - while the whole lens is in the frame the band hugs the bottom of its rim (a small gap outside the ring);
- * - as the lens grows the band rides down with the rim until its outer edge meets `floor` (the line above the
- *   navigator); from there it stays pinned on that line and the lens grows on past the frame — the arc keeps the
- *   curvature of the rim up to `cap`, then stays an arc of radius `cap` (never a straight bar). No jump anywhere:
- *   every quantity is continuous in the lens's circle, and a lens that cannot be projected (behind the camera) is
- *   the limit of a growing one.
+ * Where the focus ring lies on screen (CSS px, y down) — a pure function, so the rule is testable. The ring is
+ * separate from the lens (the owner, 2026-11-25: «зроби контрол зуму все ж окремо від лупи» → «Дуга внизу
+ * завжди»): a fixed arc at the bottom of the free area, above the navigator, centred where the camera keeps its
+ * target. Its size follows the viewport only; the lens, its zoom and the camera never move it. Below the band stays
+ * room for the names of the marks (`under`), so nothing of it stands over the picture above the arc.
  */
-export interface RingCircle {
-  /** Centre and radius of the lens's rim on screen, px. */
-  cx: number;
-  cy: number;
-  r: number;
-}
-
 export interface RingFrame {
   width: number;
   height: number;
-  /** The band's outer edge stays above this line (px from the top). */
+  /** The lowest line the ring and its mark names may reach (px from the top; above the navigator). */
   floor: number;
+  /** Room kept under the band for the marks' names, px. */
+  under: number;
   /** The free area's horizontal extent (left of the step panel) and its centre. */
   left: number;
   right: number;
@@ -29,46 +21,30 @@ export interface RingFrame {
 export interface RingLayout {
   cx: number;
   cy: number;
-  /** Radius of the band's inner edge (the lens edge), px. */
+  /** Radius of the band's inner edge, px. */
   r: number;
   /** Band thickness, px. */
   t: number;
   /** Half the arc's length along its inner edge, px. */
   half: number;
-  /** 0 riding the lens … 1 pinned well past it (the cyan rim line's strength). */
-  pinned: number;
 }
 
 const clamp = (x: number, a: number, b: number): number => Math.min(Math.max(x, a), b);
-const smooth = (a: number, b: number, x: number): number => {
-  const k = clamp((x - a) / (b - a), 0, 1);
-  return k * k * (3 - 2 * k);
-};
 
-/** Gap between the lens's rim and the band, px. */
-const GAP = 3;
-/** Half the arc as an angle (rad) while it hugs a small lens. */
-const SPAN = 1.15;
+/** The arc's radius as a share of the frame's height: a gentle curve, never a straight bar. */
+const RADIUS = 1.15;
 
 export function ringThickness(height: number): number {
   return clamp(height * 0.04, 22, 40);
 }
 
-export function ringLayout(lens: RingCircle | null, f: RingFrame): RingLayout {
+export function ringLayout(f: RingFrame): RingLayout {
   const t = ringThickness(f.height);
-  const cap = 1.15 * f.height;
-  const big = lens === null || !Number.isFinite(lens.r) || lens.r + GAP >= cap;
-  const r = big ? cap : lens.r + GAP;
-  // a big lens's centre drifts to the free area's centre (where the camera keeps its target)
-  const w = big ? 1 : smooth(0.55 * cap, cap, lens.r);
-  const lowest = f.floor - t - r;
-  const natural = lens === null ? Number.POSITIVE_INFINITY : lens.cy;
-  const cy = Math.min(natural, lowest);
-  const pinned = big ? 1 : smooth(0, 0.12 * f.height, natural - lowest);
-  const half = Math.min(r * SPAN, 0.42 * (f.right - f.left), 0.34 * f.height);
-  const x = big ? f.freeX : lens.cx + (f.freeX - lens.cx) * w;
-  const cx = clamp(x, f.left + half + t, Math.max(f.right - half - t, f.left + half + t));
-  return { cx, cy, r, t, half, pinned };
+  const r = RADIUS * f.height;
+  const half = Math.min(r * 1.15, 0.42 * (f.right - f.left), 0.34 * f.height);
+  const cy = f.floor - f.under - t - r;
+  const cx = clamp(f.freeX, f.left + half + t, Math.max(f.right - half - t, f.left + half + t));
+  return { cx, cy, r, t, half };
 }
 
 /** Screen point at arc coordinate s (px along the inner edge from the middle) and v (across, 0 … 1). */

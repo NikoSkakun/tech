@@ -150,13 +150,13 @@ async function run(name) {
     check(after !== before, '«Далі» by touch goes to the next step', `${before} → ${after}`);
     await layout('next step');
     await shot('next');
-    // the depth is the focus ring on the lens (F-lens-ring): a tap on the lens takes it, the ring shows on its rim,
+    // the depth is the focus ring (F-lens-ring, F-ring-dock): a tap on the lens takes it, the ring shows at the bottom,
     // a finger along the ring turns it
     const lens = await page.evaluate(() => window.__app.locate('lens'));
     await t.tap(lens.x, lens.y);
     await settle(page, 180);
     const ring0 = (await prologue()).dive;
-    check(ring0.lensMode && ring0.ring.shown, 'a tap on the lens by touch shows the focus ring on it');
+    check(ring0.lensMode && ring0.ring.shown, 'a tap on the lens by touch shows the focus ring');
     if (ring0.ring.marker) {
       const m = ring0.ring.marker;
       const l = ring0.ring.layout;

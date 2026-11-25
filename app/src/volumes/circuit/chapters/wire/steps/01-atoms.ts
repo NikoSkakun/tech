@@ -1,8 +1,8 @@
 /**
  * `wire/atoms` — «Ряди атомів». The reader comes down through the lens to the rows (from the prologue: the whole
  * dive, `world.flyIn`) and touches one ball: it swells, stays lit, and from the takeaway on it carries the caption
- * «атом». The depth is the focus ring on the lens (F-lens-ring, as `prologue/dive`): the reader is in lens mode the
- * whole step — the ring rides the lens once it lies on the wire and stays as the bottom arc of its rim below; turning
+ * «атом». The depth is the focus ring (F-lens-ring, F-ring-dock, as `prologue/dive`): the reader is in lens mode the
+ * whole step — the ring stands as an arc at the bottom of the screen, apart from the lens; turning
  * it moves between the lens on the wire, the wire's core and the rows; a drag on empty space (or on the atoms) sways
  * the camera a little and it springs back.
  *
@@ -43,7 +43,6 @@ export const atomsStep: StepFactory = ({ ctx, world, reached, reach }) => {
     value: () => Math.max(w.position, 0),
     target: () => Math.max(w.goal, 0),
     shown: inLens,
-    lens: w.stand.tools.lens,
     scrub: (v) => w.scrub(v),
     travelTo: (v) => w.travelTo(v),
     valueText: stopName,

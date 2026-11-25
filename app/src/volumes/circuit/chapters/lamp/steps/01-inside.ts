@@ -1,9 +1,9 @@
 /**
  * `lamp/inside` — «Усередині лампочки». The switch opens by itself on entry; the lamp is dark, the coil reads turn
  * by turn. The lens is the way in (DECISIONS §60 p, `parts/door.ts`; F-lens-ring as `prologue/dive`): a tap on the
- * lens in its holder lays it on the lamp's glass — lens mode, the knurled focus ring shows on its rim; turning the
+ * lens in its holder lays it on the lamp's glass — lens mode, the knurled focus ring shows as an arc at the bottom of the screen; turning the
  * ring (or the wheel, the keys, its mark's name) goes 0 the lens on the glass … 1 «усередині лампочки» (the base
- * opened, the rim arcs in the corners; the ring stays as the bottom arc of the rim). A tap on the lens with the ring
+ * opened, the rim arcs in the corners; the ring stays where it is, apart from the lens). A tap on the lens with the ring
  * at its start lays it back; a drag on empty space sways the camera and it springs back. Down there a light mark waits
  * on the bottom contact; the reader drags it along the current's way to the thread (`parts/path-marker.ts`).
  * Names of the parts on hover / long press; «нитка розжарення» appears over the coil at the takeaway.
@@ -44,7 +44,6 @@ export const insideStep: StepFactory = ({ ctx, world, lens, door, reached, reach
     value: () => Math.max(pos(), 0),
     target: () => Math.max(door.rail.target, 0),
     shown: inLens,
-    lens: world.stand.tools.lens,
     scrub: (v) => door.rail.scrub(v),
     travelTo: (v) => door.rail.travelTo(v),
     valueText: (v) => (v > 0.5 ? caption('inside', 2) : caption('inside', 1)),

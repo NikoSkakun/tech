@@ -1,5 +1,6 @@
 /* global window, document */
-// `prologue/dive` by the focus ring (F-lens-ring): the lens taken by a tap, the knurled ring on its rim, turned by a
+// `prologue/dive` by the focus ring (F-lens-ring, F-ring-dock): the lens taken by a tap, the knurled ring pinned as the
+// bottom arc of the screen, turned by a
 // drag along it, the wheel, the keys and the names of its marks; lens mode's camera sway; the lens laid back.
 // Called from interactions.mjs with the step entered, the switch open and the lens in its holder.
 
@@ -70,7 +71,20 @@ export async function diveByRing(page, { state, check, at, advance, takeaway, sh
     `${reveal.length} frames`,
   );
   const l0 = g2.dive.ring.layout;
-  check('…riding the lens (not pinned), on screen', l0.pinned < 0.05 && l0.cy + l0.r + l0.t < h && l0.cx > 0 && l0.cx < w);
+  const nav0 = await page.evaluate(() => document.querySelector('[data-ui="navigator"]')?.getBoundingClientRect().top ?? 0);
+  check(
+    '…at once the bottom arc, above the navigator, in the frame',
+    l0.cy + l0.r + l0.t <= nav0 + 1 && l0.cy + l0.r > 0.6 * h && g2.dive.ring.ends.every((e) => e.x > 0 && e.x < w && e.y > 0 && e.y < h),
+    `bottom ${(l0.cy + l0.r + l0.t).toFixed(0)} px, navigator ${nav0.toFixed(0)}`,
+  );
+  const names = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-ui^="depth-ring:"]')].map((c) => c.getBoundingClientRect().top),
+  );
+  check(
+    '…the names of its marks stand under the band',
+    names.length === 2 && names.every((top, i) => top >= g2.dive.ring.marks[i].y + l0.t / 2),
+    names.map((t) => t.toFixed(0)).join(', '),
+  );
   check(
     '…the slider element is there for the keyboard',
     await page.evaluate(() => {
@@ -98,8 +112,8 @@ export async function diveByRing(page, { state, check, at, advance, takeaway, sh
   const l1 = d1.dive.ring.layout;
   const nav = await page.evaluate(() => document.querySelector('[data-ui="navigator"]')?.getBoundingClientRect().top ?? 0);
   check(
-    '…the lens past the frame: the ring stays as the bottom arc, above the navigator, in the frame',
-    l1.pinned > 0.95 && l1.cy + l1.r + l1.t <= nav + 1 && d1.dive.ring.ends.every((e) => e.x > 0 && e.x < w && e.y > 0 && e.y < h),
+    '…the lens past the frame: the ring has not moved (apart from the lens), above the navigator',
+    ['cx', 'cy', 'r', 't', 'half'].every((k) => Math.abs(l1[k] - l0[k]) < 1e-6) && l1.cy + l1.r + l1.t <= nav + 1,
     `bottom ${(l1.cy + l1.r + l1.t).toFixed(0)} px, navigator ${nav.toFixed(0)}`,
   );
   await turnRing(page, dive, -300, { until: (d) => d.position <= 0.5 });

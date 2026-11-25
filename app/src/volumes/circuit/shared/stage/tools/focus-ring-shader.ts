@@ -1,11 +1,11 @@
 /**
  * The look of the magnifier's focus ring (`focus-ring.ts`): a knurled metal band drawn in screen space along an
- * arc. The geometry is static (`aKV`: share along, v across — 0 at the lens edge … 1 outside, negative v is the
- * room the marker ◆ pokes into the lens); the arc itself (centre, radius, length, CSS px) comes in as uniforms.
+ * arc. The geometry is static (`aKV`: share along, v across — 0 at the inner (upper) edge … 1 the outer,
+ * negative v is the room the marker ◆ pokes above the band); the arc (centre, radius, length, CSS px) comes in as
+ * uniforms.
  *
- * Profile across the band: a thin cyan line at the lens edge (the rim itself, strong once the ring is pinned to the
- * frame's bottom), a smooth inner lip with the printed floor marks, then the diamond knurl (the grip) that scrolls
- * with the value — turning the ring visibly turns it. Lit from above as one toon band (two soft steps), a rim light
+ * Profile across the band: a thin cyan line at the inner edge, a smooth inner lip with the printed floor marks, then
+ * the diamond knurl (the grip) that scrolls with the value — turning the ring visibly turns it. Lit from above as one toon band (two soft steps), a rim light
  * on the edges; the ends are rounded. Unlit by the scene on purpose: it lives on the overlay layer, never blurred.
  */
 export const MAX_MARKS = 4;
@@ -34,7 +34,6 @@ uniform float uT;        // band thickness, px
 uniform float uAmount;   // 0…1 presence (reveal: the band grows from its middle)
 uniform float uHot;      // 0…1 hover / drag
 uniform float uFocus;    // 0…1 keyboard focus outline
-uniform float uRim;      // 0…1 the cyan rim line at the lens edge
 uniform float uTurn;     // knurl scroll, px
 uniform float uMarker;   // s of the current value, px
 uniform float uMarks[${MAX_MARKS}];
@@ -60,7 +59,7 @@ void main() {
   float s = vArc.x;
   float v = vArc.y;
   float px = max(fwidth(s), 1e-3);
-  float y = v * uT;                          // px across the band from the lens edge
+  float y = v * uT;                          // px across the band from the inner edge
   float half_ = uHalf * uAmount;
   // the band: a stadium from -half_ … half_ along, 0 … uT across (rounded ends)
   float qx = max(abs(s) - (half_ - 0.5 * uT), 0.0);
@@ -85,18 +84,18 @@ void main() {
     print = max(print, m * smoothstep(0.08, 0.14, u) * (1.0 - smoothstep(0.4, 0.46, u)));
   }
   col = mix(col, uPrint, print * 0.9);
-  // edges: a bright lip where the band meets the lens, a dark one outside; hover lights both in cyan
+  // edges: a bright lip along the inner edge, a dark one outside; hover lights both in cyan
   float edgeIn = 1.0 - smoothstep(0.0, 2.2 * px, y);
   float edgeOut = smoothstep(uT - 2.2 * px, uT, y);
   col = mix(col, uLight, edgeIn * 0.5);
   col = mix(col, uDark, edgeOut * 0.6);
   col += uCyan * (0.14 + 0.5 * (edgeIn + edgeOut)) * uHot;
-  // the rim: a thin cyan line along the lens edge, with a soft glow into the lens
+  // a thin cyan line along the band's inner edge
   float rimLine = (1.0 - smoothstep(1.0 * px, 2.4 * px, abs(y - 0.6 * px))) * step(abs(s), half_);
-  col = mix(col, uCyan * 1.15, rimLine * uRim);
+  col = mix(col, uCyan * 1.15, rimLine);
   float a = band;
 
-  // the index: a yellow notch across the band at the value and the marker ◆ poking into the lens
+  // the index: a yellow notch across the band at the value and the marker ◆ poking above the band
   float notch = (1.0 - smoothstep(1.0, 2.0, abs(s - uMarker) / max(px, 0.5))) * band;
   col = mix(col, uYellow, notch * 0.95);
   float mw = 0.34 * uT;

@@ -107,14 +107,14 @@ const steps = {
     );
     await advance(page, 1);
     check('takeaway after the touch', await takeaway());
-    // the focus ring on the lens is the dive (F-lens-ring): the reader is in lens mode, the ring is the rim's bottom arc
+    // the focus ring is the dive (F-lens-ring, F-ring-dock): the reader is in lens mode, the ring is the bottom arc
     const atoms = () => read(page, 'atoms');
     let r = await atoms();
     const nav = await page.evaluate(() => document.querySelector('[data-ui="navigator"]')?.getBoundingClientRect().top ?? 0);
     const l = r.ring.layout;
     check(
       'lens mode at the rows: the ring pinned as the bottom arc, above the navigator',
-      r.lensMode && r.ring.amount === 1 && l.pinned > 0.95 && l.cy + l.r + l.t <= nav + 1,
+      r.lensMode && r.ring.amount === 1 && l.cy + l.r + l.t <= nav + 1 && l.cy + l.r > 0.6 * (await page.evaluate(() => window.innerHeight)),
       `bottom ${(l.cy + l.r + l.t).toFixed(0)}, navigator ${nav.toFixed(0)}`,
     );
     check('no depth slider in the panel', !(await page.evaluate(() => !!document.querySelector('[data-ui="ctl-depth"]'))));
