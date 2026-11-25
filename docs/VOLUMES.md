@@ -55,6 +55,11 @@ every chapter of the volume imports it; chapters of a dev volume (`_dev`, `_path
 `local/volume-boundary`). When a second
 volume needs a model that already exists in another one, promote that model to the platform through a
 request — do not import across volumes (lint `local/volume-boundary` forbids it).
+**One declared exception** (`B-battery`, 2026-11-25): a volume that is built on another volume's world lists it in
+`volume.json` → `"borrows": ["<other>"]`; it may then import that volume's `shared/**` (its chapters and its own
+`shared/**` may), nothing else of it, and the lint rules check exactly that. First use: `alkaline` stands on the
+stand of `circuit` (`@circuit/shared/stage`). Borrowing makes the lender's `shared/**` an API: its defaults may not
+change without checking the borrower too.
 
 A chapter has one home volume. Other volumes link to it with a full address; listing a chapter of another
 volume as a guest node on a journey map is not implemented yet (§58 d) — the data model (`VolumeManifest.
@@ -163,7 +168,8 @@ sizes). Deploy.
 
 - Platform code never names a volume (lint: `local/volume-boundary`); a volume never imports another volume;
   a chapter imports the platform and its own volume's `sim/**`, `content/**` and `shared/**` only (a dev
-  sandbox may also import another volume's `shared/**`).
+  sandbox may also import another volume's `shared/**`; a volume that declares `"borrows"` may import the
+  borrowed volume's `shared/**`, §2).
 - Anything a volume wants to look or read differently is a field of its manifest, not an `if (volume === …)`.
 - Text of the volume shell (titles, group names, axis words, home-screen lines) is data in `volume.json`;
   chapter text comes from the documents through `tools/content` — never typed in code.

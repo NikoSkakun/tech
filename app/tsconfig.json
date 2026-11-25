@@ -20,7 +20,8 @@
       "@/*": ["./src/*"],
       "@electricity/*": ["./src/volumes/electricity/*"],
       "@circuit/*": ["./src/volumes/circuit/*"],
-      "@water/*": ["./src/volumes/water/*"]
+      "@water/*": ["./src/volumes/water/*"],
+      "@alkaline/*": ["./src/volumes/alkaline/*"]
     }
   },
   "include": ["src", "vite.config.ts"]

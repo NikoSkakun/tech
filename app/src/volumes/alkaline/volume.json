@@ -1,0 +1,61 @@
+{
+  "id": "alkaline",
+  "title": "Батарейка",
+  "subtitle": "Що в ній і як вона працює",
+  "kicker": "Інтерактивна 3D-енциклопедія",
+  "lead": "Звичайна пальчикова батарейка світить лампочкою годинами. Розріжмо її, спустімося до атома цинку й подивімося, як вона це робить.",
+  "emptyNote": "",
+  "order": 2,
+  "accent": "amber",
+  "emblem": "plus",
+  "status": "published",
+  "format": "path",
+  "borrows": ["circuit"],
+  "axis": {
+    "label": "Поверх",
+    "unit": "",
+    "hint": "Де ми: від стенда до атомів цинку",
+    "floors": [
+      { "id": "atoms", "label": "атоми", "value": 0, "plain": "кульки", "namedAt": "inside/atoms" },
+      { "id": "grains", "label": "зернятка", "value": 1 },
+      { "id": "battery", "label": "батарейка", "value": 2 },
+      { "id": "stand", "label": "стенд", "value": 3 }
+    ]
+  },
+  "groups": [
+    { "id": "prologue", "label": "Пролог", "layer": "prologue" },
+    { "id": "path", "label": "Шлях", "layer": "path" }
+  ],
+  "journey": [
+    {
+      "id": "prologue",
+      "group": "prologue",
+      "title": "Маленька батарейка світить годинами. Що в ній?",
+      "minutes": 4,
+      "floor": "stand"
+    },
+    { "id": "layers", "group": "path", "title": "Що всередині батарейки?", "minutes": 9, "floor": "battery" },
+    {
+      "id": "inside",
+      "group": "path",
+      "title": "Хто в батарейці віддає, а хто забирає?",
+      "minutes": 9,
+      "floor": "atoms"
+    },
+    {
+      "id": "trick",
+      "group": "path",
+      "title": "Як батарейка жене електрони крізь лампочку?",
+      "minutes": 9,
+      "floor": "battery"
+    },
+    { "id": "life", "group": "path", "title": "Чому батарейка сідає?", "minutes": 7, "floor": "battery" },
+    {
+      "id": "care",
+      "group": "path",
+      "title": "Чому батарейка гріється і протікає?",
+      "minutes": 7,
+      "floor": "stand"
+    }
+  ]
+}

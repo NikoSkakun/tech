@@ -27,7 +27,7 @@ const chaptersOf = (volume: string): ChapterManifest[] =>
 
 describe('volumes in the repository', () => {
   it('has the volumes this test knows about', () => {
-    expect(volumes.map((v) => v.dir).sort()).toEqual(['_demo', '_dev', '_path', 'circuit', 'electricity', 'water']);
+    expect(volumes.map((v) => v.dir).sort()).toEqual(['_demo', '_dev', '_path', 'alkaline', 'circuit', 'electricity', 'water']);
     expect(Object.keys(IDENTITIES)).toHaveLength(volumes.length);
   });
 

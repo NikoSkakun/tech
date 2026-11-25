@@ -14,7 +14,11 @@
 //
 // `volume-boundary` — nothing inside one volume imports another volume, and platform code never names a volume
 // (volumes are discovered with `import.meta.glob`).
-import { readdirSync } from 'node:fs';
+//
+// One declared exception (docs/VOLUMES.md §2): a volume whose `volume.json` lists `"borrows": ["<other>"]` may
+// import that other volume's scene library `shared/**` — from its chapters and its own `shared/**` — and nothing
+// else of it (`alkaline` — the mini-volume about the battery — stands on the stand of `circuit`).
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -35,6 +39,19 @@ function volumeIds() {
     return [];
   }
 }
+
+/** The volumes whose `shared/**` this volume borrows (`volume.json` → `borrows`). */
+function borrowsOf(volume) {
+  try {
+    const json = JSON.parse(readFileSync(path.join(VOLUMES, volume, 'volume.json'), 'utf8'));
+    return Array.isArray(json.borrows) ? json.borrows : [];
+  } catch {
+    return [];
+  }
+}
+
+/** An import of `<other>/shared/**` by a volume that declares it borrows `<other>`. */
+const borrowed = (from, seg) => seg[1] === 'shared' && seg.length > 2 && borrowsOf(from).includes(seg[0]);
 
 /** Path segments below `src/volumes/` (`[volume, area, …]`), or null for a path outside it. */
 function inVolumes(target) {
@@ -104,7 +121,7 @@ export const chapterBoundary = {
         // a relative path into the platform (`../../../../kit`) or to src/volumes itself
         context.report({ node, messageId: 'leaves', data: { spec } });
       } else if (seg[0] !== here.volume) {
-        if (!showcase(here.volume, seg))
+        if (!showcase(here.volume, seg) && !borrowed(here.volume, seg))
           context.report({ node, messageId: 'volume', data: { spec, target: seg[0] } });
       } else if (seg[1] === 'chapters') {
         context.report({ node, messageId: 'other', data: { spec, target: seg[2] ?? '' } });
@@ -143,7 +160,11 @@ export const volumeBoundary = {
         // files directly in src/volumes/ (library.json consumers) and main.ts are not "platform libraries"
         if (path.dirname(file) === VOLUMES || path.dirname(file) === SRC) return;
         context.report({ node, messageId: 'platform', data: { spec } });
-      } else if (volume !== here.volume && !(here.chapter && showcase(here.volume, seg))) {
+      } else if (
+        volume !== here.volume &&
+        !(here.chapter && showcase(here.volume, seg)) &&
+        !borrowed(here.volume, seg)
+      ) {
         context.report({ node, messageId: 'cross', data: { spec, target: volume } });
       }
     });

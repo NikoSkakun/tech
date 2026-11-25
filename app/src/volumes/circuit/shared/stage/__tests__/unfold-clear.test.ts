@@ -16,5 +16,5 @@ describe('the unfolding: no wire through a part (owner 2026-11-19)', () => {
           `${c.u.toFixed(3)} ${c.wire} ${c.solid} ${c.depth.toFixed(3)} @${c.at.toFixed(2)} ${c.where?.map((v) => v.toFixed(3)).join(',') ?? ''}`,
         );
     expect(all.map((c) => `${c.u.toFixed(3)} ${c.wire} ${c.solid}`)).toEqual([]);
-  });
+  }, 30_000); // ~4.5 s alone; under a full parallel run it outgrew the 5 s default
 });
